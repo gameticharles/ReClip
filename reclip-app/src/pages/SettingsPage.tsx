@@ -116,6 +116,12 @@ export default function SettingsPage({
         if (e.metaKey) modifiers.push('Super');
 
         let key = e.key.toUpperCase();
+
+        // Use code for Digits to handle Shift correctly (e.g. Shift+1 should be Shift+1, not !)
+        if (e.code.startsWith('Digit')) {
+            key = e.code.replace('Digit', '');
+        }
+
         if (['CONTROL', 'SHIFT', 'ALT', 'META'].includes(key)) return; // Just modifier pressed
 
         // Map common keys if needed, or use key directly
@@ -310,16 +316,88 @@ export default function SettingsPage({
                 <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
                     {activeTab === 'general' && (
                         <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>General</h2>
+                            <h2 style={{ marginTop: 0 }}>General Settings</h2>
                             <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between' }}>
+                                    <span style={{ fontWeight: 600 }}>Always on Top</span>
                                     <input
                                         type="checkbox"
                                         checked={alwaysOnTop}
                                         onChange={toggleAlwaysOnTop}
+                                        style={{ accentColor: 'var(--accent-color)' }}
                                     />
-                                    Always on Top
                                 </label>
+                            </div>
+                            {/* Auto Start Todo */}
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between' }}>
+                                    <span style={{ fontWeight: 600 }}>Start on System Startup (Coming Soon)</span>
+                                    <input
+                                        type="checkbox"
+                                        disabled
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'interface' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>Interface customization</h2>
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Window Opacity ({opacity}%)</label>
+                                <input
+                                    type="range"
+                                    min="10"
+                                    max="100"
+                                    value={opacity}
+                                    onChange={handleOpacityChange}
+                                    style={{ width: '100%', accentColor: 'var(--accent-color)' }}
+                                />
+                            </div>
+
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Date Display Format</label>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <label style={{ cursor: 'pointer' }}>
+                                        <input
+                                            type="radio"
+                                            name="dateFormat"
+                                            value="relative"
+                                            checked={localStorage.getItem('dateFormat') !== 'absolute'}
+                                            onChange={() => { localStorage.setItem('dateFormat', 'relative'); window.location.reload(); }}
+                                        /> Relative (e.g. 5m ago)
+                                    </label>
+                                    <label style={{ cursor: 'pointer' }}>
+                                        <input
+                                            type="radio"
+                                            name="dateFormat"
+                                            value="absolute"
+                                            checked={localStorage.getItem('dateFormat') === 'absolute'}
+                                            onChange={() => { localStorage.setItem('dateFormat', 'absolute'); window.location.reload(); }}
+                                        /> Absolute (Date & Time)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Auto-Hide Window</label>
+                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>Automatically hide window after inactivity.</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="600"
+                                        defaultValue={localStorage.getItem('autoHideDuration') || "0"}
+                                        onChange={(e) => {
+                                            localStorage.setItem('autoHideDuration', e.target.value);
+                                        }}
+                                        style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #444' }}
+                                    />
+                                    <span>seconds (0 to disable)</span>
+                                </div>
+                                <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '4px' }}>Note: Requires restart or reload to take effect fully.</p>
                             </div>
                         </div>
                     )}
@@ -402,6 +480,41 @@ export default function SettingsPage({
                                 >
                                     {recordingAction === 'paste_next' ? 'Press keys...' : (shortcuts['paste_next'] || 'Not Set')}
                                 </div>
+                            </div>
+
+                            {/* Paste 1-9 */}
+                            <h3 style={{ fontSize: '0.9rem', marginTop: '24px', marginBottom: '12px' }}>Paste Specific Clip (1-9)</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+                                {Array.from({ length: 9 }).map((_, i) => {
+                                    const num = i + 1;
+                                    const action = `paste_${num}`;
+                                    return (
+                                        <div key={action} className="setting-item" style={{ marginBottom: 0 }}>
+                                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem' }}>Pos {num}</label>
+                                            <div
+                                                className="shortcut-input"
+                                                onClick={() => handleRecordClick(action)}
+                                                onKeyDown={(e) => recordingAction === action && handleKeyDown(e, action)}
+                                                tabIndex={0}
+                                                style={{
+                                                    padding: '8px',
+                                                    background: recordingAction === action ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)',
+                                                    color: recordingAction === action ? 'white' : 'inherit',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid rgba(128,128,128,0.2)',
+                                                    cursor: 'pointer',
+                                                    textAlign: 'center',
+                                                    fontWeight: 600,
+                                                    fontSize: '0.8rem',
+                                                    outline: 'none',
+                                                    userSelect: 'none'
+                                                }}
+                                            >
+                                                {recordingAction === action ? '...' : (shortcuts[action] || `Ctrl+${num}`)}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -554,6 +667,34 @@ export default function SettingsPage({
                                     onBlur={handleMaintenanceChange}
                                     style={{ padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)', background: 'rgba(255,255,255,0.1)' }}
                                 />
+                            </div>
+
+                            <div className="setting-item" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.2)', paddingTop: '24px' }}>
+                                <h3 style={{ color: '#ef4444', marginTop: 0, fontSize: '0.9rem' }}>Danger Zone</h3>
+                                <button
+                                    onClick={async () => {
+                                        if (await window.confirm("Are you sure you want to delete ALL clips? This cannot be undone.")) {
+                                            try {
+                                                await invoke("clear_clips");
+                                                window.alert("Database cleared successfully.");
+                                            } catch (e) {
+                                                console.error(e);
+                                                window.alert("Failed to clear database.");
+                                            }
+                                        }
+                                    }}
+                                    style={{
+                                        background: 'rgba(239,68,68,0.1)',
+                                        color: '#ef4444',
+                                        border: '1px solid #ef4444',
+                                        padding: '8px 16px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    🗑️ Clear Entire Database
+                                </button>
                             </div>
                         </div>
                     )}

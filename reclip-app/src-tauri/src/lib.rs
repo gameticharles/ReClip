@@ -40,6 +40,41 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 // ...
 
+/// Normalize shortcut string from plugin format to stored format
+/// Plugin: "shift+control+alt+Digit1" -> Stored: "Ctrl+Shift+Alt+1"
+fn normalize_shortcut(shortcut: &str) -> String {
+    let parts: Vec<&str> = shortcut.split('+').collect();
+    let mut modifiers = Vec::new();
+    let mut key = String::new();
+    
+    for part in parts {
+        match part.to_lowercase().as_str() {
+            "control" | "ctrl" => modifiers.push("Ctrl"),
+            "shift" => modifiers.push("Shift"),
+            "alt" => modifiers.push("Alt"),
+            "meta" | "super" | "command" => modifiers.push("Super"),
+            _ => {
+                // Handle key part
+                let normalized_key = if part.starts_with("Digit") || part.starts_with("digit") {
+                    part.replace("Digit", "").replace("digit", "")
+                } else if part.starts_with("Key") || part.starts_with("key") {
+                    part.replace("Key", "").replace("key", "").to_uppercase()
+                } else {
+                    part.to_uppercase()
+                };
+                key = normalized_key;
+            }
+        }
+    }
+    
+    // Sort modifiers consistently: Ctrl, Shift, Alt, Super
+    let order = ["Ctrl", "Shift", "Alt", "Super"];
+    modifiers.sort_by_key(|m| order.iter().position(|o| o == m).unwrap_or(100));
+    
+    modifiers.push(&key);
+    modifiers.join("+")
+}
+
 pub struct ShortcutStateMap(Mutex<HashMap<String, String>>); // Shortcut -> Action
 
 #[tauri::command]
@@ -90,6 +125,13 @@ async fn get_shortcuts(state: State<'_, DbState>) -> Result<HashMap<String, Stri
     let mut shortcuts = HashMap::new();
     if let Some(s) = db::get_setting(&state.pool, "shortcut_show_window").await { shortcuts.insert("show_window".to_string(), s); }
     if let Some(s) = db::get_setting(&state.pool, "shortcut_incognito").await { shortcuts.insert("incognito".to_string(), s); }
+    if let Some(s) = db::get_setting(&state.pool, "shortcut_paste_next").await { shortcuts.insert("paste_next".to_string(), s); }
+    for i in 1..=9 {
+        let key = format!("shortcut_paste_{}", i);
+        if let Some(s) = db::get_setting(&state.pool, &key).await {
+            shortcuts.insert(format!("paste_{}", i), s);
+        }
+    }
     Ok(shortcuts)
 }
 
@@ -158,6 +200,15 @@ pub fn run() {
                     if !next_sc.is_empty() {
                         map.insert(next_sc.clone(), "paste_next".to_string());
                     }
+                    
+                    // Paste 1-9
+                    for i in 1..=9 {
+                        let key = format!("shortcut_paste_{}", i);
+                         let sc = db::get_setting(&pool_clone, &key).await.unwrap_or("".to_string());
+                         if !sc.is_empty() {
+                             map.insert(sc, format!("paste_{}", i));
+                         }
+                    }
                 });
 
                 // Register Plugin with Handler
@@ -167,11 +218,17 @@ pub fn run() {
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |app: &tauri::AppHandle, shortcut, event| {
                             if event.state() == ShortcutState::Pressed {
+                                let shortcut_str = normalize_shortcut(&shortcut.to_string());
+                                println!("[DEBUG] Shortcut pressed (normalized): {}", shortcut_str);
+                                
                                 let map_state = app.state::<ShortcutStateMap>();
                                 let action = {
                                     let map = map_state.0.lock().unwrap();
-                                    map.get(&shortcut.to_string()).cloned()
+                                    println!("[DEBUG] Registered shortcuts: {:?}", map.keys().collect::<Vec<_>>());
+                                    map.get(&shortcut_str).cloned()
                                 };
+                                
+                                println!("[DEBUG] Action found: {:?}", action);
                                 
                                 if let Some(act) = action {
                                     if act == "show_window" {
@@ -191,6 +248,22 @@ pub fn run() {
                                     } else if act == "paste_next" {
                                         // Emit event for Frontend to handle
                                         let _ = app.emit("paste-next-trigger", ());
+                                    } else if act.starts_with("paste_") {
+                                        // Parse number
+                                        if let Ok(num) = act.trim_start_matches("paste_").parse::<usize>() {
+                                            // Backend Paste Logic
+                                            let app_clone = app.clone();
+                                            let state = app.state::<DbState>();
+                                            let pool = state.pool.clone();
+                                            
+                                            tauri::async_runtime::spawn(async move {
+                                                if let Ok(clips) = db::get_clips(&pool, 20, 0, None).await {
+                                                    if let Some(clip) = clips.get(num - 1) {
+                                                        let _ = paste_clip_to_system(app_clone, clip.content.clone(), clip.type_.clone()).await;
+                                                    }
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -257,8 +330,8 @@ pub fn run() {
              get_templates, add_template, delete_template, update_template,
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
              export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
-             get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
-             get_system_accent_color
+             validate_paths, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
+             get_system_accent_color, clear_clips
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -279,13 +352,54 @@ async fn delete_clip(state: State<'_, DbState>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, clip_type: Option<String>) -> Result<(), String> {
+async fn clear_clips(state: State<'_, DbState>) -> Result<(), String> {
+    db::delete_all_clips(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn validate_paths(content: String) -> Vec<(String, bool, bool)> {
+    // Content is expected to be JSON array of strings
+    if let Ok(paths) = serde_json::from_str::<Vec<String>>(&content) {
+        let mut results = Vec::new();
+        for path in paths {
+            let p = std::path::Path::new(&path);
+            let exists = p.exists();
+            let is_dir = p.is_dir();
+            results.push((path, exists, is_dir));
+        }
+        return results;
+    }
+    // Fallback: if single path string?
+    let p = std::path::Path::new(&content);
+    vec![(content.clone(), p.exists(), p.is_dir())]
+}
+
+#[tauri::command]
+async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, clip_type: String) -> Result<(), String> {
     // 1. Set to clipboard
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     
-    let clip_type = clip_type.unwrap_or_else(|| "text".to_string());
-    
-    if clip_type == "image" {
+    // FILES Handling (Windows)
+    if clip_type == "files" {
+        #[cfg(target_os = "windows")]
+        {
+            use clipboard_rs::{Clipboard, ClipboardContext};
+            if let Ok(paths) = serde_json::from_str::<Vec<String>>(&content) {
+                let ctx = ClipboardContext::new().map_err(|e| e.to_string())?;
+                ctx.set_files(paths).map_err(|e| e.to_string())?;
+            } else {
+                 return Err("Invalid file list format".to_string());
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+             return Err("File pasting not supported on this OS".to_string());
+        }
+    }
+    // IMAGE Handling
+    else if clip_type == "image" {
         // Load image from file path and set to clipboard
         let img = image::open(&content).map_err(|e| format!("Failed to load image: {}", e))?;
         let rgba = img.to_rgba8();
@@ -467,6 +581,14 @@ struct UrlMetadata {
     title: Option<String>,
     description: Option<String>,
     image: Option<String>,
+    // Additional SEO fields
+    og_title: Option<String>,
+    og_description: Option<String>,
+    og_site_name: Option<String>,
+    keywords: Option<String>,
+    author: Option<String>,
+    canonical: Option<String>,
+    favicon: Option<String>,
 }
 
 #[tauri::command]
@@ -486,24 +608,71 @@ async fn get_url_metadata(url: String) -> Result<UrlMetadata, String> {
 
     let text = res.text().await.map_err(|e| e.to_string())?;
     
-    // Regex parsing - simple and best-effort
-    let title = regex::Regex::new(r"(?i)<title>(.*?)</title>").unwrap()
-        .captures(&text)
-        .map(|c| c.get(1).unwrap().as_str().trim().to_string())
-        .map(|s| html_escape::decode_html_entities(&s).to_string()); // decoding would be nice but requires another crate. For now raw.
+    // Helper to extract meta content
+    let extract_meta = |name: &str, attr: &str| -> Option<String> {
+        let pattern = format!(r#"(?i)<meta\s+{}=[\"']{}[\"']\s+content=[\"']([^\"']*)[\"']"#, attr, name);
+        regex::Regex::new(&pattern).ok()
+            .and_then(|re| re.captures(&text))
+            .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+            .or_else(|| {
+                // Try reverse order: content first
+                let pattern2 = format!(r#"(?i)<meta\s+content=[\"']([^\"']*)[\"']\s+{}=[\"']{}[\"']"#, attr, name);
+                regex::Regex::new(&pattern2).ok()
+                    .and_then(|re| re.captures(&text))
+                    .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+            })
+    };
     
-    // Actually I don't have html_escape crate. So I'll just return raw string or basic unescape if needed.
-    // For now, raw title. HTML entities might be present.
+    // Title from <title> tag
+    let title = regex::Regex::new(r"(?i)<title>([^<]*)</title>").ok()
+        .and_then(|re| re.captures(&text))
+        .map(|c| c.get(1).unwrap().as_str().trim().to_string());
     
-    let description = regex::Regex::new(r#"(?i)<meta\s+name=["']description["']\s+content=["'](.*?)["']"#).unwrap()
-        .captures(&text)
+    // Standard meta tags
+    let description = extract_meta("description", "name");
+    let keywords = extract_meta("keywords", "name");
+    let author = extract_meta("author", "name");
+    
+    // Open Graph tags
+    let og_title = extract_meta("og:title", "property");
+    let og_description = extract_meta("og:description", "property");
+    let og_site_name = extract_meta("og:site_name", "property");
+    let image = extract_meta("og:image", "property");
+    
+    // Canonical URL
+    let canonical = regex::Regex::new(r#"(?i)<link\s+rel=[\"']canonical[\"']\s+href=[\"']([^\"']*)[\"']"#).ok()
+        .and_then(|re| re.captures(&text))
         .map(|c| c.get(1).unwrap().as_str().trim().to_string());
+    
+    // Favicon
+    let favicon = regex::Regex::new(r#"(?i)<link[^>]+rel=[\"'](?:shortcut\s+)?icon[\"'][^>]+href=[\"']([^\"']*)[\"']"#).ok()
+        .and_then(|re| re.captures(&text))
+        .map(|c| {
+            let href = c.get(1).unwrap().as_str().trim().to_string();
+            // Make absolute URL if relative
+            if href.starts_with("http") {
+                href
+            } else if href.starts_with("//") {
+                format!("https:{}", href)
+            } else if href.starts_with("/") {
+                if let Ok(parsed) = reqwest::Url::parse(&url) {
+                    format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or(""), href)
+                } else { href }
+            } else { href }
+        });
 
-    let image = regex::Regex::new(r#"(?i)<meta\s+property=["']og:image["']\s+content=["'](.*?)["']"#).unwrap()
-        .captures(&text)
-        .map(|c| c.get(1).unwrap().as_str().trim().to_string());
-
-    Ok(UrlMetadata { title, description, image })
+    Ok(UrlMetadata { 
+        title, 
+        description, 
+        image,
+        og_title,
+        og_description,
+        og_site_name,
+        keywords,
+        author,
+        canonical,
+        favicon,
+    })
 }
 
 #[tauri::command]

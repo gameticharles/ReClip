@@ -250,3 +250,9 @@ pub async fn set_setting(pool: &Pool<Sqlite>, key: &str, value: &str) -> Result<
         .await?;
     Ok(())
 }
+
+pub async fn delete_all_clips(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM clips").execute(pool).await?;
+    sqlx::query("DELETE FROM clip_fts").execute(pool).await?;
+    Ok(())
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -39,6 +39,76 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     // Paste Queue
     const [queueMode, setQueueMode] = useState(false);
     const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
+
+    // Advanced Settings States
+    const [dateFormat, setDateFormat] = useState<'absolute' | 'relative'>('relative');
+    const [autoHideDuration, setAutoHideDuration] = useState(0); // 0 = disabled
+    const [shortcuts, setShortcuts] = useState<Record<string, string>>({});
+
+    const fetchShortcuts = async () => {
+        try {
+            const map = await invoke<Record<string, string>>("get_shortcuts");
+            setShortcuts(map);
+        } catch (e) {
+            console.error("Failed to fetch shortcuts", e);
+        }
+    };
+
+    useEffect(() => {
+        fetchShortcuts();
+        // Also listen for shortcut updates if possible? 
+        // Or just refetch when window focuses? 
+        // For now, fetch once.
+    }, []);
+
+    // Helper for time ago
+    const formatTime = (dateStr: string) => {
+        if (dateFormat === 'absolute') return dateStr;
+        const date = new Date(dateStr + "Z"); // Ensure UTC if DB stores UTC without Z, but standard is UTC ISO
+        const now = new Date();
+        const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+        if (isNaN(diffSeconds)) return dateStr; // Fallback
+
+        if (diffSeconds < 60) return `${diffSeconds}s ago`;
+        if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+        if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+        if (diffSeconds < 2592000) return `${Math.floor(diffSeconds / 86400)}d ago`; // ~30 days
+        if (diffSeconds < 31536000) return `${Math.floor(diffSeconds / 2592000)}mo ago`; // ~365 days
+        return `${Math.floor(diffSeconds / 31536000)}y ago`;
+    };
+
+    // Auto-hide Effect
+    useEffect(() => {
+        if (autoHideDuration > 0) {
+            let timer: number;
+            const resetTimer = () => {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(() => {
+                    getCurrentWindow().hide();
+                }, autoHideDuration * 1000);
+            };
+
+            window.addEventListener('mousemove', resetTimer);
+            window.addEventListener('keydown', resetTimer);
+            resetTimer();
+
+            return () => {
+                window.clearTimeout(timer);
+                window.removeEventListener('mousemove', resetTimer);
+                window.removeEventListener('keydown', resetTimer);
+            };
+        }
+    }, [autoHideDuration]);
+
+    useEffect(() => {
+        // Load settings from localStorage for now
+        const savedFormat = localStorage.getItem('dateFormat');
+        if (savedFormat) setDateFormat(savedFormat as any);
+
+        const savedAutoHide = localStorage.getItem('autoHideDuration');
+        if (savedAutoHide) setAutoHideDuration(parseInt(savedAutoHide));
+    }, []);
 
     const addToQueue = (clip: Clip) => {
         setPasteQueue(prev => {
@@ -212,21 +282,34 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
+    const clipsRef = useRef(clips);
+    useEffect(() => { clipsRef.current = clips; }, [clips]);
+
     useEffect(() => {
         let unlistenCreate: (() => void) | null = null;
         let unlistenPasteNext: (() => void) | null = null;
+        let unlistenPasteIndex: (() => void) | null = null;
 
         const setup = async () => {
             fetchClips();
 
-            // Listen for clip creation
             unlistenCreate = await listen("clip-created", (_event) => {
                 fetchClips(searchTerm);
             });
 
-            // Listen for Paste Next Shortcut
             unlistenPasteNext = await listen("paste-next-trigger", (_event) => {
                 document.getElementById('hidden-paste-next-btn')?.click();
+            });
+
+            unlistenPasteIndex = await listen("paste-index-trigger", (event) => {
+                const index = (event.payload as number) - 1; // 1-based to 0-based
+                const currentClips = clipsRef.current;
+                if (index >= 0 && index < currentClips.length) {
+                    const item = currentClips[index];
+                    invoke("paste_clip_to_system", { content: item.content, clipType: item.type }).then(() => {
+                        // Optional: move window to back / hide?
+                    });
+                }
             });
         };
 
@@ -235,6 +318,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
         return () => {
             if (unlistenCreate) unlistenCreate();
             if (unlistenPasteNext) unlistenPasteNext();
+            if (unlistenPasteIndex) unlistenPasteIndex();
         };
     }, []);
 
@@ -470,18 +554,20 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                 <div className="clip-header">
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                         {index < 9 && (
-                                            <span title={`Ctrl+${index + 1}`} style={{
-                                                fontSize: '0.7rem',
-                                                fontWeight: 'bold',
-                                                color: compactMode ? '#888' : '#aaa',
-                                                background: 'rgba(0,0,0,0.05)',
-                                                border: '1px solid rgba(0,0,0,0.1)',
-                                                borderRadius: '4px',
-                                                padding: '0 4px',
-                                                minWidth: '1.2em',
-                                                textAlign: 'center',
-                                                cursor: 'help'
-                                            }}>
+                                            <span
+                                                title={`Shortcut: ${shortcuts[`paste_${index + 1}`] || `Ctrl+${index + 1}`}`}
+                                                style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 'bold',
+                                                    color: compactMode ? '#888' : '#aaa',
+                                                    background: 'rgba(0,0,0,0.05)',
+                                                    border: '1px solid rgba(0,0,0,0.1)',
+                                                    borderRadius: '4px',
+                                                    padding: '0 4px',
+                                                    minWidth: '1.2em',
+                                                    textAlign: 'center',
+                                                    cursor: 'help'
+                                                }}>
                                                 {index + 1}
                                             </span>
                                         )}
@@ -535,66 +621,53 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                             className={`fav-btn ${clip.favorite ? 'active' : ''}`}
                                             onClick={(e) => toggleFavorite(e, clip.id)}
                                             title={clip.favorite ? "Unfavorite" : "Favorite"}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
                                         >
-                                            {clip.favorite ? '⭐' : '☆'}
+                                            {clip.favorite ? (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                            ) : (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                            )}
                                         </button>
                                         <button
                                             className={`pin-btn ${clip.pinned ? 'active' : ''}`}
                                             onClick={(e) => togglePin(e, clip.id)}
                                             title={clip.pinned ? "Unpin" : "Pin"}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
                                         >
-                                            {clip.pinned ? '📌' : '📍'}
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill={clip.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+                                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
+                                            </svg>
                                         </button>
-                                        <span className="clip-date">{clip.created_at}</span>
+                                        <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
                                         <button
                                             className={`delete-btn ${selectedIndex === index && focusOnDelete ? 'focused' : ''}`}
                                             onClick={(e) => deleteClip(e, clip.id)}
                                             title="Delete"
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
                                         >
-                                            🗑️
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                                         </button>
                                     </div>
                                 </div>
                                 <div className="clip-content">
-                                    {clip.type === 'image' ? (
-                                        <img
-                                            src={convertFileSrc(clip.content, 'asset')}
-                                            alt="Clip"
-                                            className="clip-image"
-                                            style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '4px' }}
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).style.display = 'none';
-                                                console.error('Failed to load image:', clip.content);
-                                            }}
-                                        />
-                                    ) : clip.type === 'file' ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span>📁</span>
-                                            <span style={{ wordBreak: 'break-all' }}>{clip.content}</span>
+                                    {clip.type === 'text' && isColorCode(clip.content) ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                            <div style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                borderRadius: '6px',
+                                                backgroundColor: clip.content,
+                                                border: '2px solid rgba(0,0,0,0.25)',
+                                                boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
+                                            }} />
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
                                         </div>
                                     ) : (
-                                        isUrl(clip.content) ? (
-                                            <>
-                                                <div style={{ wordBreak: 'break-all', marginBottom: '4px' }}>
-                                                    <ClipContent content={clip.content} isCompact={compactMode} />
-                                                </div>
-                                                <UrlPreview url={clip.content} />
-                                            </>
-                                        ) : isColorCode(clip.content) ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{
-                                                    width: '32px',
-                                                    height: '32px',
-                                                    borderRadius: '6px',
-                                                    backgroundColor: clip.content,
-                                                    border: '2px solid rgba(0,0,0,0.25)',
-                                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
-                                                }} />
-                                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
-                                            </div>
-                                        ) : (
-                                            <ClipContent content={clip.content} isCompact={compactMode} />
-                                        )
+                                        <>
+                                            <ClipContent content={clip.content} type={clip.type} isCompact={compactMode} />
+                                            {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
+                                        </>
                                     )}
                                 </div>
                             </motion.div>

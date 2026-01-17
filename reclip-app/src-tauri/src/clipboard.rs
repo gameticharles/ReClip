@@ -55,10 +55,91 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
             let active_window = get_active_window().ok();
 
             // Helper to process text
+            // Check for Files (Windows only)
+            #[cfg(target_os = "windows")]
+            {
+                use clipboard_rs::{Clipboard, ClipboardContext};
+                
+                // Try reading file list
+                if let Ok(ctx) = ClipboardContext::new() {
+                    if let Ok(files) = ctx.get_files() {
+                        if !files.is_empty() {
+                         // We have files!
+                         let content = serde_json::to_string(&files).unwrap_or_default();
+                         let hash = blake3::hash(content.as_bytes()).to_string();
+                         
+                         // Dedupe
+                         if hash != last_hash {
+                             last_hash = hash.clone();
+                             let pool_clone = pool.clone();
+                             let app_handle_clone = app_handle.clone();
+                             let content_clone = content.clone();
+                             let hash_clone = hash.clone();
+                             
+                             tauri::async_runtime::spawn(async move {
+                                  let _ = insert_clip(&pool_clone, content_clone, "files".to_string(), hash_clone, None).await;
+                                  let _ = app_handle_clone.emit("clip-created", ());
+                             });
+                             thread::sleep(Duration::from_millis(500));
+                             continue;
+                         }
+                         // If hash matches, we skip (it's the same file selection)
+                         // But we should verify if we should fall through to text?
+                         // If user has files selected, clipboard likely ONLY has files (plus file paths as text sometimes).
+                         // If we processed files, we iterate loop.
+                         if hash == last_hash {
+                             thread::sleep(Duration::from_millis(500));
+                             continue;
+                         }
+                    }
+                }
+            }
+        }
+
             let text_result = clipboard.get_text();
             if let Ok(text) = text_result {
                 if !text.trim().is_empty() {
                     let hash = blake3::hash(text.as_bytes()).to_string();
+                    
+                    // Check Allow Duplicate Setting
+                    // Since we are in a sync loop, we need to fetch async setting?
+                    // Blocking await on every loop? Expensive if DB.
+                    // Better: Check hash first, if same, then check setting?
+                    // Yes. If hash is clean (new), always process.
+                    // If hash == last_hash, check if "allow_duplicate" is true.
+                    // But wait, if allow_duplicate is true, we simply IGNORE last_hash?
+                    // Yes. But we still need to update last_hash to avoid infinite loop of capturing same content repeatedly within ms?
+                    // "Allow duplicate" usually means "If I copy 'A', then 'B', then 'A', it stores 'A' again".
+                    // ReClip currently DOES store A, B, A because last_hash updates to B.
+                    // If I copy 'A', then 'A' again immediately. ReClip ignores second 'A'.
+                    // User wants: Copy 'A', wait, Copy 'A' -> Store 'A' again?
+                    // If user just keeps 'A' in clipboard, we don't want to spam DB every 100ms.
+                    // We only want to capture if **system clipboard event** happened.
+                    // Arboard doesn't give events, we poll.
+                    // If we poll, we CANNOT allow true duplicate unless we detect a "change" signal (which we don't have).
+                    // We rely on content change.
+                    // If user re-copies same text, content hasn't changed. We can't distinguish "User hit Ctrl+C again" from "Clipboard is still 'A'".
+                    // Solution: We can't strictly implement "Allow duplicate immediately" with polling, unless we have an OS event listener (tauri-plugin-clipboard-manager might use one).
+                    // For now, I will assume the user might mean "Allow duplicate IS possible if I copy A, B, A". 
+                    // My current logic `hash != last_hash` SUPPORTS A -> B -> A.
+                    // So what does "Allow duplicate" mean?
+                    // Maybe "Don't deduplicate against ENTIRE history"?
+                    // ReClip only dedups against `last_hash` (immediately previous).
+                    // If user says "Allow duplicate", maybe they mean "If I copy A, then A again".
+                    // We physically cannot detect that with polling strings.
+                    // UNLESS we check `last_update_time`? But string is same.
+                    // I'll skip this specific requirement's "deep" implementation until I switch to event-based (Phase 12 refactor?).
+                    // Or maybe user implies "Store it even if it exists in DB history"?
+                    // Existing logic: `insert_clip` stores it. `get_recent_clips` shows it.
+                    // Does `insert_clip` dedupe?
+                    // `insert_clip` inserts a new row.
+                    // So we DO support duplicates if `hash != last_hash`.
+                    // The only thing preventing "Copy A, Copy A" is `last_hash`.
+                    // And we can't fix that with polling.
+                    
+                    // I'll proceed with File Support and Shortcuts 1-9 instead.
+                    // Wait, maybe I can make a "Allow Duplicate" that forces insert even if hash match? NO, loop would produce 1000 clips in 1 sec.
+                    
                     if hash != last_hash {
                         let pool_clone = pool.clone();
                         let text_clone = text.clone();

@@ -43,4 +43,5 @@ x-win = "5.4.0"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+clipboard-rs = "0.3.1"
 
