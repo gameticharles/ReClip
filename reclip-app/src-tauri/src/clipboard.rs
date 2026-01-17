@@ -74,7 +74,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                             
                             // Check App Ignore Rules
                             if let Some(aw) = &active_window_clone {
-                                let app_name = aw.app_name.to_lowercase();
+                                let app_name = aw.info.name.to_lowercase();
                                 let title = aw.title.to_lowercase();
                                 for rule in &rules {
                                     if rule.rule_type == "APP_IGNORE" {

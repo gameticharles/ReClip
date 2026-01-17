@@ -189,3 +189,21 @@ pub async fn get_privacy_rules(pool: &Pool<Sqlite>) -> Result<Vec<PrivacyRule>, 
         .await?;
     Ok(rules)
 }
+
+pub async fn get_setting(pool: &Pool<Sqlite>, key: &str) -> Option<String> {
+    sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None)
+}
+
+pub async fn set_setting(pool: &Pool<Sqlite>, key: &str, value: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?")
+        .bind(key)
+        .bind(value)
+        .bind(value)
+        .execute(pool)
+        .await?;
+    Ok(())
+}

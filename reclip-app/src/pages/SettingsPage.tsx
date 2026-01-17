@@ -29,6 +29,9 @@ export default function SettingsPage({
     const [maxClips, setMaxClips] = useState(10000);
     const [exportStatus, setExportStatus] = useState("");
     const [privacyRules, setPrivacyRules] = useState<any[]>([]);
+    const [shortcuts, setShortcuts] = useState<{ [key: string]: string }>({});
+    const [recordingAction, setRecordingAction] = useState<string | null>(null);
+    // ... privacy states
     const [newIgnoreApp, setNewIgnoreApp] = useState("");
     const [newRegex, setNewRegex] = useState("");
 
@@ -41,10 +44,51 @@ export default function SettingsPage({
         }
     };
 
-    useEffect(() => {
-        if (activeTab === 'security') {
-            fetchPrivacyRules();
+    const fetchShortcuts = async () => {
+        try {
+            const s = await invoke<{ [key: string]: string }>("get_shortcuts");
+            setShortcuts(s);
+        } catch (e) {
+            console.error("Failed to fetch shortcuts", e);
         }
+    };
+
+    const handleRecordClick = (action: string) => {
+        setRecordingAction(action);
+    };
+
+    const handleKeyDown = async (e: React.KeyboardEvent, action: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const modifiers = [];
+        if (e.ctrlKey) modifiers.push('Ctrl');
+        if (e.shiftKey) modifiers.push('Shift');
+        if (e.altKey) modifiers.push('Alt');
+        if (e.metaKey) modifiers.push('Super');
+
+        let key = e.key.toUpperCase();
+        if (['CONTROL', 'SHIFT', 'ALT', 'META'].includes(key)) return; // Just modifier pressed
+
+        // Map common keys if needed, or use key directly
+        if (key === ' ') key = 'SPACE';
+
+        const shortcut = [...modifiers, key].join('+');
+
+        try {
+            await invoke("update_shortcut", { action, newShortcut: shortcut });
+            setRecordingAction(null);
+            fetchShortcuts();
+        } catch (err) {
+            console.error(err);
+            setRecordingAction(null); // Simple error handling
+            alert("Failed to set shortcut: " + err);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'security') fetchPrivacyRules();
+        if (activeTab === 'shortcuts') fetchShortcuts();
     }, [activeTab]);
 
     const handleAddRule = async (type: string, value: string) => {
@@ -145,9 +189,11 @@ export default function SettingsPage({
         }
     };
 
+
     const tabs = [
         { id: 'general', label: 'General', icon: '⚙️' },
         { id: 'interface', label: 'Interface', icon: '🎨' },
+        { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
         { id: 'security', label: 'Security', icon: '🔒' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
         { id: 'backup', label: 'Backup', icon: '💾' }
@@ -224,6 +270,63 @@ export default function SettingsPage({
                                     />
                                     Always on Top
                                 </label>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'shortcuts' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>Keyboard Shortcuts</h2>
+                            <p style={{ opacity: 0.7, marginBottom: '24px' }}>Click on a shortcut to record a new key combination.</p>
+
+                            {/* Show Window */}
+                            <div className="setting-item" style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Show / Hide ReClip</label>
+                                <div
+                                    className="shortcut-input"
+                                    onClick={() => handleRecordClick('show_window')}
+                                    onKeyDown={(e) => recordingAction === 'show_window' && handleKeyDown(e, 'show_window')}
+                                    tabIndex={0}
+                                    style={{
+                                        padding: '12px',
+                                        background: recordingAction === 'show_window' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)',
+                                        color: recordingAction === 'show_window' ? 'white' : 'inherit',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(128,128,128,0.2)',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontWeight: 700,
+                                        outline: 'none',
+                                        userSelect: 'none'
+                                    }}
+                                >
+                                    {recordingAction === 'show_window' ? 'Press keys...' : (shortcuts['show_window'] || 'Not Set')}
+                                </div>
+                            </div>
+
+                            {/* Incognito */}
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Toggle Incognito Mode</label>
+                                <div
+                                    className="shortcut-input"
+                                    onClick={() => handleRecordClick('incognito')}
+                                    onKeyDown={(e) => recordingAction === 'incognito' && handleKeyDown(e, 'incognito')}
+                                    tabIndex={0}
+                                    style={{
+                                        padding: '12px',
+                                        background: recordingAction === 'incognito' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)',
+                                        color: recordingAction === 'incognito' ? 'white' : 'inherit',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(128,128,128,0.2)',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontWeight: 700,
+                                        outline: 'none',
+                                        userSelect: 'none'
+                                    }}
+                                >
+                                    {recordingAction === 'incognito' ? 'Press keys...' : (shortcuts['incognito'] || 'Not Set')}
+                                </div>
                             </div>
                         </div>
                     )}

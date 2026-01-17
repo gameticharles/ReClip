@@ -2,7 +2,7 @@ mod db;
 mod clipboard;
 
 use db::{DbState, init_db, Clip};
-use tauri::{State, Manager};
+use tauri::{State, Manager, Emitter};
 use sqlx::{Pool, Sqlite};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -33,6 +33,66 @@ async fn get_privacy_rules(state: State<'_, DbState>) -> Result<Vec<db::PrivacyR
     db::get_privacy_rules(&state.pool).await.map_err(|e| e.to_string())
 }
 
+
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+// ...
+
+pub struct ShortcutStateMap(Mutex<HashMap<String, String>>); // Shortcut -> Action
+
+#[tauri::command]
+async fn update_shortcut(app: tauri::AppHandle, state: State<'_, DbState>, map: State<'_, ShortcutStateMap>, action: String, new_shortcut: String) -> Result<(), String> {
+    // 1. Get old shortcut for this action
+    let old_shortcut = {
+        let map_lock = map.0.lock().map_err(|e| e.to_string())?;
+        map_lock.iter().find(|(_, v)| **v == action).map(|(k, _)| k.clone())
+    };
+    
+    // 2. Unregister old
+    if let Some(old) = old_shortcut {
+        let _ = app.global_shortcut().unregister(old.as_str()); // Ignore error if not registered
+        {
+            let mut map_lock = map.0.lock().map_err(|e| e.to_string())?;
+            map_lock.remove(&old);
+        }
+    }
+    
+    // 3. Register new (if not empty)
+    if !new_shortcut.is_empty() {
+        // Check if taken?
+        let is_taken = {
+            let map_lock = map.0.lock().map_err(|e| e.to_string())?;
+            map_lock.contains_key(&new_shortcut)
+        };
+        
+        if is_taken {
+             return Err(format!("Shortcut {} is already in use", new_shortcut));
+        }
+        
+        app.global_shortcut().register(new_shortcut.as_str()).map_err(|e| e.to_string())?;
+        
+        {
+            let mut map_lock = map.0.lock().map_err(|e| e.to_string())?;
+            map_lock.insert(new_shortcut.clone(), action.clone());
+        }
+    }
+    
+    // 4. Update DB
+    db::set_setting(&state.pool, &format!("shortcut_{}", action), &new_shortcut).await.map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_shortcuts(state: State<'_, DbState>) -> Result<HashMap<String, String>, String> {
+    let mut shortcuts = HashMap::new();
+    if let Some(s) = db::get_setting(&state.pool, "shortcut_show_window").await { shortcuts.insert("show_window".to_string(), s); }
+    if let Some(s) = db::get_setting(&state.pool, "shortcut_incognito").await { shortcuts.insert("incognito".to_string(), s); }
+    Ok(shortcuts)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -43,31 +103,81 @@ pub fn run() {
                 init_db(&handle).await
             })?;
             
-            // Manage Pool State
+            // Manage States
             app.manage(DbState { pool: pool.clone() });
+            app.manage(ShortcutStateMap(Mutex::new(HashMap::new())));
             
             // Start Clipboard Listener
-            clipboard::start_clipboard_listener(app.handle(), pool);
+            clipboard::start_clipboard_listener(app.handle(), pool.clone());
             
-            // Register Global Shortcut
+            // Initialize Shortcuts
             #[cfg(desktop)]
             {
-                let handle = app.handle().clone();
+                let app_handle = app.handle().clone();
+                let pool_clone = pool.clone();
+                let shortcut_map = app.state::<ShortcutStateMap>();
+                
+                tauri::async_runtime::block_on(async move {
+                    let mut map = shortcut_map.0.lock().unwrap();
+                    
+                    // Show Window
+                    let show_sc = db::get_setting(&pool_clone, "shortcut_show_window").await.unwrap_or("Ctrl+Shift+X".to_string());
+                    
+                    if !show_sc.is_empty() {
+                         map.insert(show_sc.clone(), "show_window".to_string());
+                    }
+
+                    // Incognito
+                    let inc_sc = db::get_setting(&pool_clone, "shortcut_incognito").await.unwrap_or("".to_string());
+                    if !inc_sc.is_empty() {
+                        map.insert(inc_sc.clone(), "incognito".to_string());
+                    }
+                });
+
+                // Register Plugin with Handler
+                let app_handle_for_handler = app.handle().clone();
+                
                 app.handle().plugin(
-                    tauri_plugin_global_shortcut::Builder::new().with_shortcut("Ctrl+Shift+X")?.with_handler(move |app: &tauri::AppHandle, _shortcut, event| {
-                        if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed  {
-                             if let Some(window) = app.get_webview_window("main") {
-                                 if window.is_visible().unwrap_or(false) {
-                                     let _ = window.hide();
-                                 } else {
-                                     let _ = window.show();
-                                     let _ = window.set_focus();
-                                 }
-                             }
-                        }
-                    })
-                    .build(),
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(move |app: &tauri::AppHandle, shortcut, event| {
+                            if event.state() == ShortcutState::Pressed {
+                                let map_state = app.state::<ShortcutStateMap>();
+                                let action = {
+                                    let map = map_state.0.lock().unwrap();
+                                    map.get(&shortcut.to_string()).cloned()
+                                };
+                                
+                                if let Some(act) = action {
+                                    match act.as_str() {
+                                        "show_window" => {
+                                             if let Some(window) = app.get_webview_window("main") {
+                                                 if window.is_visible().unwrap_or(false) {
+                                                     let _ = window.hide();
+                                                 } else {
+                                                     let _ = window.show();
+                                                     let _ = window.set_focus();
+                                                 }
+                                             }
+                                        },
+                                        "incognito" => {
+                                            let current = clipboard::is_incognito();
+                                            clipboard::set_incognito(!current);
+                                            let _ = app.emit("incognito-changed", !current);
+                                        },
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        })
+                        .build(),
                 )?;
+
+                // Register Initial Shortcuts
+                let map_r = app.state::<ShortcutStateMap>();
+                let map = map_r.0.lock().unwrap();
+                for (sc, _) in map.iter() {
+                     let _ = app.global_shortcut().register(sc.as_str());
+                }
             }
 
             // Setup System Tray
@@ -115,7 +225,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, get_recent_clips, copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, get_system_accent_color, add_privacy_rule, delete_privacy_rule, get_privacy_rules])
+        .invoke_handler(tauri::generate_handler![
+             greet, get_recent_clips, add_privacy_rule, delete_privacy_rule, get_privacy_rules,
+             update_shortcut, get_shortcuts,
+             copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
+             export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
+             get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
+             get_system_accent_color
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
