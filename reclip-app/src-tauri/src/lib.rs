@@ -3,7 +3,6 @@ mod clipboard;
 
 use db::{DbState, init_db, Clip};
 use tauri::{State, Manager, Emitter};
-use sqlx::{Pool, Sqlite};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -172,6 +171,27 @@ pub fn run() {
             // Start Clipboard Listener
             clipboard::start_clipboard_listener(app.handle(), pool.clone());
             
+            // Start Sensitive Clip Cleanup Task (runs every 30 seconds)
+            {
+                let pool_for_cleanup = pool.clone();
+                std::thread::spawn(move || {
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        tauri::async_runtime::block_on(async {
+                            match db::cleanup_sensitive_clips(&pool_for_cleanup, 60).await {
+                                Ok(count) if count > 0 => {
+                                    log::info!("Cleaned up {} sensitive clip(s)", count);
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to cleanup sensitive clips: {}", e);
+                                }
+                                _ => {}
+                            }
+                        });
+                    }
+                });
+            }
+            
             // Initialize Shortcuts
             #[cfg(desktop)]
             {
@@ -324,6 +344,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .invoke_handler(tauri::generate_handler![
              greet, get_recent_clips, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
              update_shortcut, get_shortcuts,
@@ -331,7 +355,8 @@ pub fn run() {
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
              export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
              validate_paths, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
-             get_system_accent_color, clear_clips
+             get_system_accent_color, clear_clips, reorder_clip, get_autostart, set_autostart,
+             save_window_position, load_window_position
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -356,6 +381,53 @@ async fn clear_clips(state: State<'_, DbState>) -> Result<(), String> {
     db::delete_all_clips(&state.pool)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn reorder_clip(state: State<'_, DbState>, id: i64, position: i64) -> Result<(), String> {
+    db::update_clip_position(&state.pool, id, position)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    if enabled {
+        app.autolaunch().enable().map_err(|e| e.to_string())
+    } else {
+        app.autolaunch().disable().map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+async fn save_window_position(state: State<'_, DbState>, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
+    let position = format!("{},{},{},{}", x, y, width, height);
+    db::set_setting(&state.pool, "window_position", &position).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_window_position(state: State<'_, DbState>) -> Result<Option<(i32, i32, u32, u32)>, String> {
+    if let Some(pos) = db::get_setting(&state.pool, "window_position").await {
+        let parts: Vec<&str> = pos.split(',').collect();
+        if parts.len() == 4 {
+            if let (Ok(x), Ok(y), Ok(w), Ok(h)) = (
+                parts[0].parse::<i32>(),
+                parts[1].parse::<i32>(),
+                parts[2].parse::<u32>(),
+                parts[3].parse::<u32>(),
+            ) {
+                return Ok(Some((x, y, w, h)));
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[tauri::command]

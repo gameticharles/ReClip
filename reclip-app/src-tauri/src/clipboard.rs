@@ -27,6 +27,59 @@ pub fn is_incognito() -> bool {
 use x_win::get_active_window;
 use regex::Regex;
 
+/// Check if content contains sensitive data (passwords, API keys, tokens)
+/// Returns true if the content should be treated as sensitive
+fn is_sensitive_content(content: &str) -> bool {
+    let lower = content.to_lowercase();
+    
+    // Password patterns
+    if lower.contains("password=") || lower.contains("pwd=") || lower.contains("passwd=") {
+        return true;
+    }
+    if lower.contains("password:") || lower.contains("pwd:") {
+        return true;
+    }
+    
+    // API keys and tokens
+    if lower.contains("api_key=") || lower.contains("apikey=") || lower.contains("api-key=") {
+        return true;
+    }
+    if lower.contains("secret=") || lower.contains("secret_key=") || lower.contains("secretkey=") {
+        return true;
+    }
+    if lower.contains("token=") || lower.contains("auth_token=") || lower.contains("access_token=") {
+        return true;
+    }
+    if lower.contains("bearer ") {
+        return true;
+    }
+    
+    // AWS Keys (AKIA...)
+    if Regex::new(r"(?i)AKIA[0-9A-Z]{16}").unwrap().is_match(content) {
+        return true;
+    }
+    
+    // Private keys
+    if content.contains("-----BEGIN RSA PRIVATE KEY-----") 
+        || content.contains("-----BEGIN OPENSSH PRIVATE KEY-----")
+        || content.contains("-----BEGIN PRIVATE KEY-----")
+        || content.contains("-----BEGIN EC PRIVATE KEY-----") {
+        return true;
+    }
+    
+    // Connection strings with credentials
+    if Regex::new(r"(?i)(mysql|postgres|mongodb|redis)://[^:]+:[^@]+@").unwrap().is_match(content) {
+        return true;
+    }
+    
+    // JWT tokens (very long base64 with dots)
+    if Regex::new(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}").unwrap().is_match(content) {
+        return true;
+    }
+    
+    false
+}
+
 // ... (existing imports, but make sure to include them if not present)
 
 pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, pool: Pool<Sqlite>) {
@@ -195,7 +248,12 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                            let is_file_path = crate::clipboard::is_file_path(&text_clone);
                            let clip_type = if is_file_path { "file" } else { "text" };
                            
-                           if is_file_path {
+                           // Check if content is sensitive (passwords, API keys, etc.)
+                           let is_sensitive = !is_file_path && is_sensitive_content(&text_clone);
+                           
+                           if is_sensitive {
+                               info!("Sensitive content detected - will auto-delete after 60 seconds");
+                           } else if is_file_path {
                                info!("New file path clip detected");
                            } else {
                                info!("New text clip detected");
@@ -203,11 +261,13 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                            
                            let tags = if is_file_path {
                                Some(serde_json::to_string(&vec!["#file"]).unwrap_or_default())
+                           } else if is_sensitive {
+                               Some(serde_json::to_string(&vec!["#sensitive"]).unwrap_or_default())
                            } else {
                                crate::clipboard::detect_tags(&text_clone)
                            };
                            
-                           match insert_clip(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags).await {
+                           match crate::db::insert_clip_with_sensitive(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags, is_sensitive).await {
                                Ok(id) => {
                                    let _ = app_handle_clone.emit("clip-created", id);
                                },

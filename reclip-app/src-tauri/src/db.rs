@@ -11,11 +11,13 @@ pub struct Clip {
     #[serde(rename = "type")]
     pub type_: String, // "text", "image", "file_list"
     pub hash: String,
-    pub created_at: String, // Simplified for now, can be DateTime
+    pub created_at: String,
     pub pinned: bool,
     pub favorite: bool,
     pub tags: Option<String>,
     pub sender_app: Option<String>,
+    pub sensitive: bool,
+    pub position: Option<i64>,
 }
 
 pub struct DbState {
@@ -48,15 +50,18 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
 }
 
 pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>) -> Result<i64, sqlx::Error> {
-    // Upsert logic: if hash exists, update created_at to now, return id.
-    // If not, insert new.
-    let id = sqlx::query("INSERT INTO clips (content, type, hash, tags) VALUES (?, ?, ?, ?) 
+    insert_clip_with_sensitive(pool, content, type_, hash, tags, false).await
+}
+
+pub async fn insert_clip_with_sensitive(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>, sensitive: bool) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO clips (content, type, hash, tags, sensitive) VALUES (?, ?, ?, ?, ?) 
         ON CONFLICT(hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
         RETURNING id")
         .bind(content)
         .bind(type_)
         .bind(hash)
         .bind(tags)
+        .bind(sensitive)
         .fetch_one(pool)
         .await?
         .get::<i64, _>(0);
@@ -67,13 +72,13 @@ pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, ha
 pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Option<String>) -> Result<Vec<Clip>, sqlx::Error> {
     let query_str = if let Some(term) = search {
         format!(
-            "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app FROM clips 
+            "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app, sensitive, position FROM clips 
              WHERE content LIKE '%{}%' OR tags LIKE '%{}%' 
-             ORDER BY favorite DESC, pinned DESC, created_at DESC LIMIT ? OFFSET ?", 
+             ORDER BY favorite DESC, pinned DESC, COALESCE(position, 0) DESC, created_at DESC LIMIT ? OFFSET ?", 
             term, term
         )
     } else {
-        "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app FROM clips ORDER BY favorite DESC, pinned DESC, created_at DESC LIMIT ? OFFSET ?".to_string()
+        "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app, sensitive, position FROM clips ORDER BY favorite DESC, pinned DESC, COALESCE(position, 0) DESC, created_at DESC LIMIT ? OFFSET ?".to_string()
     };
 
     let clips = sqlx::query_as::<_, Clip>(&query_str)
@@ -254,5 +259,26 @@ pub async fn set_setting(pool: &Pool<Sqlite>, key: &str, value: &str) -> Result<
 pub async fn delete_all_clips(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM clips").execute(pool).await?;
     sqlx::query("DELETE FROM clip_fts").execute(pool).await?;
+    Ok(())
+}
+
+/// Delete sensitive clips older than specified seconds
+pub async fn cleanup_sensitive_clips(pool: &Pool<Sqlite>, max_age_seconds: i64) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query(
+        "DELETE FROM clips WHERE sensitive = 1 AND created_at < datetime('now', '-' || ? || ' seconds')"
+    )
+        .bind(max_age_seconds)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected())
+}
+
+/// Update clip position for drag-drop reordering
+pub async fn update_clip_position(pool: &Pool<Sqlite>, id: i64, position: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE clips SET position = ? WHERE id = ?")
+        .bind(position)
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(())
 }

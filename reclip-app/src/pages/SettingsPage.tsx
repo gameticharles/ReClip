@@ -41,6 +41,10 @@ export default function SettingsPage({
     const [newTemplateContent, setNewTemplateContent] = useState("");
     const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
 
+    // Startup & Window Position
+    const [autostart, setAutostart] = useState(false);
+    const [rememberPosition, setRememberPosition] = useState(localStorage.getItem('rememberWindowPosition') === 'true');
+
     const fetchTemplates = async () => {
         try {
             const t = await invoke<any[]>("get_templates");
@@ -144,6 +148,10 @@ export default function SettingsPage({
         if (activeTab === 'security') fetchPrivacyRules();
         if (activeTab === 'shortcuts') fetchShortcuts();
         if (activeTab === 'templates') fetchTemplates();
+        if (activeTab === 'general') {
+            // Fetch autostart status
+            invoke<boolean>("get_autostart").then(setAutostart).catch(console.error);
+        }
     }, [activeTab]);
 
     const handleAddRule = async (type: string, value: string) => {
@@ -398,6 +406,42 @@ export default function SettingsPage({
                                     <span>seconds (0 to disable)</span>
                                 </div>
                                 <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '4px' }}>Note: Requires restart or reload to take effect fully.</p>
+                            </div>
+
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={autostart}
+                                        onChange={async (e) => {
+                                            try {
+                                                await invoke("set_autostart", { enabled: e.target.checked });
+                                                setAutostart(e.target.checked);
+                                            } catch (err) {
+                                                console.error("Failed to set autostart:", err);
+                                            }
+                                        }}
+                                        style={{ width: '18px', height: '18px' }}
+                                    />
+                                    <span style={{ fontWeight: 600 }}>Launch on System Startup</span>
+                                </label>
+                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px', marginLeft: '28px' }}>Automatically start ReClip when you log in.</p>
+                            </div>
+
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={rememberPosition}
+                                        onChange={(e) => {
+                                            setRememberPosition(e.target.checked);
+                                            localStorage.setItem('rememberWindowPosition', e.target.checked ? 'true' : 'false');
+                                        }}
+                                        style={{ width: '18px', height: '18px' }}
+                                    />
+                                    <span style={{ fontWeight: 600 }}>Remember Window Position</span>
+                                </label>
+                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px', marginLeft: '28px' }}>Restore window position and size on launch.</p>
                             </div>
                         </div>
                     )}

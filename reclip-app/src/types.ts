@@ -8,4 +8,6 @@ export interface Clip {
     favorite: boolean;
     tags?: string; // JSON string
     sender_app?: string;
+    sensitive: boolean;
+    position?: number | null;
 }

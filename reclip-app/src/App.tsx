@@ -67,6 +67,59 @@ function App() {
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
+  // Window Position Management
+  useEffect(() => {
+    const rememberPosition = localStorage.getItem('rememberWindowPosition') === 'true';
+
+    if (rememberPosition) {
+      // Load saved position on startup
+      invoke<[number, number, number, number] | null>("load_window_position")
+        .then(async (pos) => {
+          if (pos) {
+            const [x, y, width, height] = pos;
+            const { getCurrentWindow, LogicalPosition, LogicalSize } = await import('@tauri-apps/api/window');
+            const win = getCurrentWindow();
+            await win.setPosition(new LogicalPosition(x, y));
+            await win.setSize(new LogicalSize(width, height));
+          }
+        })
+        .catch(console.error);
+    }
+
+    // Save position on window close/move
+    const savePosition = async () => {
+      if (localStorage.getItem('rememberWindowPosition') !== 'true') return;
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        const pos = await win.outerPosition();
+        const size = await win.outerSize();
+        await invoke("save_window_position", {
+          x: pos.x, y: pos.y,
+          width: size.width, height: size.height
+        });
+      } catch (e) {
+        console.error("Failed to save window position:", e);
+      }
+    };
+
+    // Save on visibility change (when app goes to background)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        savePosition();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Also save before unload
+    window.addEventListener('beforeunload', savePosition);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', savePosition);
+    };
+  }, []);
+
   return (
     <div className="app-container">
       {view === 'main' ? (

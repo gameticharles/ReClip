@@ -428,6 +428,20 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
         await invoke("set_incognito_mode", { enabled: newState });
     }
 
+    async function moveToTop(e: React.MouseEvent, id: number) {
+        e.stopPropagation();
+        try {
+            // Set position to current timestamp to make it highest priority
+            const position = Date.now();
+            await invoke("reorder_clip", { id, position });
+            // Refresh clips
+            const data = await invoke<Clip[]>("get_recent_clips", { limit: 100, offset: 0, search: searchTerm || null });
+            setClips(data);
+        } catch (error) {
+            console.error("Failed to reorder clip:", error);
+        }
+    }
+
     async function transformText(e: React.MouseEvent, id: number, type: 'upper' | 'lower' | 'title' | 'trim') {
         e.stopPropagation();
         const clip = clips.find(c => c.id === id);
@@ -572,6 +586,24 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                             </span>
                                         )}
                                         <span className="clip-type">{clip.type}</span>
+                                        {clip.sensitive && (
+                                            <span
+                                                title="Sensitive - Auto-deletes in 60 seconds"
+                                                style={{
+                                                    fontSize: '0.65rem',
+                                                    background: 'rgba(239, 68, 68, 0.15)',
+                                                    color: '#dc2626',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '10px',
+                                                    fontWeight: 600,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '3px'
+                                                }}
+                                            >
+                                                🔐 Sensitive
+                                            </span>
+                                        )}
                                         {clip.tags && JSON.parse(clip.tags).map((tag: string) => (
                                             <span
                                                 key={tag}
@@ -639,6 +671,20 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
                                             </svg>
                                         </button>
+                                        {(clip.pinned || clip.favorite) && (
+                                            <button
+                                                className="icon-btn"
+                                                onClick={(e) => moveToTop(e, clip.id)}
+                                                title="Move to Top"
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', opacity: 0.6 }}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="18 15 12 9 6 15"></polyline>
+                                                    <line x1="12" y1="9" x2="12" y2="21"></line>
+                                                    <line x1="4" y1="3" x2="20" y2="3"></line>
+                                                </svg>
+                                            </button>
+                                        )}
                                         <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
                                         <button
                                             className={`delete-btn ${selectedIndex === index && focusOnDelete ? 'focused' : ''}`}
