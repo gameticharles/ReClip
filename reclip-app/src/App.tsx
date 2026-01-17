@@ -64,6 +64,21 @@ function App() {
       if (import.meta.env.PROD) e.preventDefault();
     };
     window.addEventListener('contextmenu', handleContextMenu);
+
+    // Listen for Tray Events
+    import('@tauri-apps/api/event').then(async ({ listen }) => {
+      const unlistenSettings = await listen('open-settings', () => setView('settings'));
+      const unlistenMaintenance = await listen('run-maintenance', () => {
+        // Find and click maintenance button or trigger it directly
+        // For now just switch view
+        setView('settings');
+        // Ideally we would pass a param to open maintenance tab directly
+      });
+      // Incognito toggle is handled by backend state but we might want to refresh UI
+
+      // Store unlisteners to cleanup if needed, though App component usually doesn't unmount
+    });
+
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
@@ -153,14 +168,26 @@ function App() {
       showWindow();
     }
 
-    // Save position function
-    const savePosition = async () => {
+    // Save position function with debouncing
+    let lastPosition = { x: 0, y: 0, width: 0, height: 0 };
+    let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const savePositionDebounced = async () => {
       if (localStorage.getItem('rememberWindowPosition') !== 'true') return;
       try {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
         const pos = await win.outerPosition();
         const size = await win.outerSize();
+
+        // Only save if position actually changed
+        if (pos.x === lastPosition.x && pos.y === lastPosition.y &&
+          size.width === lastPosition.width && size.height === lastPosition.height) {
+          return;
+        }
+
+        lastPosition = { x: pos.x, y: pos.y, width: size.width, height: size.height };
+
         await invoke("save_window_position", {
           x: pos.x, y: pos.y,
           width: size.width, height: size.height
@@ -170,24 +197,40 @@ function App() {
       }
     };
 
-    // Start interval if enabled (save every 10 seconds)
-    let saveInterval: ReturnType<typeof setInterval> | null = null;
+    const triggerSave = () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(savePositionDebounced, 500); // 500ms debounce
+    };
+
+    // Listen for window move and resize events
+    let unlistenMove: (() => void) | null = null;
+    let unlistenResize: (() => void) | null = null;
+
     if (localStorage.getItem('rememberWindowPosition') === 'true') {
-      setTimeout(savePosition, 1000);
-      saveInterval = setInterval(savePosition, 10000);
+      // Set up event listeners
+      import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+        const win = getCurrentWindow();
+        win.onMoved(() => triggerSave()).then(fn => { unlistenMove = fn; });
+        win.onResized(() => triggerSave()).then(fn => { unlistenResize = fn; });
+      });
+
+      // Save initial position after 1 second
+      setTimeout(savePositionDebounced, 1000);
     }
 
     // Also save on visibility change and before unload
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') savePosition();
+      if (document.visibilityState === 'hidden') savePositionDebounced();
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('beforeunload', savePosition);
+    window.addEventListener('beforeunload', savePositionDebounced);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('beforeunload', savePosition);
-      if (saveInterval) clearInterval(saveInterval);
+      window.removeEventListener('beforeunload', savePositionDebounced);
+      if (saveTimeout) clearTimeout(saveTimeout);
+      if (unlistenMove) unlistenMove();
+      if (unlistenResize) unlistenResize();
     };
   }, []);
 

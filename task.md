@@ -24,7 +24,13 @@
 - [ ] Initialize Project <!-- id: 21 -->
     - [x] Run `create-tauri-app` (React/TS) <!-- id: 22 -->
     - [x] Install dependencies <!-- id: 23 -->
+    - [x] Settings UI (Autostart, Window Position)
     - [x] Verify build environment <!-- id: 24 -->
+- [x] Implement Rich System Tray
+    - [x] Basic Menu Structure (Open, Quit)
+    - [x] Features: Incognito, Always on Top, Settings
+    - [x] Dynamic Content: Recent Clips (Placeholder)
+    - [x] Actions: Maintenance, Search
 - [ ] Implementation Phase
     - [x] Setup Database & Migrations
     - [x] Implement Clipboard Listener (Rust)

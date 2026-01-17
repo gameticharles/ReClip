@@ -1,5 +1,6 @@
 mod db;
 mod clipboard;
+mod tray;
 
 use db::{DbState, init_db, Clip};
 use tauri::{State, Manager, Emitter};
@@ -302,41 +303,7 @@ pub fn run() {
             // Setup System Tray
             #[cfg(desktop)]
             {
-                use tauri::menu::{Menu, MenuItem};
-                use tauri::tray::TrayIconBuilder;
-                
-                let show_item = MenuItem::with_id(app, "show", "Show ReClip", true, None::<&str>)?;
-                let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
-                
-                let _tray = TrayIconBuilder::new()
-                    .icon(app.default_window_icon().unwrap().clone())
-                    .menu(&menu)
-                    .tooltip("ReClip - Clipboard Manager")
-                    .on_menu_event(|app, event| {
-                        match event.id.as_ref() {
-                            "show" => {
-                                if let Some(window) = app.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
-                            }
-                            "quit" => {
-                                app.exit(0);
-                            }
-                            _ => {}
-                        }
-                    })
-                    .on_tray_icon_event(|tray, event| {
-                        if let tauri::tray::TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                    })
-                    .build(app)?;
+                let _ = tray::create_tray(app.handle());
             }
 
             Ok(())
