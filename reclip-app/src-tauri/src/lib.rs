@@ -414,9 +414,11 @@ async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, cli
         clipboard.set_text(content.clone()).map_err(|e| e.to_string())?;
     }
 
-    // 2. Hide Window
+    // 2. Hide Window (if visible)
     if let Some(window) = app_handle.get_webview_window("main") {
-        let _ = window.hide();
+        if window.is_visible().unwrap_or(false) {
+            let _ = window.hide();
+        }
     }
 
     // 3. Simulate Paste
@@ -425,23 +427,31 @@ async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, cli
     // Enigo::new() returns Result in 0.6+
     let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
     
-    // Tiny delay to allow window focus switch
-    std::thread::sleep(std::time::Duration::from_millis(150));
+    // Longer delay to ensure focus switches back to the previous window
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    
+    println!("[DEBUG] Simulating Ctrl+V paste...");
 
     // Platform specific modifier
     #[cfg(target_os = "macos")]
     {
         let _ = enigo.key(Key::Meta, Direction::Press);
+        std::thread::sleep(std::time::Duration::from_millis(20));
         let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+        std::thread::sleep(std::time::Duration::from_millis(20));
         let _ = enigo.key(Key::Meta, Direction::Release);
     }
 
     #[cfg(not(target_os = "macos"))]
     {
        let _ = enigo.key(Key::Control, Direction::Press);
+       std::thread::sleep(std::time::Duration::from_millis(20));
        let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+       std::thread::sleep(std::time::Duration::from_millis(20));
        let _ = enigo.key(Key::Control, Direction::Release);
     }
+    
+    println!("[DEBUG] Paste simulation complete.");
     
     Ok(())
 }
