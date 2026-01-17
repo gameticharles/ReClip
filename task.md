@@ -24,9 +24,9 @@
 - [ ] Initialize Project <!-- id: 21 -->
     - [x] Run `create-tauri-app` (React/TS) <!-- id: 22 -->
     - [x] Install dependencies <!-- id: 23 -->
-    - [x] Settings UI (Autostart, Window Position)
-    - [x] Verify build environment <!-- id: 24 -->
-- [x] Implement Rich System Tray
+    - [x] Settings UI (Autostart Fixes, UI Refinements)
+    - [x] Refactor Settings Page (Merged General/Interface)
+    - [x] Implement Rich System Tray
     - [x] Basic Menu Structure (Open, Quit)
     - [x] Features: Incognito, Always on Top, Settings
     - [x] Dynamic Content: Recent Clips (Placeholder)

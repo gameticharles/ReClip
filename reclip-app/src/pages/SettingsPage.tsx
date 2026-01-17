@@ -22,7 +22,7 @@ export default function SettingsPage({
     useSystemAccent,
     setUseSystemAccent
 }: SettingsPageProps) {
-    const [activeTab, setActiveTab] = useState('general');
+    const [activeTab, setActiveTab] = useState('interface');
     const [alwaysOnTop, setAlwaysOnTop] = useState(false);
     const [opacity, setOpacity] = useState(100);
     const [retainDays, setRetainDays] = useState(30);
@@ -148,7 +148,7 @@ export default function SettingsPage({
         if (activeTab === 'security') fetchPrivacyRules();
         if (activeTab === 'shortcuts') fetchShortcuts();
         if (activeTab === 'templates') fetchTemplates();
-        if (activeTab === 'general') {
+        if (activeTab === 'interface') {
             // Fetch autostart status
             invoke<boolean>("get_autostart").then(setAutostart).catch(console.error);
         }
@@ -254,8 +254,7 @@ export default function SettingsPage({
 
 
     const tabs = [
-        { id: 'general', label: 'General', icon: '⚙️' },
-        { id: 'interface', label: 'Interface', icon: '🎨' },
+        { id: 'interface', label: 'General', icon: '⚙️' },
         { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
         { id: 'security', label: 'Security', icon: '🔒' },
         { id: 'templates', label: 'Templates', icon: '📝' },
@@ -322,94 +321,54 @@ export default function SettingsPage({
 
                 {/* Content */}
                 <div style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
-                    {activeTab === 'general' && (
-                        <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>General Settings</h2>
-                            <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between' }}>
-                                    <span style={{ fontWeight: 600 }}>Always on Top</span>
-                                    <input
-                                        type="checkbox"
-                                        checked={alwaysOnTop}
-                                        onChange={toggleAlwaysOnTop}
-                                        style={{ accentColor: 'var(--accent-color)' }}
-                                    />
-                                </label>
-                            </div>
-                            {/* Auto Start Todo */}
-                            <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', justifyContent: 'space-between' }}>
-                                    <span style={{ fontWeight: 600 }}>Start on System Startup (Coming Soon)</span>
-                                    <input
-                                        type="checkbox"
-                                        disabled
-                                        style={{ accentColor: 'var(--accent-color)' }}
-                                    />
-                                </label>
-                            </div>
-                        </div>
-                    )}
+
 
                     {activeTab === 'interface' && (
                         <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>Interface customization</h2>
+                            <h2 style={{ marginTop: 0 }}>General Settings</h2>
+
+                            {/* Core Settings Group */}
+
+                            {/* Always on Top */}
                             <div className="setting-item">
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Window Opacity ({opacity}%)</label>
-                                <input
-                                    type="range"
-                                    min="10"
-                                    max="100"
-                                    value={opacity}
-                                    onChange={handleOpacityChange}
-                                    style={{ width: '100%', accentColor: 'var(--accent-color)' }}
-                                />
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Always on Top</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Keep window above other applications.</div>
+                                    </div>
+                                    <input type="checkbox" checked={alwaysOnTop} onChange={toggleAlwaysOnTop} style={{ accentColor: 'var(--accent-color)' }} />
+                                </label>
                             </div>
 
+                            {/* Compact Mode */}
                             <div className="setting-item">
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Date Display Format</label>
-                                <div style={{ display: 'flex', gap: '12px' }}>
-                                    <label style={{ cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            name="dateFormat"
-                                            value="relative"
-                                            checked={localStorage.getItem('dateFormat') !== 'absolute'}
-                                            onChange={() => { localStorage.setItem('dateFormat', 'relative'); window.location.reload(); }}
-                                        /> Relative (e.g. 5m ago)
-                                    </label>
-                                    <label style={{ cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            name="dateFormat"
-                                            value="absolute"
-                                            checked={localStorage.getItem('dateFormat') === 'absolute'}
-                                            onChange={() => { localStorage.setItem('dateFormat', 'absolute'); window.location.reload(); }}
-                                        /> Absolute (Date & Time)
-                                    </label>
-                                </div>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Compact Mode</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Use a denser layout for list items.</div>
+                                    </div>
+                                    <input type="checkbox" checked={compactMode} onChange={(e) => setCompactMode(e.target.checked)} />
+                                </label>
                             </div>
 
+                            {/* Adaptive System Accent */}
                             <div className="setting-item">
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Auto-Hide Window</label>
-                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>Automatically hide window after inactivity.</p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="600"
-                                        defaultValue={localStorage.getItem('autoHideDuration') || "0"}
-                                        onChange={(e) => {
-                                            localStorage.setItem('autoHideDuration', e.target.value);
-                                        }}
-                                        style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #444' }}
-                                    />
-                                    <span>seconds (0 to disable)</span>
-                                </div>
-                                <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '4px' }}>Note: Requires restart or reload to take effect fully.</p>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Adaptive System Accent</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Match application colors to your system theme.</div>
+                                    </div>
+                                    <input type="checkbox" checked={useSystemAccent} onChange={(e) => setUseSystemAccent(e.target.checked)} />
+                                </label>
                             </div>
 
+                            {/* Launch on Startup */}
                             <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Launch on System Startup</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Automatically start ReClip when you log in.</div>
+                                    </div>
                                     <input
                                         type="checkbox"
                                         checked={autostart}
@@ -417,19 +376,20 @@ export default function SettingsPage({
                                             try {
                                                 await invoke("set_autostart", { enabled: e.target.checked });
                                                 setAutostart(e.target.checked);
-                                            } catch (err) {
-                                                console.error("Failed to set autostart:", err);
-                                            }
+                                            } catch (err) { console.error("Failed to set autostart:", err); }
                                         }}
-                                        style={{ width: '18px', height: '18px' }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
                                     />
-                                    <span style={{ fontWeight: 600 }}>Launch on System Startup</span>
                                 </label>
-                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px', marginLeft: '28px' }}>Automatically start ReClip when you log in.</p>
                             </div>
 
+                            {/* Remember Position */}
                             <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Remember Window Position</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Restore window position and size on launch.</div>
+                                    </div>
                                     <input
                                         type="checkbox"
                                         checked={rememberPosition}
@@ -437,11 +397,71 @@ export default function SettingsPage({
                                             setRememberPosition(e.target.checked);
                                             localStorage.setItem('rememberWindowPosition', e.target.checked ? 'true' : 'false');
                                         }}
-                                        style={{ width: '18px', height: '18px' }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
                                     />
-                                    <span style={{ fontWeight: 600 }}>Remember Window Position</span>
                                 </label>
-                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px', marginLeft: '28px' }}>Restore window position and size on launch.</p>
+                            </div>
+
+                            <h3 style={{ marginTop: '24px', marginBottom: '16px', opacity: 0.9 }}>Appearance</h3>
+
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Theme</label>
+                                <div style={{ display: 'flex', gap: '8px', maxWidth: '300px' }}>
+                                    {['light', 'dark', 'system'].map(t => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setTheme(t)}
+                                            style={{
+                                                flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)',
+                                                background: theme === t ? 'var(--accent-color, #4f46e5)' : 'transparent',
+                                                color: theme === t ? 'white' : 'inherit', cursor: 'pointer', textTransform: 'capitalize'
+                                            }}
+                                        >
+                                            {t}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="setting-item" style={{ marginTop: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Window Opacity ({opacity}%)</label>
+                                <input
+                                    type="range" min="20" max="100" value={opacity} onChange={handleOpacityChange}
+                                    style={{ width: '100%', maxWidth: '300px', accentColor: 'var(--accent-color)' }}
+                                />
+                            </div>
+
+                            <div className="setting-item" style={{ marginTop: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Date Display Format</label>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <label style={{ cursor: 'pointer' }}>
+                                        <input
+                                            type="radio" name="dateFormat" value="relative"
+                                            checked={localStorage.getItem('dateFormat') !== 'absolute'}
+                                            onChange={() => { localStorage.setItem('dateFormat', 'relative'); window.location.reload(); }}
+                                        /> Relative (e.g. 5m ago)
+                                    </label>
+                                    <label style={{ cursor: 'pointer' }}>
+                                        <input
+                                            type="radio" name="dateFormat" value="absolute"
+                                            checked={localStorage.getItem('dateFormat') === 'absolute'}
+                                            onChange={() => { localStorage.setItem('dateFormat', 'absolute'); window.location.reload(); }}
+                                        /> Absolute (Date & Time)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="setting-item" style={{ marginTop: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Auto-Hide Window</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <input
+                                        type="number" min="0" max="600" defaultValue={localStorage.getItem('autoHideDuration') || "0"}
+                                        onChange={(e) => { localStorage.setItem('autoHideDuration', e.target.value); }}
+                                        style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #444' }}
+                                    />
+                                    <span>seconds (0 to disable)</span>
+                                </div>
+                                <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '4px' }}>Note: Requires restart or reload to take effect fully.</p>
                             </div>
                         </div>
                     )}
@@ -631,60 +651,7 @@ export default function SettingsPage({
                         </div>
                     )}
 
-                    {activeTab === 'interface' && (
-                        <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>Interface</h2>
-                            <div className="setting-item">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={compactMode} onChange={(e) => setCompactMode(e.target.checked)} />
-                                    Compact Mode
-                                </label>
-                            </div>
 
-                            <div className="setting-item" style={{ marginTop: '24px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Theme</label>
-                                <div style={{ display: 'flex', gap: '8px', maxWidth: '300px' }}>
-                                    {['light', 'dark', 'system'].map(t => (
-                                        <button
-                                            key={t}
-                                            onClick={() => setTheme(t)}
-                                            style={{
-                                                flex: 1,
-                                                padding: '8px',
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(128,128,128,0.2)',
-                                                background: theme === t ? 'var(--accent-color, #4f46e5)' : 'transparent',
-                                                color: theme === t ? 'white' : 'inherit',
-                                                cursor: 'pointer',
-                                                textTransform: 'capitalize'
-                                            }}
-                                        >
-                                            {t}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="setting-item" style={{ marginTop: '16px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                                    <input type="checkbox" checked={useSystemAccent} onChange={(e) => setUseSystemAccent(e.target.checked)} />
-                                    Adaptive System Accent
-                                </label>
-                            </div>
-
-                            <div className="setting-item" style={{ marginTop: '24px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px' }}>Window Opacity: {opacity}%</label>
-                                <input
-                                    type="range"
-                                    min="20"
-                                    max="100"
-                                    value={opacity}
-                                    onChange={handleOpacityChange}
-                                    style={{ width: '100%', maxWidth: '300px' }}
-                                />
-                            </div>
-                        </div>
-                    )}
 
                     {activeTab === 'maintenance' && (
                         <div className="setting-section">

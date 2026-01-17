@@ -359,12 +359,16 @@ async fn reorder_clip(state: State<'_, DbState>, id: i64, position: i64) -> Resu
 
 #[tauri::command]
 async fn get_autostart(app: tauri::AppHandle) -> Result<bool, String> {
+    println!("[DEBUG] get_autostart called");
     use tauri_plugin_autostart::ManagerExt;
-    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+    let enabled = app.autolaunch().is_enabled().map_err(|e| e.to_string())?;
+    println!("[DEBUG] get_autostart result: {}", enabled);
+    Ok(enabled)
 }
 
 #[tauri::command]
 async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    println!("[DEBUG] set_autostart called with: {}", enabled);
     use tauri_plugin_autostart::ManagerExt;
     if enabled {
         app.autolaunch().enable().map_err(|e| e.to_string())
@@ -600,6 +604,8 @@ async fn update_clip_tags(state: State<'_, DbState>, id: i64, tags: String) -> R
         .await
         .map_err(|e| e.to_string())
 }
+
+
 
 #[tauri::command]
 async fn toggle_clip_pin(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
