@@ -236,6 +236,41 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                 }
                             }
                             if ignored { return; }
+
+                            // Check Automations (Regex Rules)
+                            // We fetch rules every time for now (ok for small set)
+                            let automation_rules = crate::db::get_regex_rules(&pool_clone).await.unwrap_or_default();
+                            for rule in automation_rules {
+                                if rule.enabled {
+                                    if let Ok(re) = Regex::new(&rule.pattern) {
+                                        if let Some(caps) = re.captures(&text_clone) {
+                                            info!("Automation triggered: Rule #{} matches pattern '{}'", rule.id, rule.pattern);
+                                            
+                                            // Handle Action
+                                            match rule.action_type.as_str() {
+                                                "open_url" => {
+                                                    let mut url = rule.action_payload.clone();
+                                                    // Replace $0, $1...
+                                                    for (i, match_str) in caps.iter().enumerate() {
+                                                        if let Some(m) = match_str {
+                                                            url = url.replace(&format!("${}", i), m.as_str());
+                                                        }
+                                                    }
+                                                    
+                                                    info!("Opening URL: {}", url);
+                                                    use tauri_plugin_opener::OpenerExt;
+                                                    let _ = app_handle_clone.opener().open_url(url, None::<String>);
+                                                    let _ = app_handle_clone.emit("notification", format!("Automation: Opened URL"));
+                                                },
+                                                "notify" => {
+                                                    let _ = app_handle_clone.emit("notification", format!("Match: {}", rule.action_payload));
+                                                },
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             
                             // Last Hash Update is technically needed in the main loop to prevent re-triggering?
                             // Wait, if I update last_hash in main loop, I prevent re-triggering.

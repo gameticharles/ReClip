@@ -77,8 +77,20 @@
 - [ ] Phase 10: UI/UX Enhancements
     - [ ] Custom Themes
     - [ ] Drag & Drop Reorder
-- [ ] Phase 11: Advanced (Future)
-    - [ ] Rich Text Support
-    - [ ] Cloud Sync
+- [ ] Phase 12: Programmability & Automation
+    - [x] CLI API (`reclip --copy`)
+    - [ ] Scripting Engine (JS/Lua transformers)
+    - [x] Regex Monitoring (Automated Actions on match)
+- [ ] Phase 13: AI & Smart Features
+    - [ ] Local LLM Integration (Summarize, Explain)
+    - [ ] Smart Form Filler
+- [ ] Phase 14: Integrations
+    - [ ] "Clip to..." (Obsidian, Notion, Slack)
+    - [ ] IDE Extensions (VS Code)
+- [ ] Phase 15: Team & Enterprise
+    - [ ] Secure Shared Clipboard (E2EE)
+    - [ ] Self-Destructing Links
+- [ ] Phase 16: Advanced UX
+    - [ ] Clipboard History Rewind (Timeline View)
 
 

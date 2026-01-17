@@ -20,6 +20,16 @@ pub struct Clip {
     pub position: Option<i64>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct RegexRule {
+    pub id: i64,
+    pub pattern: String,
+    pub action_type: String, // "open_url", "copy_back", "notify"
+    pub action_payload: String,
+    pub enabled: bool,
+    pub created_at: String,
+}
+
 pub struct DbState {
     pub pool: Pool<Sqlite>,
 }
@@ -45,6 +55,16 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await?;
+
+    // Create regex_rules table if not exists (migrating manually for robustness in this step)
+    sqlx::query("CREATE TABLE IF NOT EXISTS regex_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pattern TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        action_payload TEXT NOT NULL,
+        enabled BOOLEAN NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )").execute(&pool).await?;
 
     Ok(pool)
 }
@@ -277,6 +297,44 @@ pub async fn cleanup_sensitive_clips(pool: &Pool<Sqlite>, max_age_seconds: i64) 
 pub async fn update_clip_position(pool: &Pool<Sqlite>, id: i64, position: i64) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE clips SET position = ? WHERE id = ?")
         .bind(position)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+
+pub async fn get_regex_rules(pool: &Pool<Sqlite>) -> Result<Vec<RegexRule>, sqlx::Error> {
+    sqlx::query_as::<_, RegexRule>("SELECT id, pattern, action_type, action_payload, enabled, created_at FROM regex_rules ORDER BY created_at DESC")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn add_regex_rule(pool: &Pool<Sqlite>, pattern: String, action_type: String, action_payload: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO regex_rules (pattern, action_type, action_payload, enabled) VALUES (?, ?, ?, 1) RETURNING id")
+        .bind(pattern)
+        .bind(action_type)
+        .bind(action_payload)
+        .fetch_one(pool)
+        .await?
+        .get::<i64, _>(0);
+    Ok(id)
+}
+
+pub async fn update_regex_rule(pool: &Pool<Sqlite>, id: i64, pattern: String, action_type: String, action_payload: String, enabled: bool) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE regex_rules SET pattern = ?, action_type = ?, action_payload = ?, enabled = ? WHERE id = ?")
+        .bind(pattern)
+        .bind(action_type)
+        .bind(action_payload)
+        .bind(enabled)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn delete_regex_rule(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM regex_rules WHERE id = ?")
         .bind(id)
         .execute(pool)
         .await?;

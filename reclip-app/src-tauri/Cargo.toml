@@ -41,6 +41,7 @@ regex = "1"
 html-escape = "0.2"
 x-win = "5.4.0"
 tauri-plugin-autostart = "2"
+clap = { version = "4", features = ["derive"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

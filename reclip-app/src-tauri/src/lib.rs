@@ -196,7 +196,7 @@ pub fn run() {
             // Initialize Shortcuts
             #[cfg(desktop)]
             {
-                let app_handle = app.handle().clone();
+                let _app_handle = app.handle().clone();
                 let pool_clone = pool.clone();
                 let shortcut_map = app.state::<ShortcutStateMap>();
                 
@@ -233,7 +233,7 @@ pub fn run() {
                 });
 
                 // Register Plugin with Handler
-                let app_handle_for_handler = app.handle().clone();
+                let _app_handle_for_handler = app.handle().clone();
                 
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
@@ -323,7 +323,8 @@ pub fn run() {
              export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
              validate_paths, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
              get_system_accent_color, clear_clips, reorder_clip, get_autostart, set_autostart,
-             save_window_position, load_window_position
+             save_window_position, load_window_position,
+             get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -617,6 +618,27 @@ async fn toggle_clip_pin(state: State<'_, DbState>, id: i64) -> Result<bool, Str
 #[tauri::command]
 fn set_incognito_mode(enabled: bool) {
     clipboard::set_incognito(enabled);
+}
+
+// Regex Rules Commands
+#[tauri::command]
+async fn get_regex_rules(state: State<'_, DbState>) -> Result<Vec<db::RegexRule>, String> {
+    db::get_regex_rules(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_regex_rule(state: State<'_, DbState>, pattern: String, action_type: String, action_payload: String) -> Result<i64, String> {
+    db::add_regex_rule(&state.pool, pattern, action_type, action_payload).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_regex_rule(state: State<'_, DbState>, id: i64, pattern: String, action_type: String, action_payload: String, enabled: bool) -> Result<(), String> {
+    db::update_regex_rule(&state.pool, id, pattern, action_type, action_payload, enabled).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_regex_rule(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_regex_rule(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

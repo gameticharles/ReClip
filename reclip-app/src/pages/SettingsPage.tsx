@@ -41,6 +41,12 @@ export default function SettingsPage({
     const [newTemplateContent, setNewTemplateContent] = useState("");
     const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
 
+    // Automations
+    const [regexRules, setRegexRules] = useState<any[]>([]);
+    const [newAutoPattern, setNewAutoPattern] = useState("");
+    const [newAutoAction, setNewAutoAction] = useState("open_url");
+    const [newAutoPayload, setNewAutoPayload] = useState("");
+
     // Startup & Window Position
     const [autostart, setAutostart] = useState(false);
     const [rememberPosition, setRememberPosition] = useState(localStorage.getItem('rememberWindowPosition') === 'true');
@@ -105,6 +111,31 @@ export default function SettingsPage({
         }
     };
 
+    const fetchRegexRules = async () => {
+        try {
+            const r = await invoke<any[]>("get_regex_rules");
+            setRegexRules(r);
+        } catch (e) { console.error(e); }
+    };
+
+    const addRegexRule = async () => {
+        if (!newAutoPattern.trim() || !newAutoPayload.trim()) return;
+        try {
+            await invoke("add_regex_rule", { pattern: newAutoPattern, actionType: newAutoAction, actionPayload: newAutoPayload });
+            setNewAutoPattern("");
+            setNewAutoPayload("");
+            fetchRegexRules();
+        } catch (e) { console.error(e); }
+    };
+
+    const deleteRegexRule = async (id: number) => {
+        if (!confirm("Delete rule?")) return;
+        try {
+            await invoke("delete_regex_rule", { id });
+            fetchRegexRules();
+        } catch (e) { console.error(e); }
+    };
+
     const handleRecordClick = (action: string) => {
         setRecordingAction(action);
     };
@@ -148,6 +179,7 @@ export default function SettingsPage({
         if (activeTab === 'security') fetchPrivacyRules();
         if (activeTab === 'shortcuts') fetchShortcuts();
         if (activeTab === 'templates') fetchTemplates();
+        if (activeTab === 'automations') fetchRegexRules();
         if (activeTab === 'interface') {
             // Fetch autostart status
             invoke<boolean>("get_autostart").then(setAutostart).catch(console.error);
@@ -258,6 +290,7 @@ export default function SettingsPage({
         { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
         { id: 'security', label: 'Security', icon: '🔒' },
         { id: 'templates', label: 'Templates', icon: '📝' },
+        { id: 'automations', label: 'Automations', icon: '🤖' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
         { id: 'backup', label: 'Backup', icon: '💾' }
     ];
@@ -804,6 +837,62 @@ export default function SettingsPage({
                                     </div>
                                 ))}
                                 {templates.length === 0 && <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No templates yet.</p>}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'automations' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>Automations (Regex)</h2>
+                            <p style={{ opacity: 0.7, marginBottom: '20px' }}>Automatically trigger actions when copied text matches a pattern.</p>
+
+                            <div style={{ background: 'rgba(128,128,128,0.05)', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+                                <h3 style={{ marginTop: 0 }}>New Rule</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Regex Pattern (e.g. https://example.com/item/(\d+))"
+                                        value={newAutoPattern}
+                                        onChange={e => setNewAutoPattern(e.target.value)}
+                                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit', fontFamily: 'monospace' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <select
+                                            value={newAutoAction}
+                                            onChange={e => setNewAutoAction(e.target.value)}
+                                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'var(--bg-card)', color: 'inherit' }}
+                                        >
+                                            <option value="open_url">Open URL</option>
+                                            <option value="notify">Show Notification</option>
+                                        </select>
+                                        <input
+                                            type="text"
+                                            placeholder={newAutoAction === 'open_url' ? "Target URL (use $1, $2 for captures)" : "Notification Message"}
+                                            value={newAutoPayload}
+                                            onChange={e => setNewAutoPayload(e.target.value)}
+                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
+                                        />
+                                    </div>
+                                    <button onClick={addRegexRule} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+                                        Add Rule
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="rule-list">
+                                {regexRules.map(r => (
+                                    <div key={r.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                                            <div style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.9rem', color: 'var(--accent-color)' }}>{r.pattern}</div>
+                                            <div style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: '4px' }}>
+                                                <span style={{ textTransform: 'uppercase', fontSize: '0.7rem', opacity: 0.6, border: '1px solid rgba(128,128,128,0.3)', padding: '2px 4px', borderRadius: '3px', marginRight: '8px' }}>{r.action_type.replace('_', ' ')}</span>
+                                                {r.action_payload}
+                                            </div>
+                                        </div>
+                                        <button onClick={() => deleteRegexRule(r.id)} className="icon-btn" title="Delete Rule">🗑️</button>
+                                    </div>
+                                ))}
+                                {regexRules.length === 0 && <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No automation rules defined.</p>}
                             </div>
                         </div>
                     )}
