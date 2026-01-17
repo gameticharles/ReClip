@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { motion, AnimatePresence } from "framer-motion";
+import { QRCodeSVG } from "qrcode.react";
 import ClipContent from "./ClipContent";
 import UrlPreview from "./UrlPreview";
 
@@ -39,6 +40,11 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     // Paste Queue
     const [queueMode, setQueueMode] = useState(false);
     const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
+
+    // Menu & QR
+    const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+    const [qrContent, setQrContent] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     // Advanced Settings States
     const [dateFormat, setDateFormat] = useState<'absolute' | 'relative'>('relative');
@@ -257,6 +263,17 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [clips, selectedIndex, focusOnDelete]);
+
+    // Close menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setActiveMenuId(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // Scroll selected clip into view
     useEffect(() => {
@@ -685,15 +702,53 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                                 </svg>
                                             </button>
                                         )}
+
                                         <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
-                                        <button
-                                            className={`delete-btn ${selectedIndex === index && focusOnDelete ? 'focused' : ''}`}
-                                            onClick={(e) => deleteClip(e, clip.id)}
-                                            title="Delete"
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                        </button>
+
+                                        <div style={{ position: 'relative' }}>
+                                            <button
+                                                className={`icon-btn menu-btn ${activeMenuId === clip.id ? 'active' : ''}`}
+                                                onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === clip.id ? null : clip.id); }}
+                                                title="More Options"
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px',
+                                                    opacity: activeMenuId === clip.id ? 1 : 0,
+                                                    transition: 'opacity 0.2s'
+                                                }}
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+                                            </button>
+
+                                            {activeMenuId === clip.id && (
+                                                <div
+                                                    ref={menuRef}
+                                                    className="clip-menu-dropdown"
+                                                    style={{
+                                                        position: 'absolute', top: '100%', right: 0,
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid rgba(128,128,128,0.2)',
+                                                        borderRadius: '8px',
+                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                                        zIndex: 100, overflow: 'hidden', minWidth: '140px',
+                                                        backdropFilter: 'blur(10px)'
+                                                    }}
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <button
+                                                        onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                    >
+                                                        📱 QR Code
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { deleteClip(e, clip.id); setActiveMenuId(null); }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem' }}
+                                                    >
+                                                        🗑️ Delete
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="clip-content">
@@ -729,7 +784,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                         </motion.p>
                     )}
                 </div>
-            </main>
+            </main >
 
             {queueMode && pasteQueue.length > 0 && (
                 <div className="bulk-actions-bar" style={{ background: 'rgba(16, 185, 129, 0.95)' }}>
@@ -740,18 +795,60 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                         <button onClick={() => setPasteQueue([])}>Clear</button>
                     </div>
                 </div>
-            )}
+            )
+            }
 
-            {!queueMode && selectedClipIds.size > 0 && (
-                <div className="bulk-actions-bar">
-                    <div className="bulk-info"> {selectedClipIds.size} selected </div>
-                    <div className="bulk-buttons">
-                        <button onClick={bulkPaste} title="Join and paste selected clips">Merge & Paste</button>
-                        <button onClick={bulkDelete} title="Delete selected clips">Delete</button>
-                        <button onClick={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}>Cancel</button>
+            {
+                !queueMode && selectedClipIds.size > 0 && (
+                    <div className="bulk-actions-bar">
+                        <div className="bulk-info"> {selectedClipIds.size} selected </div>
+                        <div className="bulk-buttons">
+                            <button onClick={bulkPaste} title="Join and paste selected clips">Merge & Paste</button>
+                            <button onClick={bulkDelete} title="Delete selected clips">Delete</button>
+                            <button onClick={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}>Cancel</button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+
+
+            {/* QR Code Modal */}
+            <AnimatePresence>
+                {qrContent && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                        }}
+                        onClick={() => setQrContent(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                            style={{
+                                background: 'white', padding: '32px', borderRadius: '16px',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)', maxWidth: '90%', textAlign: 'center'
+                            }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'black' }}>Scan QR Code</h3>
+                            <div style={{ background: 'white', padding: '10px', borderRadius: '8px' }}>
+                                <QRCodeSVG value={qrContent} size={256} />
+                            </div>
+                            <p style={{ marginTop: '20px', marginBottom: 0, fontSize: '0.9rem', color: '#666', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {qrContent}
+                            </p>
+                            <button
+                                onClick={() => setQrContent(null)}
+                                style={{ marginTop: '24px', padding: '10px 24px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                            >
+                                Close
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </>
     );
 }
