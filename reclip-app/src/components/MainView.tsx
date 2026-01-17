@@ -36,6 +36,52 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     const searchInputRef = useRef<HTMLInputElement>(null);
     const clipListRef = useRef<HTMLDivElement>(null);
 
+    // Paste Queue
+    const [queueMode, setQueueMode] = useState(false);
+    const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
+
+    const addToQueue = (clip: Clip) => {
+        setPasteQueue(prev => {
+            if (!prev.find(c => c.id === clip.id)) {
+                return [...prev, clip];
+            }
+            return prev;
+        });
+    };
+
+    // ...
+
+    <button
+        onClick={() => setQueueMode(!queueMode)}
+        className={`title-btn ${queueMode ? 'active' : ''}`}
+        title="Toggle Paste Queue Mode"
+        style={{ color: queueMode ? '#10b981' : undefined, fontWeight: 'bold', position: 'relative' }}
+    >
+        Q
+        {queueMode && pasteQueue.length > 0 && (
+            <span style={{
+                position: 'absolute',
+                top: '0px',
+                right: '0px',
+                fontSize: '0.6rem',
+                background: '#10b981',
+                color: 'white',
+                padding: '1px 4px',
+                borderRadius: '10px',
+                lineHeight: 1
+            }}>
+                {pasteQueue.length}
+            </span>
+        )}
+    </button>
+
+    const pasteNextInQueue = async () => {
+        if (pasteQueue.length === 0) return;
+        const next = pasteQueue[0];
+        await pasteClip(next.content, next.type);
+        setPasteQueue(pasteQueue.slice(1));
+    };
+
     // Handle click on clip card
     const handleClipClick = (e: React.MouseEvent, clip: Clip) => {
         if (e.ctrlKey || e.shiftKey) {
@@ -70,10 +116,16 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
             }
 
             setSelectedClipIds(newSelected);
+            setSelectedClipIds(newSelected);
         } else {
-            setSelectedClipIds(new Set());
-            setLastSelectedId(null);
-            pasteClip(clip.content, clip.type);
+            if (queueMode) {
+                addToQueue(clip);
+                // Visual feedback? relying on UI to show queue
+            } else {
+                setSelectedClipIds(new Set());
+                setLastSelectedId(null);
+                pasteClip(clip.content, clip.type);
+            }
         }
     };
 
@@ -161,13 +213,28 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     }, [searchTerm]);
 
     useEffect(() => {
-        fetchClips();
-        const unlisten = listen("clip-created", (_event) => {
-            fetchClips(searchTerm);
-        });
+        let unlistenCreate: (() => void) | null = null;
+        let unlistenPasteNext: (() => void) | null = null;
+
+        const setup = async () => {
+            fetchClips();
+
+            // Listen for clip creation
+            unlistenCreate = await listen("clip-created", (_event) => {
+                fetchClips(searchTerm);
+            });
+
+            // Listen for Paste Next Shortcut
+            unlistenPasteNext = await listen("paste-next-trigger", (_event) => {
+                document.getElementById('hidden-paste-next-btn')?.click();
+            });
+        };
+
+        setup();
 
         return () => {
-            unlisten.then(f => f());
+            if (unlistenCreate) unlistenCreate();
+            if (unlistenPasteNext) unlistenPasteNext();
         };
     }, []);
 
@@ -369,6 +436,16 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                         )}
                     </button>
 
+                    <button
+                        onClick={() => setQueueMode(!queueMode)}
+                        className={`title-btn ${queueMode ? 'active' : ''}`}
+                        title="Toggle Paste Queue Mode"
+                        style={{ color: queueMode ? '#10b981' : undefined, fontWeight: 'bold' }}
+                    >
+                        Q
+                    </button>
+
+
                     <button onClick={onOpenSettings} className="title-btn" title="Settings">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </button>
@@ -535,7 +612,18 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                 </div>
             </main>
 
-            {selectedClipIds.size > 0 && (
+            {queueMode && pasteQueue.length > 0 && (
+                <div className="bulk-actions-bar" style={{ background: 'rgba(16, 185, 129, 0.95)' }}>
+                    <div className="bulk-info">Queue: {pasteQueue.length} items</div>
+                    <div className="bulk-buttons">
+                        <button onClick={pasteNextInQueue} title="Paste the first item and remove it">Paste Next</button>
+                        <button id="hidden-paste-next-btn" style={{ display: 'none' }} onClick={pasteNextInQueue}></button>
+                        <button onClick={() => setPasteQueue([])}>Clear</button>
+                    </div>
+                </div>
+            )}
+
+            {!queueMode && selectedClipIds.size > 0 && (
                 <div className="bulk-actions-bar">
                     <div className="bulk-info"> {selectedClipIds.size} selected </div>
                     <div className="bulk-buttons">

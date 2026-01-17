@@ -109,6 +109,49 @@ pub async fn prune_clips(pool: &Pool<Sqlite>, days: i64, max_clips: i64) -> Resu
     Ok(())
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct Template {
+    pub id: i64,
+    pub name: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+pub async fn get_templates(pool: &Pool<Sqlite>) -> Option<Vec<Template>> {
+    sqlx::query_as::<_, Template>("SELECT id, name, content, created_at FROM templates ORDER BY name ASC")
+        .fetch_all(pool)
+        .await
+        .ok()
+}
+
+pub async fn add_template(pool: &Pool<Sqlite>, name: &str, content: &str) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO templates (name, content) VALUES (?, ?)")
+        .bind(name)
+        .bind(content)
+        .execute(pool)
+        .await?
+        .last_insert_rowid();
+    Ok(id)
+}
+
+pub async fn delete_template(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM templates WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn update_template(pool: &Pool<Sqlite>, id: i64, name: &str, content: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE templates SET name = ?, content = ? WHERE id = ?")
+        .bind(name)
+        .bind(content)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn update_clip_tags(pool: &Pool<Sqlite>, id: i64, tags: String) -> Result<(), sqlx::Error> {
     sqlx::query("UPDATE clips SET tags = ? WHERE id = ?")
         .bind(tags)

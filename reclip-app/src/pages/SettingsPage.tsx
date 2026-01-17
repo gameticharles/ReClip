@@ -35,6 +35,54 @@ export default function SettingsPage({
     const [newIgnoreApp, setNewIgnoreApp] = useState("");
     const [newRegex, setNewRegex] = useState("");
 
+    // Templates
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [newTemplateName, setNewTemplateName] = useState("");
+    const [newTemplateContent, setNewTemplateContent] = useState("");
+    const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+
+    const fetchTemplates = async () => {
+        try {
+            const t = await invoke<any[]>("get_templates");
+            setTemplates(t);
+        } catch (e) { console.error(e); }
+    };
+
+    const saveTemplate = async () => {
+        if (!newTemplateName.trim() || !newTemplateContent.trim()) return;
+        try {
+            if (editingTemplate) {
+                await invoke("update_template", { id: editingTemplate.id, name: newTemplateName, content: newTemplateContent });
+                setEditingTemplate(null);
+            } else {
+                await invoke("add_template", { name: newTemplateName, content: newTemplateContent });
+            }
+            setNewTemplateName("");
+            setNewTemplateContent("");
+            fetchTemplates();
+        } catch (e) { console.error(e); }
+    };
+
+    const deleteTemplate = async (id: number) => {
+        if (!confirm("Delete template?")) return;
+        try {
+            await invoke("delete_template", { id });
+            fetchTemplates();
+        } catch (e) { console.error(e); }
+    };
+
+    const startEditTemplate = (t: any) => {
+        setEditingTemplate(t);
+        setNewTemplateName(t.name);
+        setNewTemplateContent(t.content);
+    };
+
+    const cancelEditTemplate = () => {
+        setEditingTemplate(null);
+        setNewTemplateName("");
+        setNewTemplateContent("");
+    };
+
     const fetchPrivacyRules = async () => {
         try {
             const rules = await invoke<any[]>("get_privacy_rules");
@@ -89,6 +137,7 @@ export default function SettingsPage({
     useEffect(() => {
         if (activeTab === 'security') fetchPrivacyRules();
         if (activeTab === 'shortcuts') fetchShortcuts();
+        if (activeTab === 'templates') fetchTemplates();
     }, [activeTab]);
 
     const handleAddRule = async (type: string, value: string) => {
@@ -195,6 +244,7 @@ export default function SettingsPage({
         { id: 'interface', label: 'Interface', icon: '🎨' },
         { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
         { id: 'security', label: 'Security', icon: '🔒' },
+        { id: 'templates', label: 'Templates', icon: '📝' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
         { id: 'backup', label: 'Backup', icon: '💾' }
     ];
@@ -326,6 +376,31 @@ export default function SettingsPage({
                                     }}
                                 >
                                     {recordingAction === 'incognito' ? 'Press keys...' : (shortcuts['incognito'] || 'Not Set')}
+                                </div>
+                            </div>
+
+                            {/* Paste Next */}
+                            <div className="setting-item">
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Paste Next in Queue</label>
+                                <div
+                                    className="shortcut-input"
+                                    onClick={() => handleRecordClick('paste_next')}
+                                    onKeyDown={(e) => recordingAction === 'paste_next' && handleKeyDown(e, 'paste_next')}
+                                    tabIndex={0}
+                                    style={{
+                                        padding: '12px',
+                                        background: recordingAction === 'paste_next' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)',
+                                        color: recordingAction === 'paste_next' ? 'white' : 'inherit',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(128,128,128,0.2)',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontWeight: 700,
+                                        outline: 'none',
+                                        userSelect: 'none'
+                                    }}
+                                >
+                                    {recordingAction === 'paste_next' ? 'Press keys...' : (shortcuts['paste_next'] || 'Not Set')}
                                 </div>
                             </div>
                         </div>
@@ -529,6 +604,57 @@ export default function SettingsPage({
                         </div>
                     )}
                 </div>
+                {activeTab === 'templates' && (
+                    <div className="settings-content" style={{ padding: '30px', overflowY: 'auto' }}>
+                        <h2>Templates</h2>
+                        <p style={{ opacity: 0.7, marginBottom: '20px' }}>Create reusable clips with placeholders (e.g. <code>{"{{name}}"}</code>).</p>
+
+                        <div style={{ background: 'rgba(128,128,128,0.05)', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+                            <h3 style={{ marginTop: 0 }}>{editingTemplate ? 'Edit Template' : 'New Template'}</h3>
+                            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Template Name"
+                                    value={newTemplateName}
+                                    onChange={e => setNewTemplateName(e.target.value)}
+                                    style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
+                                />
+                            </div>
+                            <textarea
+                                placeholder="Content (use {{placeholder}} for dynamic values)"
+                                value={newTemplateContent}
+                                onChange={e => setNewTemplateContent(e.target.value)}
+                                style={{ width: '100%', height: '100px', padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit', marginBottom: '10px', fontFamily: 'monospace' }}
+                            />
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button onClick={saveTemplate} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                                    {editingTemplate ? 'Update' : 'Add Template'}
+                                </button>
+                                {editingTemplate && (
+                                    <button onClick={cancelEditTemplate} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer' }}>
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="template-list">
+                            {templates.map(t => (
+                                <div key={t.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>{t.name}</div>
+                                        <div style={{ fontSize: '0.85rem', opacity: 0.7, whiteSpace: 'pre-wrap', maxHeight: '50px', overflow: 'hidden' }}>{t.content}</div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button onClick={() => startEditTemplate(t)} className="icon-btn">✏️</button>
+                                        <button onClick={() => deleteTemplate(t.id)} className="icon-btn">🗑️</button>
+                                    </div>
+                                </div>
+                            ))}
+                            {templates.length === 0 && <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No templates yet.</p>}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

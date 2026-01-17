@@ -93,6 +93,26 @@ async fn get_shortcuts(state: State<'_, DbState>) -> Result<HashMap<String, Stri
     Ok(shortcuts)
 }
 
+#[tauri::command]
+async fn get_templates(state: State<'_, DbState>) -> Result<Vec<db::Template>, String> {
+    db::get_templates(&state.pool).await.ok_or("Failed to fetch templates".to_string())
+}
+
+#[tauri::command]
+async fn add_template(state: State<'_, DbState>, name: String, content: String) -> Result<i64, String> {
+    db::add_template(&state.pool, &name, &content).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_template(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_template(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_template(state: State<'_, DbState>, id: i64, name: String, content: String) -> Result<(), String> {
+    db::update_template(&state.pool, id, &name, &content).await.map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -132,6 +152,12 @@ pub fn run() {
                     if !inc_sc.is_empty() {
                         map.insert(inc_sc.clone(), "incognito".to_string());
                     }
+                    
+                    // Paste Next
+                    let next_sc = db::get_setting(&pool_clone, "shortcut_paste_next").await.unwrap_or("".to_string());
+                    if !next_sc.is_empty() {
+                        map.insert(next_sc.clone(), "paste_next".to_string());
+                    }
                 });
 
                 // Register Plugin with Handler
@@ -148,23 +174,23 @@ pub fn run() {
                                 };
                                 
                                 if let Some(act) = action {
-                                    match act.as_str() {
-                                        "show_window" => {
-                                             if let Some(window) = app.get_webview_window("main") {
-                                                 if window.is_visible().unwrap_or(false) {
-                                                     let _ = window.hide();
-                                                 } else {
-                                                     let _ = window.show();
-                                                     let _ = window.set_focus();
-                                                 }
-                                             }
-                                        },
-                                        "incognito" => {
-                                            let current = clipboard::is_incognito();
-                                            clipboard::set_incognito(!current);
-                                            let _ = app.emit("incognito-changed", !current);
-                                        },
-                                        _ => {}
+                                    if act == "show_window" {
+                                        if let Some(w) = app.get_webview_window("main") {
+                                            if w.is_visible().unwrap_or(false) {
+                                                let _ = w.hide();
+                                            } else {
+                                                let _ = w.show();
+                                                let _ = w.set_focus();
+                                            }
+                                        }
+                                    } else if act == "incognito" {
+                                        // Toggle Incognito
+                                        let current = crate::clipboard::is_incognito();
+                                        crate::clipboard::set_incognito(!current);
+                                        let _ = app.emit("incognito-changed", !current);
+                                    } else if act == "paste_next" {
+                                        // Emit event for Frontend to handle
+                                        let _ = app.emit("paste-next-trigger", ());
                                     }
                                 }
                             }
@@ -226,8 +252,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-             greet, get_recent_clips, add_privacy_rule, delete_privacy_rule, get_privacy_rules,
+             greet, get_recent_clips, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
              update_shortcut, get_shortcuts,
+             get_templates, add_template, delete_template, update_template,
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
              export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
              get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
