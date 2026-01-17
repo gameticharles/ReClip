@@ -71,22 +71,89 @@ function App() {
   useEffect(() => {
     const rememberPosition = localStorage.getItem('rememberWindowPosition') === 'true';
 
-    if (rememberPosition) {
-      // Load saved position on startup
-      invoke<[number, number, number, number] | null>("load_window_position")
-        .then(async (pos) => {
-          if (pos) {
-            const [x, y, width, height] = pos;
-            const { getCurrentWindow, LogicalPosition, LogicalSize } = await import('@tauri-apps/api/window');
-            const win = getCurrentWindow();
-            await win.setPosition(new LogicalPosition(x, y));
-            await win.setSize(new LogicalSize(width, height));
+    const showWindow = async () => {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      await getCurrentWindow().show();
+    };
+
+    const positionWindowBottomLeft = async () => {
+      const { getCurrentWindow, LogicalPosition } = await import('@tauri-apps/api/window');
+      const win = getCurrentWindow();
+      const size = await win.outerSize();
+      const screenHeight = window.screen.availHeight;
+      const x = 20;
+      const y = screenHeight - size.height - 60;
+      await win.setPosition(new LogicalPosition(x, y));
+      await win.show();
+    };
+
+    const loadAndValidatePosition = async () => {
+      try {
+        const result = await invoke<{ x: number; y: number; width: number; height: number } | [number, number, number, number] | null>("load_window_position");
+
+        const { getCurrentWindow, LogicalPosition, LogicalSize } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+
+        if (!result) {
+          await positionWindowBottomLeft();
+          return;
+        }
+
+        // Handle different data formats (tuple vs object)
+        let x: number, y: number, width: number, height: number;
+        if (Array.isArray(result)) {
+          [x, y, width, height] = result;
+        } else if (typeof result === 'object' && result !== null) {
+          if ('0' in result) {
+            x = (result as any)['0'];
+            y = (result as any)['1'];
+            width = (result as any)['2'];
+            height = (result as any)['3'];
+          } else {
+            x = result.x;
+            y = result.y;
+            width = result.width;
+            height = result.height;
           }
-        })
-        .catch(console.error);
+        } else {
+          await positionWindowBottomLeft();
+          return;
+        }
+
+        const screenWidth = window.screen.availWidth;
+        const screenHeight = window.screen.availHeight;
+
+        // Validate position is within screen bounds
+        const isOutOfBounds =
+          x < -width + 50 ||
+          y < -height + 50 ||
+          x > screenWidth - 50 ||
+          y > screenHeight - 50;
+
+        if (isOutOfBounds || width <= 0 || height <= 0) {
+          await positionWindowBottomLeft();
+          return;
+        }
+
+        // Valid position - restore it then show
+        await win.setSize(new LogicalSize(width, height));
+        await win.setPosition(new LogicalPosition(x, y));
+        await win.show();
+      } catch (e) {
+        console.error("[WindowPos] Failed to restore:", e);
+        positionWindowBottomLeft();
+      }
+    };
+
+    if (rememberPosition) {
+      // Position window then show
+      setTimeout(loadAndValidatePosition, 50);
+    } else {
+      // Just show the window at default position
+      showWindow();
     }
 
-    // Save position on window close/move
+    // Save position function
     const savePosition = async () => {
       if (localStorage.getItem('rememberWindowPosition') !== 'true') return;
       try {
@@ -99,24 +166,28 @@ function App() {
           width: size.width, height: size.height
         });
       } catch (e) {
-        console.error("Failed to save window position:", e);
+        console.error("[WindowPos] Save error:", e);
       }
     };
 
-    // Save on visibility change (when app goes to background)
+    // Start interval if enabled (save every 10 seconds)
+    let saveInterval: ReturnType<typeof setInterval> | null = null;
+    if (localStorage.getItem('rememberWindowPosition') === 'true') {
+      setTimeout(savePosition, 1000);
+      saveInterval = setInterval(savePosition, 10000);
+    }
+
+    // Also save on visibility change and before unload
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        savePosition();
-      }
+      if (document.visibilityState === 'hidden') savePosition();
     };
     document.addEventListener('visibilitychange', handleVisibility);
-
-    // Also save before unload
     window.addEventListener('beforeunload', savePosition);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('beforeunload', savePosition);
+      if (saveInterval) clearInterval(saveInterval);
     };
   }, []);
 

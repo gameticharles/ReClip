@@ -409,12 +409,17 @@ async fn set_autostart(app: tauri::AppHandle, enabled: bool) -> Result<(), Strin
 #[tauri::command]
 async fn save_window_position(state: State<'_, DbState>, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
     let position = format!("{},{},{},{}", x, y, width, height);
+    println!("[DEBUG] Saving window position: {}", position);
     db::set_setting(&state.pool, "window_position", &position).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn load_window_position(state: State<'_, DbState>) -> Result<Option<(i32, i32, u32, u32)>, String> {
-    if let Some(pos) = db::get_setting(&state.pool, "window_position").await {
+    println!("[DEBUG] Loading window position...");
+    let raw = db::get_setting(&state.pool, "window_position").await;
+    println!("[DEBUG] Raw value from DB: {:?}", raw);
+    
+    if let Some(pos) = raw {
         let parts: Vec<&str> = pos.split(',').collect();
         if parts.len() == 4 {
             if let (Ok(x), Ok(y), Ok(w), Ok(h)) = (
@@ -423,10 +428,12 @@ async fn load_window_position(state: State<'_, DbState>) -> Result<Option<(i32, 
                 parts[2].parse::<u32>(),
                 parts[3].parse::<u32>(),
             ) {
+                println!("[DEBUG] Parsed position: ({}, {}, {}, {})", x, y, w, h);
                 return Ok(Some((x, y, w, h)));
             }
         }
     }
+    println!("[DEBUG] No position found, returning None");
     Ok(None)
 }
 

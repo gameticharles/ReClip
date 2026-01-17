@@ -11,6 +11,11 @@
     "core:window:allow-hide",
     "core:window:allow-show",
     "core:window:allow-set-always-on-top",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    "core:window:allow-outer-position",
+    "core:window:allow-outer-size",
+    "core:window:allow-is-visible",
     "opener:default",
     "global-shortcut:allow-register",
     "global-shortcut:allow-is-registered",
@@ -18,6 +23,9 @@
     "fs:allow-appdata-read-recursive",
     "fs:allow-read",
     "dialog:allow-save",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }
