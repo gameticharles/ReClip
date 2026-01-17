@@ -623,10 +623,35 @@ async fn get_url_metadata(url: String) -> Result<UrlMetadata, String> {
             })
     };
     
+    // Detect bot protection pages (Cloudflare, etc.)
+    let is_protected = text.contains("Just a moment") 
+        || text.contains("cf-browser-verification")
+        || text.contains("challenge-platform")
+        || text.contains("Checking your browser");
+    
+    if is_protected {
+        // Return minimal metadata for protected sites - just extract domain
+        if let Ok(parsed) = reqwest::Url::parse(&url) {
+            return Ok(UrlMetadata { 
+                title: Some(format!("🔒 {}", parsed.host_str().unwrap_or("Protected Site"))),
+                description: Some("This site uses bot protection. Preview not available.".to_string()),
+                image: None,
+                og_title: None,
+                og_description: None,
+                og_site_name: None,
+                keywords: None,
+                author: None,
+                canonical: None,
+                favicon: None,
+            });
+        }
+    }
+    
     // Title from <title> tag
     let title = regex::Regex::new(r"(?i)<title>([^<]*)</title>").ok()
         .and_then(|re| re.captures(&text))
-        .map(|c| c.get(1).unwrap().as_str().trim().to_string());
+        .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+        .filter(|t| !t.is_empty() && !t.to_lowercase().contains("just a moment"));
     
     // Standard meta tags
     let description = extract_meta("description", "name");
