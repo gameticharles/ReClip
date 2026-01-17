@@ -1,0 +1,78 @@
+# ReClip Development Task List
+
+- [x] Analyze existing project <!-- id: 0 -->
+    - [x] Read current `readme.md` <!-- id: 1 -->
+    - [x] Explore project structure and key files <!-- id: 2 -->
+- [x] Rewrite README <!-- id: 3 -->
+    - [x] Draft new content <!-- id: 5 -->
+    - [x] Write new `readme.md` <!-- id: 4 -->
+- [x] Brainstorm & Plan New Features <!-- id: 6 -->
+    - [x] Create Feature Roadmap Proposal <!-- id: 7 -->
+    - [x] Select features for implementation <!-- id: 8 -->
+    - [x] Update README with Roadmap <!-- id: 9 -->
+- [x] Define Technology Stack <!-- id: 10 -->
+    - [x] Create Tech Stack Document <!-- id: 11 -->
+- [x] Compare Flutter vs Rust+Tauri <!-- id: 12 -->
+    - [x] Research Clipboard API capabilities & File Sizes <!-- id: 13 -->
+    - [x] Create Comparison Document <!-- id: 14 -->
+- [x] Analyze Legacy C# App <!-- id: 15 -->
+    - [x] Extract feature list from screenshots <!-- id: 16 -->
+    - [x] Map legacy features to new architecture <!-- id: 17 -->
+- [x] Finalize Project Plan <!-- id: 18 -->
+    - [x] Analyze legacy `SQLiteHelper.cs` data model <!-- id: 19 -->
+    - [x] Create Master Implementation Plan (Architecture, UI, Schema) <!-- id: 20 -->
+- [ ] Initialize Project <!-- id: 21 -->
+    - [x] Run `create-tauri-app` (React/TS) <!-- id: 22 -->
+    - [x] Install dependencies <!-- id: 23 -->
+    - [x] Verify build environment <!-- id: 24 -->
+- [ ] Implementation Phase
+    - [x] Setup Database & Migrations
+    - [x] Implement Clipboard Listener (Rust)
+    - [x] Build Frontend Feed UI (React)
+    - [x] Verify functionalityC:\Users\reing\AppData\Roaming\com.reclip.app\images\21e51dfb74be62ca2dbc225861d956c957e39ff33a9292e2292f454f6a8a9b44.png
+- [x] Phase 2: Core Interactivity
+    - [x] Implement "Copy to System" (Click to Copy)
+    - [x] Implement Global Hotkey (Toggle Window)
+    - [x] Implement "Delete" actions
+- [x] Phase 3: Core Legacy Features
+    - [x] **Clipboard:** Handle Images and Files (Unified Feed)
+    - [x] **Interaction:** "Paste to Active Window" (Auto-paste on click)
+    - [x] **Settings:** "Always on Top" & Opacity  
+    - [x] **Auto-Maintenance:** Time-To-Live (30 days) & Soft Limit (10k items)
+- [x] Phase 4: Organization & Search
+    - [x] Implement Basic Search & Filtering
+    - [x] Implement "Smart Tags" (Auto-tagging)
+    - [x] Manual Tag Management (Add custom tags)
+    - [x] Click-to-Filter on Tags
+    - [x] Pin/Unpin Clips (Protected from auto-delete)
+- [x] Phase 5: UI Polish
+    - [x] Premium UI (Glassmorphism, Animations)
+    - [x] Dark Mode Polish
+- [x] Phase 6: Backup & Restore
+    - [x] Export Clips (ZIP with database + images)
+    - [x] Import Clips (Restore from ZIP)
+- [x] Phase 7: Quick Wins
+    - [x] System Tray Icon
+    - [x] Incognito Mode (Pause Capture)
+    - [x] Compact Mode Toggle
+    - [x] Text Transformations (upper/lower/trim)
+    - [x] Code Syntax Highlighting
+- [ ] Phase 8: Productivity Features
+    - [x] Favorites/Starred Clips
+    - [x] Keyboard Shortcuts per Clip (Ctrl+1-9)
+    - [x] Templates with Placeholders
+    - [x] URL Preview (title/favicon)
+    - [x] Multi-Select & Bulk Actions
+    - [x] Color Preview (HEX/RGB)
+- [ ] Phase 9: Security & Privacy
+    - [ ] Password Detection (auto-clear)
+    - [ ] Ignore List (exclude apps)
+    - [ ] Encrypted Clips (PIN protected)
+- [ ] Phase 10: UI/UX Enhancements
+    - [ ] Custom Themes
+    - [ ] Drag & Drop Reorder
+- [ ] Phase 11: Advanced (Future)
+    - [ ] Rich Text Support
+    - [ ] Cloud Sync
+
+

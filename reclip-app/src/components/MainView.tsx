@@ -1,0 +1,550 @@
+import { useState, useEffect, useRef } from "react";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { Clip } from "../types";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { motion, AnimatePresence } from "framer-motion";
+import ClipContent from "./ClipContent";
+import UrlPreview from "./UrlPreview";
+
+interface MainViewProps {
+    compactMode: boolean;
+    onOpenSettings: () => void;
+}
+
+const isUrl = (text: string) => {
+    try {
+        const url = new URL(text);
+        return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+        return false;
+    }
+};
+
+const isColorCode = (text: string) => {
+    return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
+};
+
+export default function MainView({ compactMode, onOpenSettings }: MainViewProps) {
+    const [clips, setClips] = useState<Clip[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
+    const [focusOnDelete, setFocusOnDelete] = useState(false); // Left/Right toggle
+    const [incognitoMode, setIncognitoMode] = useState(false);
+    const [selectedClipIds, setSelectedClipIds] = useState<Set<number>>(new Set());
+    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+    const clipListRef = useRef<HTMLDivElement>(null);
+
+    // Handle click on clip card
+    const handleClipClick = (e: React.MouseEvent, clip: Clip) => {
+        if (e.ctrlKey || e.shiftKey) {
+            e.preventDefault();
+            const newSelected = new Set(selectedClipIds);
+
+            if (e.shiftKey && lastSelectedId !== null) {
+                // Range selection
+                const startIdx = clips.findIndex(c => c.id === lastSelectedId);
+                const endIdx = clips.findIndex(c => c.id === clip.id);
+                if (startIdx !== -1 && endIdx !== -1) {
+                    const min = Math.min(startIdx, endIdx);
+                    const max = Math.max(startIdx, endIdx);
+                    for (let i = min; i <= max; i++) {
+                        newSelected.add(clips[i].id);
+                    }
+                }
+            } else if (e.ctrlKey) {
+                // Toggle selection
+                if (newSelected.has(clip.id)) {
+                    newSelected.delete(clip.id);
+                } else {
+                    newSelected.add(clip.id);
+                    setLastSelectedId(clip.id);
+                }
+            }
+
+            // If nothing was selected before, and we just selected one, make sure lastSelected is updated
+            if (selectedClipIds.size === 0 && e.shiftKey) {
+                newSelected.add(clip.id);
+                setLastSelectedId(clip.id);
+            }
+
+            setSelectedClipIds(newSelected);
+        } else {
+            setSelectedClipIds(new Set());
+            setLastSelectedId(null);
+            pasteClip(clip.content, clip.type);
+        }
+    };
+
+    // Keyboard navigation handler
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const isInputFocused = document.activeElement?.tagName === 'INPUT';
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (isInputFocused) searchInputRef.current?.blur();
+                setSelectedIndex(prev => Math.min(prev + 1, clips.length - 1));
+                setFocusOnDelete(false);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (selectedIndex <= 0 && searchInputRef.current) {
+                    setSelectedIndex(-1);
+                    searchInputRef.current.focus();
+                } else {
+                    setSelectedIndex(prev => Math.max(prev - 1, 0));
+                }
+                setFocusOnDelete(false);
+            } else if (e.key === 'ArrowRight' && selectedIndex >= 0) {
+                e.preventDefault();
+                setFocusOnDelete(true);
+            } else if (e.key === 'ArrowLeft' && selectedIndex >= 0) {
+                e.preventDefault();
+                setFocusOnDelete(false);
+            } else if ((e.key === 'Enter' || e.key === ' ') && selectedIndex >= 0 && !isInputFocused) {
+                e.preventDefault();
+                const selectedClip = clips[selectedIndex];
+                if (selectedClip) {
+                    if (focusOnDelete) {
+                        invoke("delete_clip", { id: selectedClip.id }).then(() => {
+                            setClips(clips.filter(c => c.id !== selectedClip.id));
+                            setSelectedIndex(prev => Math.min(prev, clips.length - 2));
+                            setFocusOnDelete(false);
+                        });
+                    } else {
+                        pasteClip(selectedClip.content, selectedClip.type);
+                    }
+                }
+            } else if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
+                const index = parseInt(e.key) - 1;
+                const targetClip = clips[index];
+                if (targetClip) {
+                    setSelectedIndex(index);
+                    setTimeout(() => pasteClip(targetClip.content, targetClip.type), 50);
+                }
+            } else if (e.key === 'Escape') {
+                setSelectedIndex(-1);
+                setFocusOnDelete(false);
+                searchInputRef.current?.blur();
+            } else if (!isInputFocused && !e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+                searchInputRef.current?.focus();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [clips, selectedIndex, focusOnDelete]);
+
+    // Scroll selected clip into view
+    useEffect(() => {
+        if (selectedIndex >= 0 && clipListRef.current) {
+            const clipCards = clipListRef.current.querySelectorAll('.clip-card');
+            clipCards[selectedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, [selectedIndex]);
+
+    async function fetchClips(search = "") {
+        try {
+            const recentClips = await invoke<Clip[]>("get_recent_clips", { limit: 50, offset: 0, search: search || null });
+            setClips(recentClips);
+        } catch (error) {
+            console.error("Failed to fetch clips:", error);
+        }
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchClips(searchTerm);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        fetchClips();
+        const unlisten = listen("clip-created", (_event) => {
+            fetchClips(searchTerm);
+        });
+
+        return () => {
+            unlisten.then(f => f());
+        };
+    }, []);
+
+    async function pasteClip(content: string, clipType: string = 'text') {
+        let finalContent = content;
+        if (clipType === 'text' && content.includes('{{')) {
+            const date = new Date();
+            finalContent = finalContent
+                .replace(/{{date}}/g, date.toISOString().split('T')[0])
+                .replace(/{{time}}/g, date.toTimeString().split(' ')[0].substring(0, 5))
+                .replace(/{{datetime}}/g, date.toLocaleString());
+
+            const regex = /{{(.*?)}}/g;
+            let match;
+            const placeholders = new Set<string>();
+            while ((match = regex.exec(content)) !== null) {
+                if (!['date', 'time', 'datetime'].includes(match[1])) {
+                    placeholders.add(match[1]);
+                }
+            }
+
+            for (const ph of placeholders) {
+                const value = prompt(`Enter value for ${ph}:`, "");
+                if (value === null) return;
+                const phRegex = new RegExp(`{{${ph}}}`, 'g');
+                finalContent = finalContent.replace(phRegex, value);
+            }
+        }
+
+        try {
+            await invoke("paste_clip_to_system", { content: finalContent, clipType });
+        } catch (error) {
+            console.error("Failed to paste:", error);
+        }
+    }
+
+    async function deleteClip(e: React.MouseEvent, id: number) {
+        e.stopPropagation();
+        try {
+            await invoke("delete_clip", { id });
+            setClips(clips.filter(c => c.id !== id));
+        } catch (error) {
+            console.error("Failed to delete clip:", error);
+        }
+    }
+
+    async function addTagToClip(e: React.MouseEvent, id: number, currentTags: string | null) {
+        e.stopPropagation();
+        const tagInput = prompt("Enter tag (without #):", "");
+        if (tagInput && tagInput.trim()) {
+            const newTag = `#${tagInput.trim().replace(/^#/, '')}`;
+            const existingTags: string[] = currentTags ? JSON.parse(currentTags) : [];
+            if (!existingTags.includes(newTag)) {
+                existingTags.push(newTag);
+                const updatedTags = JSON.stringify(existingTags);
+                try {
+                    await invoke("update_clip_tags", { id, tags: updatedTags });
+                    setClips(clips.map(c => c.id === id ? { ...c, tags: updatedTags } : c));
+                } catch (error) {
+                    console.error("Failed to add tag:", error);
+                }
+            }
+        }
+    }
+
+    async function togglePin(e: React.MouseEvent, id: number) {
+        e.stopPropagation();
+        try {
+            const newPinned = await invoke<boolean>("toggle_clip_pin", { id });
+            setClips(clips.map(c => c.id === id ? { ...c, pinned: newPinned } : c));
+        } catch (error) {
+            console.error("Failed to toggle pin:", error);
+        }
+    }
+
+    function filterByTag(tag: string) {
+        setSearchTerm(tag);
+    }
+
+    async function bulkPaste() {
+        const selected = clips.filter(c => selectedClipIds.has(c.id));
+        if (selected.length === 0) return;
+        const content = selected.map(c => c.content).join('\n');
+        await pasteClip(content, 'text');
+        setSelectedClipIds(new Set());
+        setLastSelectedId(null);
+    }
+
+    async function bulkDelete() {
+        if (!confirm(`Delete ${selectedClipIds.size} clips?`)) return;
+        const idsToDelete = Array.from(selectedClipIds);
+        setClips(clips.filter(c => !selectedClipIds.has(c.id)));
+        setSelectedClipIds(new Set());
+        setLastSelectedId(null);
+        for (const id of idsToDelete) {
+            try {
+                await invoke("delete_clip", { id });
+            } catch (e) {
+                console.error(`Failed to delete clip ${id}:`, e);
+            }
+        }
+    }
+
+    async function toggleIncognito() {
+        const newState = !incognitoMode;
+        setIncognitoMode(newState);
+        await invoke("set_incognito_mode", { enabled: newState });
+    }
+
+    async function transformText(e: React.MouseEvent, id: number, type: 'upper' | 'lower' | 'title' | 'trim') {
+        e.stopPropagation();
+        const clip = clips.find(c => c.id === id);
+        if (!clip || clip.type !== 'text') return;
+
+        let newContent = clip.content;
+        switch (type) {
+            case 'upper': newContent = newContent.toUpperCase(); break;
+            case 'lower': newContent = newContent.toLowerCase(); break;
+            case 'title': newContent = newContent.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()); break;
+            case 'trim': newContent = newContent.trim(); break;
+        }
+
+        if (newContent !== clip.content) {
+            try {
+                await invoke("update_clip_content", { id, content: newContent });
+                setClips(clips.map(c => c.id === id ? { ...c, content: newContent } : c));
+            } catch (error) {
+                console.error("Failed to transform text:", error);
+            }
+        }
+    }
+
+    async function toggleFavorite(e: React.MouseEvent, id: number) {
+        e.stopPropagation();
+        try {
+            const newStatus = await invoke<boolean>("toggle_clip_favorite", { id });
+            setClips(clips.map(c => c.id === id ? { ...c, favorite: newStatus } : c));
+        } catch (error) {
+            console.error("Failed to toggle favorite:", error);
+        }
+    }
+
+    // Load incognito state on mount
+    useEffect(() => {
+        invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
+    }, []);
+
+    return (
+        <>
+            {/* Title Bar - Uses programmatic dragging */}
+            <div
+                className="titlebar"
+                onMouseDown={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest('input') && !target.closest('button')) {
+                        getCurrentWindow().startDragging();
+                    }
+                }}
+            >
+                <div className="title-left">
+                    <span className="app-title">ReClip</span>
+                </div>
+
+                {/* Search Bar */}
+                <div className="search-container" style={{ flex: 1, margin: '0 12px', display: 'flex', justifyContent: 'center' }}>
+                    <input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder="Search clips..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="search-input"
+                        style={{
+                            width: '90%',
+                            maxWidth: '400px',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(0,0,0,0.05)',
+                            background: 'rgba(255,255,255,0.4)',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            transition: 'all 0.2s',
+                            backdropFilter: 'blur(5px)'
+                        }}
+                    />
+                </div>
+
+                <div className="title-right">
+                    <button
+                        onClick={toggleIncognito}
+                        className={`title-btn ${incognitoMode ? 'active' : ''}`}
+                        title={incognitoMode ? "Resume Capture" : "Pause Capture (Incognito)"}
+                        style={{ color: incognitoMode ? '#f59e0b' : undefined }}
+                    >
+                        {incognitoMode ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                        ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        )}
+                    </button>
+
+                    <button onClick={onOpenSettings} className="title-btn" title="Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                    <button onClick={() => getCurrentWindow().hide()} className="title-btn" title="Hide">✕</button>
+                </div>
+            </div>
+
+            <main className="container">
+                <div ref={clipListRef} className={`clip-list ${compactMode ? 'compact' : ''}`}>
+                    <AnimatePresence mode="popLayout">
+                        {clips.map((clip, index) => (
+                            <motion.div
+                                key={clip.id}
+                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                                transition={{ duration: 0.2 }}
+                                className={`clip-card ${selectedIndex === index ? 'selected' : ''} ${selectedClipIds.has(clip.id) ? 'multi-selected' : ''} ${clip.pinned ? 'pinned' : ''}`}
+                                onClick={(e) => handleClipClick(e, clip)}
+                                onMouseEnter={() => setSelectedIndex(index)}
+                            >
+                                <div className="clip-header">
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        {index < 9 && (
+                                            <span title={`Ctrl+${index + 1}`} style={{
+                                                fontSize: '0.7rem',
+                                                fontWeight: 'bold',
+                                                color: compactMode ? '#888' : '#aaa',
+                                                background: 'rgba(0,0,0,0.05)',
+                                                border: '1px solid rgba(0,0,0,0.1)',
+                                                borderRadius: '4px',
+                                                padding: '0 4px',
+                                                minWidth: '1.2em',
+                                                textAlign: 'center',
+                                                cursor: 'help'
+                                            }}>
+                                                {index + 1}
+                                            </span>
+                                        )}
+                                        <span className="clip-type">{clip.type}</span>
+                                        {clip.tags && JSON.parse(clip.tags).map((tag: string) => (
+                                            <span
+                                                key={tag}
+                                                className="clip-tag"
+                                                style={{
+                                                    fontSize: '0.7rem',
+                                                    background: 'rgba(67, 56, 202, 0.1)',
+                                                    color: '#4338ca',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '12px',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={(e) => { e.stopPropagation(); filterByTag(tag); }}
+                                                title={`Filter by ${tag}`}
+                                            >
+                                                {tag}
+                                            </span>
+                                        ))}
+                                        <button
+                                            className="add-tag-btn"
+                                            onClick={(e) => addTagToClip(e, clip.id, clip.tags || null)}
+                                            title="Add tag"
+                                            style={{
+                                                fontSize: '0.65rem',
+                                                padding: '2px 6px',
+                                                borderRadius: '12px',
+                                                border: '1px dashed #aaa',
+                                                background: 'transparent',
+                                                cursor: 'pointer',
+                                                color: '#888'
+                                            }}
+                                        >
+                                            + tag
+                                        </button>
+                                        {clip.type === 'text' && (
+                                            <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
+                                                <button onClick={(e) => transformText(e, clip.id, 'upper')} title="UPPERCASE" className="icon-btn">TT</button>
+                                                <button onClick={(e) => transformText(e, clip.id, 'lower')} title="lowercase" className="icon-btn">tt</button>
+                                                <button onClick={(e) => transformText(e, clip.id, 'title')} title="Title Case" className="icon-btn">Tt</button>
+                                                <button onClick={(e) => transformText(e, clip.id, 'trim')} title="Trim Whitespace" className="icon-btn">Tr</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="header-right">
+                                        <button
+                                            className={`fav-btn ${clip.favorite ? 'active' : ''}`}
+                                            onClick={(e) => toggleFavorite(e, clip.id)}
+                                            title={clip.favorite ? "Unfavorite" : "Favorite"}
+                                        >
+                                            {clip.favorite ? '⭐' : '☆'}
+                                        </button>
+                                        <button
+                                            className={`pin-btn ${clip.pinned ? 'active' : ''}`}
+                                            onClick={(e) => togglePin(e, clip.id)}
+                                            title={clip.pinned ? "Unpin" : "Pin"}
+                                        >
+                                            {clip.pinned ? '📌' : '📍'}
+                                        </button>
+                                        <span className="clip-date">{clip.created_at}</span>
+                                        <button
+                                            className={`delete-btn ${selectedIndex === index && focusOnDelete ? 'focused' : ''}`}
+                                            onClick={(e) => deleteClip(e, clip.id)}
+                                            title="Delete"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="clip-content">
+                                    {clip.type === 'image' ? (
+                                        <img
+                                            src={convertFileSrc(clip.content, 'asset')}
+                                            alt="Clip"
+                                            className="clip-image"
+                                            style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '4px' }}
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                console.error('Failed to load image:', clip.content);
+                                            }}
+                                        />
+                                    ) : clip.type === 'file' ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span>📁</span>
+                                            <span style={{ wordBreak: 'break-all' }}>{clip.content}</span>
+                                        </div>
+                                    ) : (
+                                        isUrl(clip.content) ? (
+                                            <>
+                                                <div style={{ wordBreak: 'break-all', marginBottom: '4px' }}>
+                                                    <ClipContent content={clip.content} isCompact={compactMode} />
+                                                </div>
+                                                <UrlPreview url={clip.content} />
+                                            </>
+                                        ) : isColorCode(clip.content) ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    borderRadius: '6px',
+                                                    backgroundColor: clip.content,
+                                                    border: '2px solid rgba(0,0,0,0.25)',
+                                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
+                                                }} />
+                                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
+                                            </div>
+                                        ) : (
+                                            <ClipContent content={clip.content} isCompact={compactMode} />
+                                        )
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                    {clips.length === 0 && (
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="empty-state"
+                        >
+                            No clips found{searchTerm ? " matching your search" : ""}.
+                        </motion.p>
+                    )}
+                </div>
+            </main>
+
+            {selectedClipIds.size > 0 && (
+                <div className="bulk-actions-bar">
+                    <div className="bulk-info"> {selectedClipIds.size} selected </div>
+                    <div className="bulk-buttons">
+                        <button onClick={bulkPaste} title="Join and paste selected clips">Merge & Paste</button>
+                        <button onClick={bulkDelete} title="Delete selected clips">Delete</button>
+                        <button onClick={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}>Cancel</button>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
