@@ -710,11 +710,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                                 className={`icon-btn menu-btn ${activeMenuId === clip.id ? 'active' : ''}`}
                                                 onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === clip.id ? null : clip.id); }}
                                                 title="More Options"
-                                                style={{
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px',
-                                                    opacity: activeMenuId === clip.id ? 1 : 0,
-                                                    transition: 'opacity 0.2s'
-                                                }}
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
                                             >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
                                             </button>

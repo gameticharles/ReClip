@@ -484,35 +484,14 @@ body.dark {
   color: #f59e0b;
 }
 
-.delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  font-size: 1rem;
+.menu-btn {
   opacity: 0;
-  transition: all 0.2s;
-  border-radius: 6px;
+  transition: opacity 0.2s ease-in-out;
 }
 
-.clip-card:hover .delete-btn,
-.clip-card.selected .delete-btn {
-  opacity: 0.5;
-}
-
-.delete-btn:hover {
+.clip-card:hover .menu-btn,
+.menu-btn.active {
   opacity: 1 !important;
-  background-color: rgba(240, 62, 62, 0.1);
-  color: #f03e3e;
-  transform: scale(1.1);
-}
-
-.delete-btn.focused {
-  opacity: 1 !important;
-  background-color: rgba(240, 62, 62, 0.2);
-  color: #f03e3e;
-  outline: 2px solid #f03e3e;
-  outline-offset: 1px;
 }
 
 .clip-type {
