@@ -42,7 +42,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const clipListRef = useRef<HTMLDivElement>(null);
 
     // Paste Queue
-    const [queueMode, setQueueMode] = useState(false);
+    const [queueMode, setQueueMode] = useState(() => localStorage.getItem('queueMode') === 'true');
     const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
 
     // Menu & QR
@@ -83,6 +83,10 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     useEffect(() => {
         localStorage.setItem('showTimeline', showTimeline.toString());
     }, [showTimeline]);
+
+    useEffect(() => {
+        localStorage.setItem('queueMode', queueMode.toString());
+    }, [queueMode]);
 
     // Helper for time ago
     const formatTime = (dateStr: string) => {

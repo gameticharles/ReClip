@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - **Persistence**:
   - Fixed **Always on Top** not applying automatically on startup.
   - Fixed **Incognito Mode** and **Timeline View** states not persisting across restarts.
+  - Fixed **Paste Queue Mode** state not persisting across restarts.
 
 ## [0.3.0] - 2026-01-18
 
