@@ -1,3 +1,14 @@
+## [0.3.0] - 2026-01-18
+
+- feat: Implement `MainView` component, introducing core clip management, paste queue, multi-selection, and keyboard navigation features. (fa3a592)
+- feat: implement core application styling and settings page. (9c3ed65)
+- feat: introduce advanced snippet library features, on-device OCR, and QR code generation, alongside UI/UX improvements and an updated project README. (aad5a7e)
+- feat: Implement snippets page with comprehensive styling and theming. (3acf22f)
+- feat: add core application styling with theming and a new SnippetsPage for snippet management. (a353ed4)
+- feat: Add MainView component with paste queue, timeline view, advanced settings, QR modal, and a new Snippets page. (e5cee2d)
+- feat: Implement SQLite database for persistent clip, template, regex rule, and privacy rule management. (00cac52)
+- feat: Implement core clipboard management UI including paste queue, multi-selection, keyboard navigation, and backend integration for OCR and database. (de2495e)
+- chore: Remove deleted file. (489db72)
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -42,3 +53,4 @@ All notable changes to this project will be documented in this file.
 ## [0.1.1] - 2026-01-18
 - Fixed release script.
 - Initial project setup.
+
