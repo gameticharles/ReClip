@@ -3,7 +3,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { Snippet } from '../types';
 import { ArrowLeft, Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { getThemeById } from '../utils/themes';
+import { LANGUAGES, LANGUAGE_COLORS } from '../utils/languages';
 import { QRModal } from '../components/QRModal';
 
 interface SnippetsPageProps {
@@ -11,26 +12,6 @@ interface SnippetsPageProps {
     compactMode: boolean;
     theme: string;
 }
-
-const LANGUAGES = [
-    'javascript', 'typescript', 'python', 'rust', 'html',
-    'css', 'json', 'sql', 'bash', 'java', 'csharp', 'cpp', 'go', 'ruby', 'php', 'swift', 'kotlin', 'yaml', 'markdown', 'plaintext'
-];
-
-const LANGUAGE_COLORS: Record<string, string> = {
-    javascript: '#f7df1e', typescript: '#3178c6', python: '#3776ab', rust: '#dea584',
-    html: '#e34f26', css: '#1572b6', json: '#292929', sql: '#e38c00', bash: '#4eaa25',
-    java: '#ed8b00', csharp: '#239120', cpp: '#00599c', go: '#00add8', ruby: '#cc342d',
-    php: '#777bb4', swift: '#fa7343', kotlin: '#7f52ff', yaml: '#cb171e', markdown: '#083fa1', plaintext: '#888888',
-};
-
-const TEMPLATES: { name: string; language: string; content: string }[] = [
-    { name: 'React Component', language: 'typescript', content: `import React from 'react';\n\ninterface Props {\n  title: string;\n}\n\nexport const Component: React.FC<Props> = ({ title }) => {\n  return <div>{title}</div>;\n};\n` },
-    { name: 'SQL Query', language: 'sql', content: `SELECT \n    column1,\n    column2\nFROM table_name\nWHERE condition = 'value'\nORDER BY column1 DESC\nLIMIT 10;\n` },
-    { name: 'Python Function', language: 'python', content: `def function_name(param1: str, param2: int = 0) -> dict:\n    """Description of function."""\n    result = {}\n    # Implementation\n    return result\n` },
-    { name: 'Rust Struct', language: 'rust', content: `#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]\npub struct MyStruct {\n    pub id: i64,\n    pub name: String,\n}\n\nimpl MyStruct {\n    pub fn new(name: String) -> Self {\n        Self { id: 0, name }\n    }\n}\n` },
-    { name: 'CSS Flexbox', language: 'css', content: `.container {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  gap: 1rem;\n  padding: 1rem;\n}\n` },
-];
 
 type SortOption = 'updated' | 'created' | 'title' | 'language';
 
@@ -54,14 +35,35 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
 
     // Theme Detection
     const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const [templates, setTemplates] = useState<any[]>([]);
+
+    // Settings
+    const [editorSettings, setEditorSettings] = useState(() => ({
+        fontSize: parseInt(localStorage.getItem('snippetFontSize') || '14'),
+        tabSize: parseInt(localStorage.getItem('snippetTabSize') || '4'),
+        wordWrap: localStorage.getItem('snippetWordWrap') === 'true',
+        lineNumbers: localStorage.getItem('snippetLineNumbers') !== 'false',
+        defaultLanguage: localStorage.getItem('snippetDefaultLanguage') || 'plaintext'
+    }));
+
+    const isDark = theme === 'dark' || (theme === 'system' && systemDark);
+
+    // Derived Theme
+    const themeParams = isDark
+        ? { id: localStorage.getItem('snippetThemeDark') || 'atomDark', mode: 'dark' as const }
+        : { id: localStorage.getItem('snippetThemeLight') || 'oneLight', mode: 'light' as const };
+    const syntaxTheme = getThemeById(themeParams.id, themeParams.mode).style;
+
     useEffect(() => {
         const media = window.matchMedia('(prefers-color-scheme: dark)');
         const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
         media.addEventListener('change', handler);
         return () => media.removeEventListener('change', handler);
     }, []);
-    const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
+    useEffect(() => {
+        invoke<any[]>('get_templates').then(setTemplates).catch(console.error);
+    }, []);
     // Filter & Sort State
     const [filterLanguage, setFilterLanguage] = useState<string>('');
     const [filterFolder, setFilterFolder] = useState<string>('');
@@ -208,7 +210,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    const useTemplate = (template: typeof TEMPLATES[0]) => {
+    const useTemplate = (template: { name: string, language: string, content: string }) => {
         setEditContent(template.content);
         setEditLanguage(template.language);
         setEditTitle(template.name);
@@ -394,7 +396,14 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                                         )}
 
                                         <div style={{ maxHeight: 350, overflow: 'auto' }}>
-                                            <SyntaxHighlighter language={snippet.language} style={isDark ? atomDark : oneLight} customStyle={{ margin: 0, padding: 14, background: 'rgba(0,0,0,0.02)', fontSize: '0.8rem' }} showLineNumbers lineNumberStyle={{ opacity: 0.4, minWidth: '2.5em' }}>
+                                            <SyntaxHighlighter
+                                                language={snippet.language}
+                                                style={syntaxTheme}
+                                                customStyle={{ margin: 0, padding: 14, background: 'rgba(0,0,0,0.02)', fontSize: `${editorSettings.fontSize}px` }}
+                                                showLineNumbers={editorSettings.lineNumbers}
+                                                lineNumberStyle={{ opacity: 0.4, minWidth: '2.5em' }}
+                                                wrapLines={editorSettings.wordWrap}
+                                            >
                                                 {snippet.content || '// Empty snippet'}
                                             </SyntaxHighlighter>
                                         </div>
@@ -420,7 +429,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
 
                         {showTemplates && (
                             <div style={{ padding: 12, borderBottom: '1px solid var(--border-color)', background: 'rgba(128,128,128,0.08)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                {TEMPLATES.map((t, i) => <button key={i} onClick={() => useTemplate(t)} style={btnStyle()}>{t.name}</button>)}
+                                {templates.map((t, i) => <button key={i} onClick={() => useTemplate(t)} style={btnStyle()}>{t.name}</button>)}
                             </div>
                         )}
 
@@ -458,10 +467,12 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.7, marginBottom: 4 }}>Code</label>
                                 <div style={{ position: 'relative' }}>
-                                    <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} placeholder="// Paste your code here..." spellCheck={false} style={{ width: '100%', boxSizing: 'border-box', minHeight: 180, padding: '10px 10px 10px 40px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)', color: 'inherit', fontFamily: 'Consolas, Monaco, monospace', fontSize: '0.8rem', lineHeight: 1.5, resize: 'vertical', outline: 'none' }} />
-                                    <div style={{ position: 'absolute', left: 0, top: 0, padding: '10px 8px', fontSize: '0.8rem', fontFamily: 'Consolas, Monaco, monospace', lineHeight: 1.5, opacity: 0.4, pointerEvents: 'none', userSelect: 'none', borderRight: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.1)' }}>
-                                        {editContent.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
-                                    </div>
+                                    <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} placeholder="// Paste your code here..." spellCheck={false} style={{ width: '100%', boxSizing: 'border-box', minHeight: 180, padding: `10px 10px 10px ${editorSettings.lineNumbers ? '40px' : '10px'}`, borderRadius: 8, border: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)', color: 'inherit', fontFamily: 'Consolas, Monaco, monospace', fontSize: `${editorSettings.fontSize}px`, lineHeight: 1.5, resize: 'vertical', outline: 'none', whiteSpace: editorSettings.wordWrap ? 'pre-wrap' : 'pre' }} />
+                                    {editorSettings.lineNumbers && (
+                                        <div style={{ position: 'absolute', left: 0, top: 0, padding: '10px 8px', fontSize: `${editorSettings.fontSize}px`, fontFamily: 'Consolas, Monaco, monospace', lineHeight: 1.5, opacity: 0.4, pointerEvents: 'none', userSelect: 'none', borderRight: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.1)' }}>
+                                            {editContent.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

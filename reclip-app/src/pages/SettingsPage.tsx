@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { THEMES, getAllThemes } from "../utils/themes";
+import { LANGUAGES } from "../utils/languages";
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -48,6 +50,15 @@ export default function SettingsPage({
     const [newTemplateName, setNewTemplateName] = useState("");
     const [newTemplateContent, setNewTemplateContent] = useState("");
     const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+
+    // Snippet Settings
+    const [snippetFontSize, setSnippetFontSize] = useState(() => parseInt(localStorage.getItem('snippetFontSize') || '14'));
+    const [snippetTabSize, setSnippetTabSize] = useState(() => parseInt(localStorage.getItem('snippetTabSize') || '4'));
+    const [snippetWordWrap, setSnippetWordWrap] = useState(() => localStorage.getItem('snippetWordWrap') === 'true');
+    const [snippetLineNumbers, setSnippetLineNumbers] = useState(() => localStorage.getItem('snippetLineNumbers') !== 'false');
+    const [snippetDefaultLanguage, setSnippetDefaultLanguage] = useState(() => localStorage.getItem('snippetDefaultLanguage') || 'plaintext');
+    const [snippetThemeLight, setSnippetThemeLight] = useState(() => localStorage.getItem('snippetThemeLight') || 'oneLight');
+    const [snippetThemeDark, setSnippetThemeDark] = useState(() => localStorage.getItem('snippetThemeDark') || 'atomDark');
 
     // Automations
     const [regexRules, setRegexRules] = useState<any[]>([]);
@@ -362,7 +373,7 @@ export default function SettingsPage({
         { id: 'interface', label: 'General', icon: '⚙️' },
         { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
         { id: 'security', label: 'Security', icon: '🔒' },
-        { id: 'templates', label: 'Templates', icon: '📝' },
+        { id: 'snippets', label: 'Snippets', icon: '📋' },
         { id: 'automations', label: 'Automations', icon: '🤖' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
         { id: 'backup', label: 'Backup', icon: '💾' }
@@ -1047,54 +1058,178 @@ export default function SettingsPage({
                         </div>
                     )}
 
-                    {activeTab === 'templates' && (
+                    {activeTab === 'snippets' && (
                         <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>Templates</h2>
-                            <p style={{ opacity: 0.7, marginBottom: '20px' }}>Create reusable clips with placeholders (e.g. <code>{"{{name}}"}</code>).</p>
+                            <h2 style={{ marginTop: 0 }}>Snippet Library</h2>
+                            <p style={{ opacity: 0.7, marginBottom: '24px' }}>Configure the appearance and behavior of the snippet editor.</p>
 
-                            <div style={{ background: 'rgba(128,128,128,0.05)', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
-                                <h3 style={{ marginTop: 0 }}>{editingTemplate ? 'Edit Template' : 'New Template'}</h3>
-                                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                    <input
-                                        type="text"
-                                        placeholder="Template Name"
-                                        value={newTemplateName}
-                                        onChange={e => setNewTemplateName(e.target.value)}
-                                        style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
-                                    />
+                            <div className="setting-item" style={{ background: 'rgba(128,128,128,0.05)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                                <h3 style={{ marginTop: 0, fontSize: '0.9rem', marginBottom: '16px' }}>Editor Preferences</h3>
+
+                                <div className="settings-grid">
+                                    <label>
+                                        <span className="settings-label">Font Size ({snippetFontSize}px)</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <input
+                                                type="range" min="10" max="24" step="1"
+                                                value={snippetFontSize}
+                                                onChange={(e) => {
+                                                    const v = parseInt(e.target.value);
+                                                    setSnippetFontSize(v);
+                                                    localStorage.setItem('snippetFontSize', v.toString());
+                                                }}
+                                                style={{ flex: 1, accentColor: 'var(--accent-color)' }}
+                                            />
+                                        </div>
+                                    </label>
+
+                                    <label>
+                                        <span className="settings-label">Tab Size</span>
+                                        <select
+                                            className="settings-select"
+                                            value={snippetTabSize}
+                                            onChange={(e) => {
+                                                const v = parseInt(e.target.value);
+                                                setSnippetTabSize(v);
+                                                localStorage.setItem('snippetTabSize', v.toString());
+                                            }}
+                                        >
+                                            <option value="2">2 Spaces</option>
+                                            <option value="4">4 Spaces</option>
+                                        </select>
+                                    </label>
                                 </div>
-                                <textarea
-                                    placeholder="Content (use {{placeholder}} for dynamic values)"
-                                    value={newTemplateContent}
-                                    onChange={e => setNewTemplateContent(e.target.value)}
-                                    style={{ width: '100%', height: '100px', padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit', marginBottom: '10px', fontFamily: 'monospace' }}
-                                />
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button onClick={saveTemplate} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                                        {editingTemplate ? 'Update' : 'Add Template'}
-                                    </button>
-                                    {editingTemplate && (
-                                        <button onClick={cancelEditTemplate} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer' }}>
-                                            Cancel
-                                        </button>
-                                    )}
+
+                                <div className="settings-grid">
+                                    <label>
+                                        <span className="settings-label">Default Language</span>
+                                        <select
+                                            className="settings-select"
+                                            value={snippetDefaultLanguage}
+                                            onChange={(e) => {
+                                                setSnippetDefaultLanguage(e.target.value);
+                                                localStorage.setItem('snippetDefaultLanguage', e.target.value);
+                                            }}
+                                        >
+                                            {LANGUAGES.map(l => (
+                                                <option key={l} value={l}>{l}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'center' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={snippetLineNumbers}
+                                                onChange={(e) => {
+                                                    setSnippetLineNumbers(e.target.checked);
+                                                    localStorage.setItem('snippetLineNumbers', e.target.checked ? 'true' : 'false');
+                                                }}
+                                                style={{ accentColor: 'var(--accent-color)' }}
+                                            />
+                                            Show Line Numbers
+                                        </label>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={snippetWordWrap}
+                                                onChange={(e) => {
+                                                    setSnippetWordWrap(e.target.checked);
+                                                    localStorage.setItem('snippetWordWrap', e.target.checked ? 'true' : 'false');
+                                                }}
+                                                style={{ accentColor: 'var(--accent-color)' }}
+                                            />
+                                            Word Wrap
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="template-list">
-                                {templates.map(t => (
-                                    <div key={t.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 600 }}>{t.name}</div>
-                                            <div style={{ fontSize: '0.85rem', opacity: 0.7, whiteSpace: 'pre-wrap', maxHeight: '50px', overflow: 'hidden' }}>{t.content}</div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button onClick={() => startEditTemplate(t)} className="icon-btn">✏️</button>
-                                            <button onClick={() => deleteTemplate(t.id)} className="icon-btn">🗑️</button>
-                                        </div>
+                            <div className="setting-item" style={{ background: 'rgba(128,128,128,0.05)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                                <h3 style={{ marginTop: 0, fontSize: '0.9rem', marginBottom: '16px' }}>Syntax Highlighting</h3>
+                                <div className="settings-grid">
+                                    <label>
+                                        <span className="settings-label">Light Mode Theme</span>
+                                        <select
+                                            className="settings-select"
+                                            value={snippetThemeLight}
+                                            onChange={(e) => {
+                                                setSnippetThemeLight(e.target.value);
+                                                localStorage.setItem('snippetThemeLight', e.target.value);
+                                            }}
+                                        >
+                                            {THEMES.light.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        <span className="settings-label">Dark Mode Theme</span>
+                                        <select
+                                            className="settings-select"
+                                            value={snippetThemeDark}
+                                            onChange={(e) => {
+                                                setSnippetThemeDark(e.target.value);
+                                                localStorage.setItem('snippetThemeDark', e.target.value);
+                                            }}
+                                        >
+                                            {THEMES.dark.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="setting-item" style={{ borderTop: '1px solid rgba(128,128,128,0.1)', paddingTop: '20px' }}>
+                                <h3 style={{ marginTop: 0, fontSize: '0.9rem', marginBottom: '16px' }}>Templates</h3>
+                                <p style={{ opacity: 0.7, marginBottom: '20px', fontSize: '0.8rem' }}>Create reusable clips with placeholders (e.g. <code>{"{{name}}"}</code>).</p>
+
+                                <div style={{ background: 'rgba(128,128,128,0.05)', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
+                                    <h3 style={{ marginTop: 0, fontSize: '0.85rem' }}>{editingTemplate ? 'Edit Template' : 'New Template'}</h3>
+                                    <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Template Name"
+                                            value={newTemplateName}
+                                            onChange={e => setNewTemplateName(e.target.value)}
+                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'var(--bg-input)', color: 'inherit' }}
+                                        />
                                     </div>
-                                ))}
-                                {templates.length === 0 && <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No templates yet.</p>}
+                                    <textarea
+                                        placeholder="Content (use {{placeholder}} for dynamic values)"
+                                        value={newTemplateContent}
+                                        onChange={e => setNewTemplateContent(e.target.value)}
+                                        style={{ width: '100%', height: '100px', padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'var(--bg-input)', color: 'inherit', marginBottom: '10px', fontFamily: 'monospace' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button onClick={saveTemplate} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                                            {editingTemplate ? 'Update' : 'Add Template'}
+                                        </button>
+                                        {editingTemplate && (
+                                            <button onClick={cancelEditTemplate} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid currentColor', borderRadius: '4px', cursor: 'pointer' }}>
+                                                Cancel
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="template-list">
+                                    {templates.map(t => (
+                                        <div key={t.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '15px', borderRadius: '8px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 600 }}>{t.name}</div>
+                                                <div style={{ fontSize: '0.85rem', opacity: 0.7, whiteSpace: 'pre-wrap', maxHeight: '50px', overflow: 'hidden' }}>{t.content}</div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button onClick={() => startEditTemplate(t)} className="icon-btn">✏️</button>
+                                                <button onClick={() => deleteTemplate(t.id)} className="icon-btn">🗑️</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {templates.length === 0 && <p style={{ opacity: 0.5, fontStyle: 'italic' }}>No templates yet.</p>}
+                                </div>
                             </div>
                         </div>
                     )}

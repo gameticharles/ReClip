@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-01-18
+
+### ✨ New Features
+- **Snippet Library Settings**:
+  - Added dedicated Settings tab for snippet configuration.
+  - **Editor Preferences**: Adjustable Font Size, Tab Size, Word Wrap, and Line Numbers.
+  - **Theming**: Select separate Syntax Highlighting themes for Light (`Atom One Light`, `GitHub`, `VS`) and Dark (`Atom Dark`, `Dracula`, `VSC Dark+`) modes.
+  - **Template Management**: Centralized management of snippet templates.
+
+### 🎨 UI/UX Improvements
+- **Snippet Settings UI**:
+  - Implemented cleaner grid layout for settings.
+  - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
+
 ## [0.3.0] - 2026-01-18
 
 ### ✨ New Features
