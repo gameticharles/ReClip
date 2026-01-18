@@ -1,74 +1,77 @@
-# ReClip: Your External Brain for Digital Work
+# ReClip: The Next-Gen Snippet & Clipboard Manager
 
 **Copy once. Organize instantly. Use everywhere.**
 
-Stop breaking your flow to find that link you copied ten minutes ago. **ReClip** is the cross-platform clipboard manager designed for developers, designers, and power users who demand speed, privacy, and organization. It’s not just a history log; it’s a command center for your data.
-
-### 🚀 Why ReClip?
-
-Most clipboard managers are dumb buckets that hold text until it expires. ReClip is an active library. It recognizes what you copy—whether it’s a hex code, a JSON snippet, or a screenshot—and gives you the tools to use it instantly across macOS, Windows, Linux, iOS, and Android. With our **Smart Tagging System**, you can categorize snippets as you copy them, turning your clipboard into a searchable database that syncs everywhere.
+ReClip is a modern, cross-platform clipboard manager built for developers and power users. It goes beyond simple history tracking to become your external brain for code, colors, files, and links. Built with **Rust** and **Tauri**, it's blazingly fast, lightweight, and secure.
 
 ---
 
-### 🌟 Key Features
+## 🚀 Key Features
 
-#### 🏷️ Smart Tagging & Organization
-*   **Instant Tagging:** Add tags like `#work`, `#code`, or `#personal` to any clip instantly.
-*   **Auto-Tagging Rules:** Set up rules to do the work for you.
-    *   *Example:* Automatically tag any clip containing `function()` or `<div>` as `#code`.
-    *   *Example:* Automatically tag any clip containing `@gmail.com` as `#email`.
-*   **Snippet Library:** Pin your tagged clips to keep them permanently available at the top of your list.
+### 📋 Smart Clipboard History
+*   **Rich Content Support**: Automatically handles Text, HTML, Images, File Paths, and Colors.
+*   **Content Intelligence**:
+    *   **Colors**: Shows preview for hex codes (e.g., `#FF5733`).
+    *   **Code**: Auto-detects programming languages.
+    *   **Files**: Validates file paths and checks for existence.
+*   **Smart Search**: Filter by type, content, or tags.
+*   **Paste Queue**: Select multiple items and paste them sequentially without switching windows.
 
-#### 🧠 The Smart History (Contextual Awareness)
-*   **Infinite Memory, Instant Recall:** Store unlimited clips. Use our **Neural Fuzzy Search** to find "that recipe" or "API key" even if you only remember a vague keyword from three weeks ago.
-*   **Content Intelligence:** ReClip knows what you copied.
-    *   *Colors:* Copy `#FF5733` and see a color preview. Convert it to RGB or HSL in one click.
-    *   *Links:* Automatically strip tracking parameters (`utm_source`, `fbclid`) for clean sharing.
-    *   *Code:* Auto-detect languages and offer syntax highlighting in the preview.
-*   **On-Device OCR:** Copy text directly from images or screenshots within your history.
+### 💻 Advanced Snippet Library
+Turn your clipboard history into a permanent knowledge base.
+*   **Syntax Highlighting**: Beautiful code rendering with auto-switching Light/Dark themes (`Atom One Dark` / `Atom One Light`).
+*   **Organization**: Organize snippets with **Folders**, **Tags**, and **Favorites**.
+*   **Version History**: Track changes and restore previous versions of your snippets.
+*   **Productivity Tools**:
+    *   **Templates**: Quick-start templates for common languages (React, SQL, Python, Rust).
+    *   **Quick Actions**: Duplicate, Edit, Copy, and Export.
+    *   **Keyboard Shortcuts**: `Ctrl+N` (New), `Ctrl+S` (Save), `Ctrl+F` (Search).
 
-#### ⚡ The Productivity Flow (Speed)
-*   **Paste Stacks (Sequential Pasting):** Need to copy a name, email, and phone number from a spreadsheet? Copy them all in a row, then paste them one by one (`Cmd+V` ... `Cmd+V` ...) without switching windows.
-*   **Quick Actions & Scripts:** Transform text on the fly.
-    *   *Format JSON/XML*
-    *   *CamelCase ↔ snake_case*
-    *   *Lowercase/Uppercase*
-*   **Mouse-Free Navigation:** Designed for keyboard warriors. Navigate with arrow keys or Vim bindings (`j/k`). The interface spawns exactly where your cursor is—no eye travel required.
+### 🔍 On-Device OCR (Optical Character Recognition)
+*   **Extract Text**: Grab text from any image or screenshot in your clipboard instantly.
+*   **Privacy-First**: Runs entirely locally on your device using native OS APIs. No data leaves your machine.
 
-#### 🛡️ The Vault (Privacy & Security)
-*   **Zero-Knowledge Sync:** Your clipboard syncs across devices using military-grade End-to-End Encryption (AES-256). We cannot see your data. Ever.
-*   **Local P2P Mode:** Don't trust the cloud? Sync devices directly over your local WiFi network.
-*   **Smart Masking:** ReClip automatically detects credit card numbers, passwords, and crypto wallet addresses, masking them in the UI and setting them to "Auto-Burn" (permanently delete) after 60 seconds.
-*   **App Blacklisting:** Prevents recording when sensitive apps (like 1Password, Banking apps, or Incognito Mode) are in focus.
+### 📱 QR Code Generator
+*   **Instant Sharing**: Generate QR codes for any text or snippet to transfer to mobile.
+*   **Multi-Page Support**: Automatically splits long content into multiple scannable QR codes.
+*   **High Quality**: Large, high-contrast codes optimized for scanning.
 
-#### 🔗 The Bridge (Cross-Platform Ecosystem)
-*   **Universal Clipboard:** Copy on your Mac, paste on your Android phone. Copy on Windows, paste on your iPad. It feels like magic.
-*   **AirDrop for Text:** Send a specific clip to a nearby device instantly without cluttering your main history.
-
----
-
-### 💻 Technical Specs
-
-*   **Native Performance:** Built with **Rust** and **Tauri** for a <1% CPU footprint and instant startup time.
-*   **Offline First:** Tags, search, and history work perfectly without an internet connection.
-*   **Data Sovereignty:** Export your entire history to JSON/CSV at any time.
+### 🎨 Beautiful & Adaptive UI
+*   **Theming**: Fully adaptive **Light** and **Dark** modes that respect your system settings.
+*   **System Accent**: Optionally syncs with your OS accent color (Windows).
+*   **Glassmorphism**: Modern, translucent aesthetics.
 
 ---
 
-### � Roadmap: Building the Robust Future
+## 🛠️ Technical Stack
 
-We are constantly pushing the boundaries of what a clipboard manager can do. Here is a glimpse of what is coming in 2026:
-
-*   **🔌 Scripting Engine:** Write custom JavaScript/Lua scripts to transform content on the fly (e.g., convert CSV rows to SQL `INSERT` statements).
-*   **🧠 Local AI Integration:** Summarize articles, explain complex Regex, or translate text instantly using on-device LLMs.
-*   **👥 Secure Team Sync:** Share encrypted snippets (API keys, config files) with your team directly, bypassing insecure chat logs.
-*   **🏗️ IDE & App Integrations:** Direct plugins for VS Code, JetBrains, and Chrome to bridge your workflow gaps.
-*   **⏮️ History Rewind:** A "Time Machine" view to visualize and recover your clipboard history from days or weeks ago.
+*   **Core**: Rust (Backend), Tauri (Framework)
+*   **Frontend**: React, TypeScript, Vite
+*   **Styling**: Vanilla CSS (Performance focused)
+*   **Database**: SQLite (Local storage)
 
 ---
 
-### �📥 Download ReClip Today
+## ⌨️ Shortcuts
 
-Stop losing your thoughts. Start reclaiming your focus.
+| Action | Shortcut |
+|--------|----------|
+| Open ReClip | `Ctrl+Space` (Default) |
+| New Snippet | `Ctrl+N` |
+| Save Snippet | `Ctrl+S` |
+| Search | `Ctrl+F` |
+| Close Modal | `Esc` |
 
-**Available on macOS, Windows, Linux, iOS, and Android.**
+---
+
+## 🗺️ Roadmap
+
+*   **☁️ Secure Sync**: End-to-End Encrypted sync across devices.
+*   **🔌 Plugins**: Integrations for VS Code and JetBrains.
+*   **🧠 Local AI**: Auto-tagging and summarization using local LLMs.
+
+---
+
+<p align="center">
+  <sub>Built with ❤️ by the ReClip Team</sub>
+</p>
