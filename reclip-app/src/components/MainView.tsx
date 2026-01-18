@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from '@tauri-apps/api/app';
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRCodeSVG } from "qrcode.react";
@@ -50,7 +51,8 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
 
     // Timeline View State
     const [showTimeline, setShowTimeline] = useState(false);
-    const [timelineRange, setTimelineRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+    const [timelineFilter, setTimelineFilter] = useState<{ start: number, end: number } | null>(null);
+    const [version, setVersion] = useState("...");
     const [allClips, setAllClips] = useState<Clip[]>([]);
 
     // Advanced Settings States
@@ -297,12 +299,14 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
             // Store all clips for timeline
             setAllClips(recentClips);
 
+            setAllClips(recentClips);
+
             // Apply timeline filtering if range is selected
             let filteredClips = recentClips;
-            if (timelineRange.start && timelineRange.end) {
+            if (timelineFilter) {
                 filteredClips = recentClips.filter(clip => {
-                    const clipDate = new Date(clip.created_at);
-                    return clipDate >= timelineRange.start! && clipDate <= timelineRange.end!;
+                    const clipDate = new Date(clip.created_at).getTime();
+                    return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
                 });
             }
 
@@ -315,17 +319,17 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     // Re-fetch when timeline filter changes
     useEffect(() => {
         if (allClips.length > 0) {
-            if (timelineRange.start && timelineRange.end) {
+            if (timelineFilter) {
                 const filtered = allClips.filter(clip => {
-                    const clipDate = new Date(clip.created_at);
-                    return clipDate >= timelineRange.start! && clipDate <= timelineRange.end!;
+                    const clipDate = new Date(clip.created_at).getTime();
+                    return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
                 });
                 setClips(filtered);
             } else {
                 setClips(allClips);
             }
         }
-    }, [timelineRange]);
+    }, [timelineFilter]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -587,6 +591,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     // Load incognito state on mount
     useEffect(() => {
         invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
+        getVersion().then(setVersion);
     }, []);
 
     return (
@@ -603,11 +608,17 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
             >
                 <div className="title-left">
                     <img
-                        src="/icons/32x32.png"
+                        src="/icon.png"
                         alt="ReClip"
-                        style={{ width: '18px', height: '18px', marginRight: '6px' }}
+                        style={{ width: '40px', height: '40px', marginRight: '6px' }}
                     />
                     <span className="app-title">ReClip</span>
+                    <span style={{
+                        fontSize: '0.7rem',
+                        opacity: 0.5,
+                        marginLeft: '6px',
+                        fontFamily: 'monospace'
+                    }}>v{version}</span>
                 </div>
 
                 <div className="title-right">
@@ -747,7 +758,11 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                     clips={allClips}
                     visible={showTimeline}
                     onSelectTimeRange={(start, end) => {
-                        setTimelineRange({ start, end });
+                        if (start && end) {
+                            setTimelineFilter({ start: start.getTime(), end: end.getTime() });
+                        } else {
+                            setTimelineFilter(null);
+                        }
                     }}
                     onExportRange={(rangeClips) => {
                         // Trigger export of selected clips
