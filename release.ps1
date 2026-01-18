@@ -160,8 +160,12 @@ if ($Rollback) {
         Write-DryRun "Would revert last commit"
     }
     else {
+        # Temporarily suppress errors for git commands (git writes to stderr even on success)
+        $oldErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = "SilentlyContinue"
         git tag -d $lastTag 2>&1 | Out-Null
         git push origin --delete $lastTag 2>&1 | Out-Null
+        $ErrorActionPreference = $oldErrorAction
         git revert HEAD --no-edit
         git push origin main
         Write-Success "Rolled back release $lastTag"
@@ -222,8 +226,12 @@ if ($existingTag) {
     $deleteTag = Read-Host "Delete and recreate? (y/n)"
     if ($deleteTag -eq 'y') {
         if (-not $DryRun) {
+            # Temporarily suppress errors for git commands (git writes to stderr even on success)
+            $oldErrorAction = $ErrorActionPreference
+            $ErrorActionPreference = "SilentlyContinue"
             git tag -d $TagName 2>&1 | Out-Null
             git push origin --delete $TagName 2>&1 | Out-Null
+            $ErrorActionPreference = $oldErrorAction
         }
         Write-Success "Deleted existing tag"
     }
