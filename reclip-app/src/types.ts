@@ -11,3 +11,13 @@ export interface Clip {
     sensitive: boolean;
     position?: number | null;
 }
+
+export interface Snippet {
+    id: number;
+    title: string;
+    content: string;
+    language: string;
+    tags: string;
+    created_at: string;
+    updated_at: string;
+}

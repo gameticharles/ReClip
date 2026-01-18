@@ -85,10 +85,77 @@ export default function ClipContent({ content, type, isCompact }: ClipContentPro
 
     // Handle Image
     if (type === 'image') {
+        const [extractedText, setExtractedText] = useState<string | null>(null);
+        const [isExtracting, setIsExtracting] = useState(false);
+
+        const handleOCR = async (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (extractedText) {
+                // Return to image
+                setExtractedText(null);
+                return;
+            }
+
+            setIsExtracting(true);
+            try {
+                const text = await invoke<string>('run_ocr', { path: content });
+                if (text) {
+                    setExtractedText(text);
+                } else {
+                    alert("No text found in image");
+                }
+            } catch (err) {
+                console.error("OCR Failed", err);
+                alert("OCR Failed: " + err);
+            } finally {
+                setIsExtracting(false);
+            }
+        };
+
+        const copyExtracted = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (extractedText) {
+                invoke('copy_to_system', { content: extractedText });
+                alert("Text copied!");
+            }
+        };
+
         const src = convertFileSrc(content);
         return (
-            <div className="clip-image" style={{ height: isCompact ? '40px' : '120px', overflow: 'hidden', borderRadius: '4px' }}>
-                <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div className="clip-image" style={{ height: isCompact ? '40px' : '150px', overflow: 'hidden', borderRadius: '4px', position: 'relative', background: '#000' }}>
+                {!extractedText ? (
+                    <>
+                        <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        <button
+                            onClick={handleOCR}
+                            className="ocr-btn"
+                            style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                right: '4px',
+                                background: 'rgba(0,0,0,0.6)',
+                                color: 'white',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '4px',
+                                padding: '2px 6px',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                backdropFilter: 'blur(4px)',
+                                display: isCompact ? 'none' : 'block'
+                            }}
+                        >
+                            {isExtracting ? 'Scanning...' : 'Extract Text (OCR)'}
+                        </button>
+                    </>
+                ) : (
+                    <div style={{ padding: '8px', height: '100%', overflow: 'auto', fontSize: '0.8rem', whiteSpace: 'pre-wrap', color: '#fff', background: '#222' }}>
+                        {extractedText}
+                        <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4 }}>
+                            <button onClick={copyExtracted} className="text-xs bg-accent text-white px-2 py-1 rounded">Copy</button>
+                            <button onClick={handleOCR} className="text-xs bg-white/10 text-white px-2 py-1 rounded">X</button>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

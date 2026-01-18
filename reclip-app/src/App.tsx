@@ -3,9 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import MainView from "./components/MainView";
 import SettingsPage from "./pages/SettingsPage";
+import SnippetsPage from "./pages/SnippetsPage";
 
 function App() {
-  const [view, setView] = useState<'main' | 'settings'>('main');
+  const [view, setView] = useState<'main' | 'settings' | 'snippets'>('main');
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compactMode') === 'true');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
   const [useSystemAccent, setUseSystemAccent] = useState(() => localStorage.getItem('useSystemAccent') === 'true');
@@ -266,6 +267,13 @@ function App() {
         <MainView
           compactMode={compactMode}
           onOpenSettings={() => setView('settings')}
+          onOpenSnippets={() => setView('snippets')}
+        />
+      ) : view === 'snippets' ? (
+        <SnippetsPage
+          onBack={() => setView('main')}
+          compactMode={compactMode}
+          theme={theme}
         />
       ) : (
         <SettingsPage

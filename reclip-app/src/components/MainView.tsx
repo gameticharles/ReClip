@@ -14,6 +14,7 @@ import TimelineView from "./TimelineView";
 interface MainViewProps {
     compactMode: boolean;
     onOpenSettings: () => void;
+    onOpenSnippets: () => void;
 }
 
 const isUrl = (text: string) => {
@@ -29,7 +30,7 @@ const isColorCode = (text: string) => {
     return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
 };
 
-export default function MainView({ compactMode, onOpenSettings }: MainViewProps) {
+export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }: MainViewProps) {
     const [clips, setClips] = useState<Clip[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
@@ -644,8 +645,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                         Q
                     </button>
 
-                    <button
-                        onClick={() => setShowTimeline(!showTimeline)}
+                    <button onClick={() => setShowTimeline(!showTimeline)}
                         className={`title-btn ${showTimeline ? 'active' : ''}`}
                         title="Toggle Timeline View"
                         style={{ color: showTimeline ? 'var(--accent-color)' : undefined }}
@@ -655,6 +655,13 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                             <line x1="16" y1="2" x2="16" y2="6"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </button>
+
+                    <button onClick={onOpenSnippets} className="title-btn" title="Code Snippets">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
                         </svg>
                     </button>
 

@@ -55,12 +55,12 @@ body {
   width: 100vw;
   background-color: var(--bg-app);
   backdrop-filter: blur(20px);
-  border-radius: 0px;
+  border-radius: 4px;
   box-shadow: 0 8px 32px var(--shadow-color);
   border: 1px solid var(--border-color);
   overflow: hidden;
   /* Clip to rounded rectangle to hide transparent corners */
-  clip-path: inset(0 round 0px) !important;
+  clip-path: inset(0 round 4px) !important;
   /* Apply window opacity */
   opacity: var(--window-opacity, 1);
 }

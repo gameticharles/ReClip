@@ -12,12 +12,24 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "ReClip",
         "width": 800,
         "height": 600,
         "transparent": true,
         "decorations": false,
         "shadow": true,
+        "visible": false
+      },
+      {
+        "label": "quick",
+        "title": "Quick Menu",
+        "width": 320,
+        "height": 450,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
         "visible": false
       }
     ],

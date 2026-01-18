@@ -1,8 +1,9 @@
 mod db;
 mod clipboard;
 mod tray;
+mod ocr;
 
-use db::{DbState, init_db, Clip};
+use db::{DbState, init_db, Clip, Snippet};
 use tauri::{State, Manager, Emitter};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -124,6 +125,7 @@ async fn update_shortcut(app: tauri::AppHandle, state: State<'_, DbState>, map: 
 async fn get_shortcuts(state: State<'_, DbState>) -> Result<HashMap<String, String>, String> {
     let mut shortcuts = HashMap::new();
     if let Some(s) = db::get_setting(&state.pool, "shortcut_show_window").await { shortcuts.insert("show_window".to_string(), s); }
+    if let Some(s) = db::get_setting(&state.pool, "shortcut_show_quick").await { shortcuts.insert("show_quick".to_string(), s); }
     if let Some(s) = db::get_setting(&state.pool, "shortcut_incognito").await { shortcuts.insert("incognito".to_string(), s); }
     if let Some(s) = db::get_setting(&state.pool, "shortcut_paste_next").await { shortcuts.insert("paste_next".to_string(), s); }
     for i in 1..=9 {
@@ -153,6 +155,27 @@ async fn delete_template(state: State<'_, DbState>, id: i64) -> Result<(), Strin
 #[tauri::command]
 async fn update_template(state: State<'_, DbState>, id: i64, name: String, content: String) -> Result<(), String> {
     db::update_template(&state.pool, id, &name, &content).await.map_err(|e| e.to_string())
+}
+
+// Snippets
+#[tauri::command]
+async fn get_snippets(state: State<'_, DbState>) -> Result<Vec<Snippet>, String> {
+    db::get_snippets(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_snippet(state: State<'_, DbState>, title: String, content: String, language: String, tags: String) -> Result<i64, String> {
+    db::add_snippet(&state.pool, title, content, language, tags).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_snippet(state: State<'_, DbState>, id: i64, title: String, content: String, language: String, tags: String) -> Result<(), String> {
+    db::update_snippet(&state.pool, id, title, content, language, tags).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_snippet(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_snippet(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
 // Sensitive settings
@@ -255,11 +278,18 @@ pub fn run() {
                 tauri::async_runtime::block_on(async move {
                     let mut map = shortcut_map.0.lock().unwrap();
                     
-                    // Show Window
+                     // Show Window
                     let show_sc = db::get_setting(&pool_clone, "shortcut_show_window").await.unwrap_or("Ctrl+Shift+X".to_string());
                     
                     if !show_sc.is_empty() {
                          map.insert(show_sc.clone(), "show_window".to_string());
+                    }
+
+                    // Show Quick Menu
+                    // Default Ctrl+Shift+Space
+                    let quick_sc = db::get_setting(&pool_clone, "shortcut_show_quick").await.unwrap_or("Ctrl+Shift+Space".to_string());
+                    if !quick_sc.is_empty() {
+                        map.insert(quick_sc.clone(), "show_quick".to_string());
                     }
 
                     // Incognito
@@ -309,6 +339,29 @@ pub fn run() {
                                             if w.is_visible().unwrap_or(false) {
                                                 let _ = w.hide();
                                             } else {
+                                                let _ = w.show();
+                                                let _ = w.set_focus();
+                                            }
+                                        }
+                                    } else if act == "show_quick" {
+                                        if let Some(w) = app.get_webview_window("quick") {
+                                            if w.is_visible().unwrap_or(false) {
+                                                let _ = w.hide();
+                                            } else {
+                                                // Get Cursor Pos
+                                                #[cfg(target_os = "windows")]
+                                                {
+                                                    use windows::Win32::Foundation::POINT;
+                                                    use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
+                                                    
+                                                    let mut point = POINT { x: 0, y: 0 };
+                                                    unsafe { let _ = GetCursorPos(&mut point); };
+                                                    
+                                                    // Ensure window is within screen bounds?
+                                                    // For now just set position.
+                                                    let _ = w.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: point.x, y: point.y }));
+                                                }
+                                                
                                                 let _ = w.show();
                                                 let _ = w.set_focus();
                                             }
@@ -377,7 +430,10 @@ pub fn run() {
              get_system_accent_color, clear_clips, reorder_clip, get_autostart, set_autostart,
              save_window_position, load_window_position,
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
-             get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings
+             get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
+             get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
+             get_snippets, add_snippet, update_snippet, delete_snippet,
+             run_ocr
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -835,6 +891,18 @@ async fn get_url_metadata(url: String) -> Result<UrlMetadata, String> {
         canonical,
         favicon,
     })
+}
+
+#[tauri::command]
+async fn run_ocr(path: String) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        ocr::extract_text_from_image(&path).await
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("OCR only supported on Windows".to_string())
+    }
 }
 
 #[tauri::command]

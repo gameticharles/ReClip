@@ -1,0 +1,86 @@
+    Checking reclip-app v0.1.0 (C:\Users\reing\Documents\GitHub\ReClip\reclip-app\src-tauri)
+warning: unused import: `SoftwareBitmap`
+ --> src\ocr.rs:3:49
+  |
+3 | use windows::Graphics::Imaging::{BitmapDecoder, SoftwareBitmap};
+  |                                                 ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no method named `is_err` found for struct `OcrEngine` in the current scope
+  --> src\ocr.rs:48:28
+   |
+48 |     let engine = if engine.is_err() {
+   |                            ^^^^^^ method not found in `OcrEngine`
+
+error[E0308]: mismatched types
+    --> src\ocr.rs:49:92
+     |
+  49 |         OcrEngine::TryCreateFromLanguage(&windows::Globalization::Language::CreateLanguage("en-US").unwrap()).map_err(|e| e.to_string())?
+     |                                           ------------------------------------------------ ^^^^^^^ expected `&HSTRING`, found `&str`
+     |                                           |
+     |                                           arguments to this function are incorrect
+     |
+     = note: expected reference `&HSTRING`
+                found reference `&'static str`
+note: associated function defined here
+    --> C:\Users\reing\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Globalization\mod.rs:2778:12
+     |
+2778 |     pub fn CreateLanguage(languagetag: &windows_core::HSTRING) -> windows_core::Result<Language> {
+     |            ^^^^^^^^^^^^^^
+
+error[E0599]: no method named `unwrap` found for struct `OcrEngine` in the current scope
+  --> src\ocr.rs:51:16
+   |
+51 |         engine.unwrap()
+   |                ^^^^^^ method not found in `OcrEngine`
+
+error[E0282]: type annotations needed
+  --> src\ocr.rs:55:58
+   |
+55 |     let result = engine.RecognizeAsync(&bitmap).map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
+   |                                                          ^  - type must be known at this point
+   |
+help: consider giving this closure parameter an explicit type
+   |
+55 |     let result = engine.RecognizeAsync(&bitmap).map_err(|e: /* Type */| e.to_string())?.await.map_err(|e| e.to_string())?;
+   |                                                           ++++++++++++
+
+error[E0282]: type annotations needed
+  --> src\ocr.rs:55:18
+   |
+55 |     let result = engine.RecognizeAsync(&bitmap).map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0282]: type annotations needed
+  --> src\ocr.rs:55:92
+   |
+55 |     let result = engine.RecognizeAsync(&bitmap).map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
+   |                                                                                            ^  - type must be known at this point
+   |
+help: consider giving this closure parameter an explicit type
+   |
+55 |     let result = engine.RecognizeAsync(&bitmap).map_err(|e| e.to_string())?.await.map_err(|e: /* Type */| e.to_string())?;
+   |                                                                                             ++++++++++++
+
+error[E0282]: type annotations needed
+  --> src\ocr.rs:57:41
+   |
+57 |     let lines = result.Lines().map_err(|e| e.to_string())?;
+   |                                         ^  - type must be known at this point
+   |
+help: consider giving this closure parameter an explicit type
+   |
+57 |     let lines = result.Lines().map_err(|e: /* Type */| e.to_string())?;
+   |                                          ++++++++++++
+
+error[E0282]: type annotations needed
+  --> src\ocr.rs:61:24
+   |
+61 |         text.push_str(&line.Text().unwrap().to_string());
+   |                        ^^^^ cannot infer type
+
+Some errors have detailed explanations: E0282, E0308, E0599.
+For more information about an error, try `rustc --explain E0282`.
+warning: `reclip-app` (lib) generated 1 warning
+error: could not compile `reclip-app` (lib) due to 8 previous errors; 1 warning emitted

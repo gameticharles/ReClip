@@ -4382,6 +4382,7 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-opener",
  "walkdir",
+ "windows 0.62.2",
  "winreg 0.52.0",
  "x-win",
  "zip",
