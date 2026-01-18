@@ -304,7 +304,9 @@ export default function SettingsPage({
         const value = parseInt(e.target.value);
         setOpacity(value);
         localStorage.setItem("opacity", value.toString());
-        document.documentElement.style.setProperty('--window-opacity', `${value / 100}`);
+        const opacityValue = `${value / 100}`;
+        document.documentElement.style.setProperty('--window-opacity', opacityValue);
+        document.body.style.setProperty('--window-opacity', opacityValue);
     };
 
     const handleMaintenanceChange = async () => {

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v0.1.0)'
+        description: 'Release tag (e.g., v0.1.1)'
         required: false
         default: 'dev'
 
@@ -20,12 +20,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Windows x64
           - platform: windows-latest
             args: ''
+            rust_target: ''
+          # Windows ARM64 (cross-compile)
+          - platform: windows-latest
+            args: '--target aarch64-pc-windows-msvc'
+            rust_target: 'aarch64-pc-windows-msvc'
+          # macOS Universal (Intel + Apple Silicon)
           - platform: macos-latest
             args: '--target universal-apple-darwin'
+            rust_target: 'aarch64-apple-darwin,x86_64-apple-darwin'
+          # Linux x64
           - platform: ubuntu-22.04
             args: ''
+            rust_target: ''
+          # Linux ARM64 (cross-compile)
+          - platform: ubuntu-22.04
+            args: '--target aarch64-unknown-linux-gnu'
+            rust_target: 'aarch64-unknown-linux-gnu'
 
     runs-on: ${{ matrix.platform }}
     
@@ -43,13 +57,28 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_target }}
 
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install Linux dependencies (x64)
+        if: matrix.platform == 'ubuntu-22.04' && matrix.rust_target == ''
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
+
+      - name: Install Linux ARM64 cross-compilation dependencies
+        if: matrix.platform == 'ubuntu-22.04' && matrix.rust_target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update || true
+          sudo apt-get install -y libwebkit2gtk-4.1-dev:arm64 libappindicator3-dev:arm64 librsvg2-dev:arm64 patchelf || true
+          echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Install frontend dependencies
         working-directory: reclip-app
@@ -68,9 +97,11 @@ jobs:
             See the [changelog](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details.
             
             ## Downloads
-            - **Windows**: `.msi` (recommended) or `.exe` (NSIS installer)
+            - **Windows x64**: `.msi` (recommended) or `.exe` (NSIS installer)
+            - **Windows ARM64**: `.exe` (NSIS installer)
             - **macOS**: `.dmg` (Universal binary for Intel & Apple Silicon)
-            - **Linux**: `.deb` (Debian/Ubuntu) or `.AppImage` (portable)
-          releaseDraft: true
+            - **Linux x64**: `.deb` (Debian/Ubuntu) or `.AppImage` (portable)
+            - **Linux ARM64**: `.deb` (for Raspberry Pi, ARM servers)
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

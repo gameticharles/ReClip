@@ -59,6 +59,10 @@ body {
   box-shadow: 0 8px 32px var(--shadow-color);
   border: 1px solid var(--border-color);
   overflow: hidden;
+  /* Clip to rounded rectangle to hide transparent corners */
+  clip-path: inset(0 round 12px) !important;
+  /* Apply window opacity */
+  opacity: var(--window-opacity, 1);
 }
 
 /* Custom Titlebar */

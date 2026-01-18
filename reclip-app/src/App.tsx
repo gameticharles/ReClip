@@ -30,7 +30,9 @@ function App() {
 
     const savedOpacity = localStorage.getItem("opacity");
     if (savedOpacity) {
-      document.documentElement.style.setProperty('--window-opacity', `${parseInt(savedOpacity) / 100}`);
+      const opacityValue = `${parseInt(savedOpacity) / 100}`;
+      document.documentElement.style.setProperty('--window-opacity', opacityValue);
+      document.body.style.setProperty('--window-opacity', opacityValue);
     }
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
