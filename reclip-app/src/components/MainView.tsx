@@ -8,6 +8,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { QRCodeSVG } from "qrcode.react";
 import ClipContent from "./ClipContent";
 import UrlPreview from "./UrlPreview";
+import TimelineView from "./TimelineView";
 
 interface MainViewProps {
     compactMode: boolean;
@@ -46,6 +47,10 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
     const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
     const [qrContent, setQrContent] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Timeline View State
+    const [showTimeline, setShowTimeline] = useState(false);
+    const [timelineFilter, setTimelineFilter] = useState<Date | null>(null);
 
     // Advanced Settings States
     const [dateFormat, setDateFormat] = useState<'absolute' | 'relative'>('relative');
@@ -568,31 +573,12 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                 }}
             >
                 <div className="title-left">
-                    <span className="app-title">ReClip</span>
-                </div>
-
-                {/* Search Bar */}
-                <div className="search-container" style={{ flex: 1, margin: '0 12px', display: 'flex', justifyContent: 'center' }}>
-                    <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search clips..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="search-input"
-                        style={{
-                            width: '90%',
-                            maxWidth: '400px',
-                            padding: '6px 10px',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(0,0,0,0.05)',
-                            background: 'rgba(255,255,255,0.4)',
-                            fontSize: '0.9rem',
-                            outline: 'none',
-                            transition: 'all 0.2s',
-                            backdropFilter: 'blur(5px)'
-                        }}
+                    <img
+                        src="/icons/32x32.png"
+                        alt="ReClip"
+                        style={{ width: '18px', height: '18px', marginRight: '6px' }}
                     />
+                    <span className="app-title">ReClip</span>
                 </div>
 
                 <div className="title-right">
@@ -618,6 +604,19 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                         Q
                     </button>
 
+                    <button
+                        onClick={() => setShowTimeline(!showTimeline)}
+                        className={`title-btn ${showTimeline ? 'active' : ''}`}
+                        title="Toggle Timeline View"
+                        style={{ color: showTimeline ? 'var(--accent-color)' : undefined }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </button>
 
                     <button onClick={onOpenSettings} className="title-btn" title="Settings">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -627,6 +626,102 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
             </div>
 
             <main className="container">
+                {/* Search and Stats Bar */}
+                <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center',
+                    marginTop: '8px',
+                    marginBottom: '12px',
+                    padding: '10px 14px',
+                    background: 'var(--bg-card)',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--shadow-sm)',
+                }}>
+                    {/* Search Input */}
+                    <div style={{ flex: 1, position: 'relative' }}>
+                        <span style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            opacity: 0.4,
+                            pointerEvents: 'none',
+                        }}>🔍</span>
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="Search clips, tags, content..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="search-input"
+                            style={{
+                                width: '100%',
+                                padding: '8px 12px 8px 32px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color, rgba(128,128,128,0.2))',
+                                background: 'var(--bg-input, var(--bg-card))',
+                                color: 'var(--text-primary, inherit)',
+                                fontSize: '0.9rem',
+                                outline: 'none',
+                                transition: 'all 0.2s',
+                            }}
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                style={{
+                                    position: 'absolute',
+                                    right: '8px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    opacity: 0.5,
+                                    fontSize: '0.9rem',
+                                }}
+                            >✕</button>
+                        )}
+                    </div>
+
+                    {/* Clip Stats */}
+                    <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        fontSize: '0.75rem',
+                        opacity: 0.7,
+                        whiteSpace: 'nowrap',
+                    }}>
+                        {searchTerm ? (
+                            <span style={{
+                                background: 'var(--accent-color)',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '12px',
+                                fontWeight: 600,
+                            }}>
+                                {clips.length} found
+                            </span>
+                        ) : (
+                            <>
+                                <span title="Total clips">📋 {clips.length}</span>
+                                <span title="Pinned clips">📌 {clips.filter(c => c.pinned).length}</span>
+                                <span title="Favorites">⭐ {clips.filter(c => c.favorite).length}</span>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Timeline View */}
+                <TimelineView
+                    clips={clips}
+                    visible={showTimeline}
+                    onSelectTime={(date) => {
+                        setTimelineFilter(date);
+                        // Could filter clips by date here in the future
+                    }}
+                />
                 <DragDropContext onDragEnd={onDragEnd}>
                     <Droppable droppableId="clip-list">
                         {(provided) => (
@@ -677,7 +772,7 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
                                                             <span className="clip-type">{clip.type}</span>
                                                             {clip.sensitive && (
                                                                 <span
-                                                                    title="Sensitive - Auto-deletes in 60 seconds"
+                                                                    title="Sensitive - Auto-deletes in 30 seconds"
                                                                     style={{
                                                                         fontSize: '0.65rem',
                                                                         background: 'rgba(239, 68, 68, 0.15)',

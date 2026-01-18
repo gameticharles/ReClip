@@ -305,6 +305,24 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                            match crate::db::insert_clip_with_sensitive(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags, is_sensitive).await {
                                Ok(id) => {
                                    let _ = app_handle_clone.emit("clip-created", id);
+                                   
+                                   // Auto-delete sensitive clips after 30 seconds
+                                   if is_sensitive {
+                                       let pool_del = pool_clone.clone();
+                                       let app_del = app_handle_clone.clone();
+                                       std::thread::spawn(move || {
+                                           std::thread::sleep(std::time::Duration::from_secs(30));
+                                           tauri::async_runtime::block_on(async move {
+                                               match crate::db::delete_clip(&pool_del, id).await {
+                                                   Ok(_) => {
+                                                       info!("Auto-deleted sensitive clip #{} after 30 seconds", id);
+                                                       let _ = app_del.emit("clip-deleted", id);
+                                                   },
+                                                   Err(e) => error!("Failed to auto-delete sensitive clip: {}", e),
+                                               }
+                                           });
+                                       });
+                                   }
                                },
                                Err(e) => error!("Failed to insert clip: {}", e),
                            }

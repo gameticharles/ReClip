@@ -1,0 +1,56 @@
+name: reclip
+version: '0.1.1'
+summary: Modern clipboard manager with history, sync, and smart features
+description: |
+  ReClip is a powerful, cross-platform clipboard manager built with Rust and Tauri.
+  
+  Features:
+  - Clipboard history with text, images, and files
+  - Smart tags and search
+  - Templates with placeholders
+  - URL previews
+  - Code syntax highlighting
+  - Dark mode and custom themes
+  - Keyboard shortcuts
+  - System tray integration
+
+grade: stable
+confinement: strict
+base: core22
+architectures:
+  - build-on: [amd64]
+    build-for: [amd64]
+
+apps:
+  reclip:
+    command: usr/bin/reclip-app
+    desktop: usr/share/applications/reclip-app.desktop
+    extensions:
+      - gnome
+    plugs:
+      - home
+      - network
+      - network-bind
+      - unity7
+      - x11
+      - wayland
+      - desktop
+      - desktop-legacy
+      - gsettings
+      - opengl
+
+parts:
+  reclip:
+    plugin: dump
+    source: .
+    source-type: local
+    override-build: |
+      # Extract the .deb package
+      dpkg-deb -x reclip-app_*.deb $SNAPCRAFT_PART_INSTALL/
+    stage-packages:
+      - libwebkit2gtk-4.1-0
+      - libgtk-3-0
+      - libayatana-appindicator3-1
+    organize:
+      usr/bin/reclip-app: usr/bin/reclip-app
+      usr/share/applications/: usr/share/applications/

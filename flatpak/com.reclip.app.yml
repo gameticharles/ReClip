@@ -1,0 +1,42 @@
+id: com.reclip.app
+runtime: org.gnome.Platform
+runtime-version: '45'
+sdk: org.gnome.Sdk
+command: reclip-app
+
+finish-args:
+  # X11 and Wayland
+  - --socket=x11
+  - --socket=wayland
+  - --share=ipc
+  # Network access (for URL previews, sync features)
+  - --share=network
+  # Filesystem access (for file/image clipboard)
+  - --filesystem=home
+  - --filesystem=xdg-pictures
+  # Clipboard access
+  - --socket=session-bus
+  # System tray
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+  # GPU acceleration
+  - --device=dri
+
+modules:
+  - name: reclip-app
+    buildsystem: simple
+    build-commands:
+      # The .deb package is extracted and installed
+      - ar x reclip-app_*.deb
+      - tar xf data.tar.*
+      - install -Dm755 usr/bin/reclip-app -t /app/bin/
+      - install -Dm644 usr/share/applications/*.desktop -t /app/share/applications/
+      - install -Dm644 usr/share/icons/hicolor/*/apps/*.png -t /app/share/icons/hicolor/256x256/apps/ || true
+      # Update desktop file
+      - sed -i 's|Exec=.*|Exec=reclip-app|g' /app/share/applications/*.desktop
+      - sed -i 's|Icon=.*|Icon=com.reclip.app|g' /app/share/applications/*.desktop
+    sources:
+      - type: file
+        # This will be replaced during CI with the actual .deb URL
+        url: https://github.com/gameticharles/ReClip/releases/download/VERSION/reclip-app_VERSION_amd64.deb
+        sha256: PLACEHOLDER_SHA256
