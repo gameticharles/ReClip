@@ -42,9 +42,10 @@ html-escape = "0.2"
 x-win = "5.4.0"
 tauri-plugin-autostart = "2"
 clap = { version = "4", features = ["derive"] }
-windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Media_Ocr", "Globalization", "Graphics_Imaging", "Storage_Streams", "Foundation"] }
+
 
 [target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Media_Ocr", "Globalization", "Graphics_Imaging", "Storage_Streams", "Foundation"] }
 winreg = "0.52"
 clipboard-rs = "0.3.1"
 

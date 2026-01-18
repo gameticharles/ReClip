@@ -1,6 +1,7 @@
 mod db;
 mod clipboard;
 mod tray;
+#[cfg(target_os = "windows")]
 mod ocr;
 
 use db::{DbState, init_db, Clip, Snippet};
