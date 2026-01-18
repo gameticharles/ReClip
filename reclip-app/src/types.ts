@@ -18,6 +18,10 @@ export interface Snippet {
     content: string;
     language: string;
     tags: string;
+    favorite: boolean;
+    folder: string;
+    description: string;
+    version_history: string;  // JSON array of {content, timestamp}
     created_at: string;
     updated_at: string;
 }

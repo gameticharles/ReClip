@@ -164,18 +164,28 @@ async fn get_snippets(state: State<'_, DbState>) -> Result<Vec<Snippet>, String>
 }
 
 #[tauri::command]
-async fn add_snippet(state: State<'_, DbState>, title: String, content: String, language: String, tags: String) -> Result<i64, String> {
-    db::add_snippet(&state.pool, title, content, language, tags).await.map_err(|e| e.to_string())
+async fn add_snippet(state: State<'_, DbState>, title: String, content: String, language: String, tags: String, description: Option<String>, folder: Option<String>) -> Result<i64, String> {
+    db::add_snippet(&state.pool, title, content, language, tags, description.unwrap_or_default(), folder.unwrap_or_default()).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn update_snippet(state: State<'_, DbState>, id: i64, title: String, content: String, language: String, tags: String) -> Result<(), String> {
-    db::update_snippet(&state.pool, id, title, content, language, tags).await.map_err(|e| e.to_string())
+async fn update_snippet(state: State<'_, DbState>, id: i64, title: String, content: String, language: String, tags: String, description: Option<String>, folder: Option<String>) -> Result<(), String> {
+    db::update_snippet(&state.pool, id, title, content, language, tags, description.unwrap_or_default(), folder.unwrap_or_default()).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn delete_snippet(state: State<'_, DbState>, id: i64) -> Result<(), String> {
     db::delete_snippet(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn toggle_snippet_favorite(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
+    db::toggle_snippet_favorite(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn duplicate_snippet(state: State<'_, DbState>, id: i64) -> Result<i64, String> {
+    db::duplicate_snippet(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
 // Sensitive settings
@@ -432,7 +442,7 @@ pub fn run() {
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
-             get_snippets, add_snippet, update_snippet, delete_snippet,
+             get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
              run_ocr
         ])
         .run(tauri::generate_context!())

@@ -347,38 +347,98 @@ pub struct Snippet {
     pub content: String,
     pub language: String,
     pub tags: String,
+    pub favorite: bool,
+    pub folder: String,
+    pub description: String,
+    pub version_history: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
 pub async fn get_snippets(pool: &Pool<Sqlite>) -> Result<Vec<Snippet>, sqlx::Error> {
-    sqlx::query_as::<_, Snippet>("SELECT id, title, content, language, tags, created_at, updated_at FROM snippets ORDER BY updated_at DESC")
+    sqlx::query_as::<_, Snippet>("SELECT id, title, content, language, tags, COALESCE(favorite, 0) as favorite, COALESCE(folder, '') as folder, COALESCE(description, '') as description, COALESCE(version_history, '[]') as version_history, created_at, updated_at FROM snippets ORDER BY favorite DESC, updated_at DESC")
         .fetch_all(pool)
         .await
 }
 
-pub async fn add_snippet(pool: &Pool<Sqlite>, title: String, content: String, language: String, tags: String) -> Result<i64, sqlx::Error> {
-    let id = sqlx::query("INSERT INTO snippets (title, content, language, tags, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id")
+pub async fn add_snippet(pool: &Pool<Sqlite>, title: String, content: String, language: String, tags: String, description: String, folder: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO snippets (title, content, language, tags, description, folder, favorite, version_history, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, '[]', CURRENT_TIMESTAMP) RETURNING id")
         .bind(title)
         .bind(content)
         .bind(language)
         .bind(tags)
+        .bind(description)
+        .bind(folder)
         .fetch_one(pool)
         .await?
         .get::<i64, _>(0);
     Ok(id)
 }
 
-pub async fn update_snippet(pool: &Pool<Sqlite>, id: i64, title: String, content: String, language: String, tags: String) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE snippets SET title = ?, content = ?, language = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+pub async fn update_snippet(pool: &Pool<Sqlite>, id: i64, title: String, content: String, language: String, tags: String, description: String, folder: String) -> Result<(), sqlx::Error> {
+    // First get current content for version history
+    let old: Option<(String, String)> = sqlx::query_as("SELECT content, version_history FROM snippets WHERE id = ?")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+    
+    let new_history = if let Some((old_content, old_history)) = old {
+        if old_content != content {
+            // Append old content to version history
+            let mut history: Vec<serde_json::Value> = serde_json::from_str(&old_history).unwrap_or_default();
+            history.push(serde_json::json!({
+                "content": old_content,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }));
+            // Keep only last 10 versions
+            if history.len() > 10 {
+                let skip_count = history.len() - 10;
+                history = history.into_iter().skip(skip_count).collect();
+            }
+            serde_json::to_string(&history).unwrap_or_else(|_| "[]".to_string())
+        } else {
+            old_history
+        }
+    } else {
+        "[]".to_string()
+    };
+
+    sqlx::query("UPDATE snippets SET title = ?, content = ?, language = ?, tags = ?, description = ?, folder = ?, version_history = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .bind(title)
         .bind(content)
         .bind(language)
         .bind(tags)
+        .bind(description)
+        .bind(folder)
+        .bind(new_history)
         .bind(id)
         .execute(pool)
         .await?;
     Ok(())
+}
+
+pub async fn toggle_snippet_favorite(pool: &Pool<Sqlite>, id: i64) -> Result<bool, sqlx::Error> {
+    let row: (bool,) = sqlx::query_as("SELECT COALESCE(favorite, 0) FROM snippets WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
+    let new_val = !row.0;
+    sqlx::query("UPDATE snippets SET favorite = ? WHERE id = ?")
+        .bind(new_val)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(new_val)
+}
+
+pub async fn duplicate_snippet(pool: &Pool<Sqlite>, id: i64) -> Result<i64, sqlx::Error> {
+    let snippet: Snippet = sqlx::query_as("SELECT id, title, content, language, tags, COALESCE(favorite, 0) as favorite, COALESCE(folder, '') as folder, COALESCE(description, '') as description, COALESCE(version_history, '[]') as version_history, created_at, updated_at FROM snippets WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
+    
+    let new_title = format!("{} (Copy)", snippet.title);
+    add_snippet(pool, new_title, snippet.content, snippet.language, snippet.tags, snippet.description, snippet.folder).await
 }
 
 pub async fn delete_snippet(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
@@ -388,3 +448,4 @@ pub async fn delete_snippet(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Er
         .await?;
     Ok(())
 }
+
