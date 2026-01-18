@@ -6,7 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from '@tauri-apps/api/app';
 import { motion, AnimatePresence } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import { QRCodeSVG } from "qrcode.react";
+import { QRModal } from "./QRModal";
 import ClipContent from "./ClipContent";
 import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
@@ -1030,43 +1030,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
             }
 
 
-            {/* QR Code Modal */}
-            <AnimatePresence>
-                {qrContent && (
-                    <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        style={{
-                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-                        }}
-                        onClick={() => setQrContent(null)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-                            style={{
-                                background: 'white', padding: '32px', borderRadius: '16px',
-                                boxShadow: '0 10px 30px rgba(0,0,0,0.5)', maxWidth: '90%', textAlign: 'center'
-                            }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'black' }}>Scan QR Code</h3>
-                            <div style={{ background: 'white', padding: '10px', borderRadius: '8px' }}>
-                                <QRCodeSVG value={qrContent} size={256} />
-                            </div>
-                            <p style={{ marginTop: '20px', marginBottom: 0, fontSize: '0.9rem', color: '#666', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {qrContent}
-                            </p>
-                            <button
-                                onClick={() => setQrContent(null)}
-                                style={{ marginTop: '24px', padding: '10px 24px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                            >
-                                Close
-                            </button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* QR Code Modal - Using shared component */}
+            {qrContent && (
+                <QRModal
+                    title="Clipboard Content"
+                    content={qrContent}
+                    onClose={() => setQrContent(null)}
+                />
+            )}
         </>
     );
 }
