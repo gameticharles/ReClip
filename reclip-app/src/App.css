@@ -463,3 +463,24 @@ body.dark .clip-type {
   font-weight: 500;
   font-size: 1.1rem;
 }
+
+.snippet-card {
+  background-color: var(--bg-card);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.snippet-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 5;
+}
+
+body.dark .snippet-card:hover {
+  background-color: rgba(60, 62, 68, 1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}

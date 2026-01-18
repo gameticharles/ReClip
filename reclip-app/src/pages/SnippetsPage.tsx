@@ -218,6 +218,25 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
     const parseTags = (tags: string): string[] => { try { return JSON.parse(tags) || []; } catch { return []; } };
     const parseHistory = (h: string): { content: string; timestamp: string }[] => { try { return JSON.parse(h) || []; } catch { return []; } };
 
+    const formatTime = (dateStr: string) => {
+        const dateFormat = localStorage.getItem('dateFormat') || 'relative';
+        if (dateFormat === 'absolute') return new Date(dateStr).toLocaleString();
+
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+        if (isNaN(diffSeconds)) return dateStr;
+
+        if (diffSeconds < 60) return `${diffSeconds}s ago`;
+        if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+        if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+        if (diffSeconds < 2592000) return `${Math.floor(diffSeconds / 86400)}d ago`;
+        if (diffSeconds < 31536000) return `${Math.floor(diffSeconds / 2592000)}mo ago`;
+        return `${Math.floor(diffSeconds / 31536000)}y ago`;
+    };
+
+
     const filteredSnippets = snippets
         .filter(s => {
             const matchSearch = s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -325,7 +344,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                         const history = parseHistory(snippet.version_history);
 
                         return (
-                            <div key={snippet.id} style={{ background: 'var(--bg-card)', borderRadius: 10, marginBottom: 8, border: isExpanded ? '1px solid var(--accent-color)' : '1px solid var(--border-color)', overflow: 'hidden' }}>
+                            <div key={snippet.id} className="snippet-card" style={{ border: isExpanded ? '1px solid var(--accent-color)' : undefined }}>
                                 {/* Header */}
                                 <div onClick={() => setExpandedId(isExpanded ? null : snippet.id)} style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <div style={{ opacity: 0.5, color: 'inherit' }}>{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</div>
@@ -341,6 +360,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                                     {tags.slice(0, 2).map((tag, i) => <span key={i} style={{ background: 'rgba(128,128,128,0.15)', padding: '2px 6px', borderRadius: 8, fontSize: '0.6rem', color: 'inherit' }}>#{tag}</span>)}
                                     {tags.length > 2 && <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>+{tags.length - 2}</span>}
                                     <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{snippet.title || 'Untitled'}</span>
+                                    <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: 8, whiteSpace: 'nowrap' }} title={new Date(snippet.updated_at).toLocaleString()}>{formatTime(snippet.updated_at)}</span>
                                 </div>
 
                                 {isExpanded && (
