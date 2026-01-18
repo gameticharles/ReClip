@@ -369,7 +369,7 @@ export default function SettingsPage({
     ];
 
     return (
-        <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-app, transparent)' }}>
+        <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent' }}>
             {/* Settings Title Bar */}
             <div
                 className="titlebar"

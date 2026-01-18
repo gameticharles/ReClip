@@ -5,7 +5,7 @@
   font-weight: 400;
 
   /* Theme Defaults (Light) */
-  --bg-app: rgba(255, 255, 255, 0.85);
+  --bg-app: rgba(255, 255, 255, var(--window-opacity, 0.85));
   --bg-card: rgba(255, 255, 255, 0.6);
   --text-primary: #0f0f0f;
   --text-secondary: #666666;
@@ -24,7 +24,7 @@
 
 body.dark {
   /* Theme Defaults (Dark) */
-  --bg-app: rgba(30, 30, 35, 0.95);
+  --bg-app: rgba(30, 30, 35, var(--window-opacity, 0.95));
   --bg-card: rgba(50, 52, 58, 0.9);
   --text-primary: #ffffff;
   --text-secondary: #c1c2c5;
@@ -63,8 +63,8 @@ body {
   overflow: hidden;
   /* Clip to rounded rectangle to hide transparent corners */
   clip-path: inset(0 round 4px) !important;
-  /* Apply window opacity */
-  opacity: var(--window-opacity, 1);
+  /* Apply window opacity via background color alpha, not element opacity */
+  /* opacity: var(--window-opacity, 1); */
 }
 
 /* Custom Titlebar */
