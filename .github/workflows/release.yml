@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v0.1.1                                       )'
+        description: 'Release tag (e.g., v0.1.1)'
         required: false
         default: 'dev'
 
@@ -36,14 +36,10 @@ jobs:
           - platform: ubuntu-22.04
             args: ''
             rust_target: ''
-          # Linux ARM64 (cross-compile)
-          - platform: ubuntu-22.04
-            args: '--target aarch64-unknown-linux-gnu'
-            rust_target: 'aarch64-unknown-linux-gnu'
-          # Linux ARM32 (cross-compile)
-          - platform: ubuntu-22.04
-            args: '--target armv7-unknown-linux-gnueabihf'
-            rust_target: 'armv7-unknown-linux-gnueabihf'
+          # Linux ARM64 (native ARM runner)
+          - platform: ubuntu-22.04-arm
+            args: ''
+            rust_target: ''
 
     runs-on: ${{ matrix.platform }}
     
@@ -63,39 +59,11 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
-      - name: Install Linux dependencies (x64)
-        if: matrix.platform == 'ubuntu-22.04' && matrix.rust_target == ''
+      - name: Install Linux dependencies
+        if: contains(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev
-
-      - name: Install Linux ARM64 cross-compilation dependencies
-        if: matrix.platform == 'ubuntu-22.04' && matrix.rust_target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          sudo dpkg --add-architecture arm64
-          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get update || true
-          sudo apt-get install -y libwebkit2gtk-4.1-dev:arm64 libappindicator3-dev:arm64 librsvg2-dev:arm64 libssl-dev:arm64 patchelf || true
-          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      - name: Install Linux ARM32 cross-compilation dependencies
-        if: matrix.platform == 'ubuntu-22.04' && matrix.rust_target == 'armv7-unknown-linux-gnueabihf'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-          sudo dpkg --add-architecture armhf
-          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get update || true
-          sudo apt-get install -y libwebkit2gtk-4.1-dev:armhf libappindicator3-dev:armhf librsvg2-dev:armhf libssl-dev:armhf patchelf || true
-          echo "PKG_CONFIG_PATH=/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
 
       - name: Install frontend dependencies
         working-directory: reclip-app
@@ -119,7 +87,6 @@ jobs:
             - **macOS**: `.dmg` (Universal binary for Intel & Apple Silicon)
             - **Linux x64**: `.deb` (Debian/Ubuntu) or `.AppImage` (portable)
             - **Linux ARM64**: `.deb` (for Raspberry Pi 4+, ARM servers)
-            - **Linux ARM32**: `.deb` (for Raspberry Pi 2/Zero, older ARM devices)
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
