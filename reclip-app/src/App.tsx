@@ -109,6 +109,18 @@ function App() {
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
+  // Always on Top Persistence
+  useEffect(() => {
+    const applyAlwaysOnTop = async () => {
+      const alwaysOnTop = localStorage.getItem('alwaysOnTop') === 'true';
+      if (alwaysOnTop) {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().setAlwaysOnTop(true);
+      }
+    };
+    applyAlwaysOnTop();
+  }, []);
+
   // Window Position Management
   useEffect(() => {
     const rememberPosition = localStorage.getItem('rememberWindowPosition') === 'true';

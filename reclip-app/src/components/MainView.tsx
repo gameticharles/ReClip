@@ -35,7 +35,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
     const [focusOnDelete, setFocusOnDelete] = useState(false); // Left/Right toggle
-    const [incognitoMode, setIncognitoMode] = useState(false);
+    const [incognitoMode, setIncognitoMode] = useState(() => localStorage.getItem('incognitoMode') === 'true');
     const [selectedClipIds, setSelectedClipIds] = useState<Set<number>>(new Set());
     const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +51,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Timeline View State
-    const [showTimeline, setShowTimeline] = useState(false);
+    const [showTimeline, setShowTimeline] = useState(() => localStorage.getItem('showTimeline') === 'true');
     const [timelineFilter, setTimelineFilter] = useState<{ start: number, end: number } | null>(null);
     const [version, setVersion] = useState("...");
     const [allClips, setAllClips] = useState<Clip[]>([]);
@@ -72,10 +72,17 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
 
     useEffect(() => {
         fetchShortcuts();
-        // Also listen for shortcut updates if possible? 
-        // Or just refetch when window focuses? 
-        // For now, fetch once.
     }, []);
+
+    // Persistence Effects
+    useEffect(() => {
+        localStorage.setItem('incognitoMode', incognitoMode.toString());
+        invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
+    }, [incognitoMode]);
+
+    useEffect(() => {
+        localStorage.setItem('showTimeline', showTimeline.toString());
+    }, [showTimeline]);
 
     // Helper for time ago
     const formatTime = (dateStr: string) => {

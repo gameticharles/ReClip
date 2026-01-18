@@ -16,6 +16,11 @@ All notable changes to this project will be documented in this file.
   - Implemented cleaner grid layout for settings.
   - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
 
+### 🐛 Bug Fixes
+- **Persistence**:
+  - Fixed **Always on Top** not applying automatically on startup.
+  - Fixed **Incognito Mode** and **Timeline View** states not persisting across restarts.
+
 ## [0.3.0] - 2026-01-18
 
 ### ✨ New Features
