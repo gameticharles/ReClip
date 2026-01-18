@@ -33,6 +33,8 @@ export default function SettingsPage({
     const [maxClips, setMaxClips] = useState(10000);
     const [ageEnabled, setAgeEnabled] = useState(() => localStorage.getItem('maintenanceAgeEnabled') === 'true');
     const [limitEnabled, setLimitEnabled] = useState(() => localStorage.getItem('maintenanceLimitEnabled') === 'true');
+    const [sensitiveAutoDelete, setSensitiveAutoDelete] = useState(() => localStorage.getItem('sensitiveAutoDelete') !== 'false');
+    const [sensitiveTimer, setSensitiveTimer] = useState(() => localStorage.getItem('sensitiveDeleteTimer') || '30');
     const [exportStatus, setExportStatus] = useState("");
     const [privacyRules, setPrivacyRules] = useState<any[]>([]);
     const [shortcuts, setShortcuts] = useState<{ [key: string]: string }>({});
@@ -477,10 +479,14 @@ export default function SettingsPage({
                                         type="checkbox"
                                         checked={autostart}
                                         onChange={async (e) => {
+                                            const newValue = e.target.checked;
+                                            setAutostart(newValue); // Update UI immediately
                                             try {
-                                                await invoke("set_autostart", { enabled: e.target.checked });
-                                                setAutostart(e.target.checked);
-                                            } catch (err) { console.error("Failed to set autostart:", err); }
+                                                await invoke("set_autostart", { enabled: newValue });
+                                            } catch (err) {
+                                                console.error("Failed to set autostart:", err);
+                                                setAutostart(!newValue); // Revert on failure
+                                            }
                                         }}
                                         style={{ accentColor: 'var(--accent-color)' }}
                                     />
@@ -767,8 +773,9 @@ export default function SettingsPage({
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={localStorage.getItem('sensitiveAutoDelete') !== 'false'}
+                                        checked={sensitiveAutoDelete}
                                         onChange={(e) => {
+                                            setSensitiveAutoDelete(e.target.checked);
                                             localStorage.setItem('sensitiveAutoDelete', e.target.checked ? 'true' : 'false');
                                         }}
                                         style={{ accentColor: 'var(--accent-color)' }}
@@ -778,8 +785,9 @@ export default function SettingsPage({
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Delete after:</label>
                                     <select
-                                        value={localStorage.getItem('sensitiveDeleteTimer') || '30'}
+                                        value={sensitiveTimer}
                                         onChange={(e) => {
+                                            setSensitiveTimer(e.target.value);
                                             localStorage.setItem('sensitiveDeleteTimer', e.target.value);
                                         }}
                                         style={{
