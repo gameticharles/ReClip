@@ -11,6 +11,8 @@ interface SettingsPageProps {
     setTheme: (theme: string) => void;
     useSystemAccent: boolean;
     setUseSystemAccent: (enabled: boolean) => void;
+    accentColor: string;
+    setAccentColor: (color: string) => void;
 }
 
 export default function SettingsPage({
@@ -20,7 +22,9 @@ export default function SettingsPage({
     theme,
     setTheme,
     useSystemAccent,
-    setUseSystemAccent
+    setUseSystemAccent,
+    accentColor,
+    setAccentColor
 }: SettingsPageProps) {
     const [activeTab, setActiveTab] = useState('interface');
     const [alwaysOnTop, setAlwaysOnTop] = useState(false);
@@ -50,6 +54,48 @@ export default function SettingsPage({
     // Startup & Window Position
     const [autostart, setAutostart] = useState(false);
     const [rememberPosition, setRememberPosition] = useState(localStorage.getItem('rememberWindowPosition') === 'true');
+
+    // Custom Colors - load from localStorage on mount
+    const [customColors, setCustomColors] = useState(() => {
+        const saved = localStorage.getItem('customColors');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch { /* ignore */ }
+        }
+        return {
+            bgApp: '#ffffff',
+            bgCard: '#ffffff',
+            textPrimary: '#0f0f0f',
+            accentColor: accentColor // Use prop as default
+        };
+    });
+
+    const handleColorChange = (key: string, value: string) => {
+        const newColors = { ...customColors, [key]: value };
+        setCustomColors(newColors);
+        localStorage.setItem('customColors', JSON.stringify(newColors));
+
+        // Convert camelCase to --kebab-case
+        const cssVar = '--' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+        // Apply to :root only for bg/text colors (to not break dark mode CSS on body)
+        document.documentElement.style.setProperty(cssVar, value);
+
+        // Special handling for accent - apply to both :root and body
+        if (key === 'accentColor') {
+            document.body.style.setProperty(cssVar, value);
+            // Also set --accent-rgb
+            const r = parseInt(value.slice(1, 3), 16);
+            const g = parseInt(value.slice(3, 5), 16);
+            const b = parseInt(value.slice(5, 7), 16);
+            const rgbValue = `${r}, ${g}, ${b}`;
+            document.documentElement.style.setProperty('--accent-rgb', rgbValue);
+            document.body.style.setProperty('--accent-rgb', rgbValue);
+            // Propagate to App.tsx state
+            setAccentColor(value);
+        }
+    };
 
     const fetchTemplates = async () => {
         try {
@@ -224,6 +270,27 @@ export default function SettingsPage({
 
         const savedMax = localStorage.getItem("maxClips");
         if (savedMax) setMaxClips(parseInt(savedMax));
+
+        const savedColors = localStorage.getItem('customColors');
+        if (savedColors) {
+            try {
+                const parsed = JSON.parse(savedColors);
+                setCustomColors(parsed);
+                Object.keys(parsed).forEach(key => {
+                    const cssVar = '--' + key.replace(/([A-Z])/g, '-$1').toLowerCase();
+                    document.documentElement.style.setProperty(cssVar, parsed[key]);
+                    if (key === 'accentColor') {
+                        const value = parsed[key];
+                        const r = parseInt(value.slice(1, 3), 16);
+                        const g = parseInt(value.slice(3, 5), 16);
+                        const b = parseInt(value.slice(5, 7), 16);
+                        document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+                    }
+                });
+            } catch (e) {
+                console.error("Failed to load custom colors", e);
+            }
+        }
     }, []);
 
     const toggleAlwaysOnTop = async () => {
@@ -438,7 +505,7 @@ export default function SettingsPage({
                             <h3 style={{ marginTop: '24px', marginBottom: '16px', opacity: 0.9 }}>Appearance</h3>
 
                             <div className="setting-item">
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Theme</label>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Theme Mode</label>
                                 <div style={{ display: 'flex', gap: '8px', maxWidth: '300px' }}>
                                     {['light', 'dark', 'system'].map(t => (
                                         <button
@@ -455,6 +522,63 @@ export default function SettingsPage({
                                     ))}
                                 </div>
                             </div>
+
+                            {theme === 'custom' || true && (
+                                <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px' }}>
+                                    <h3 style={{ marginTop: 0, fontSize: '0.9rem', marginBottom: '12px' }}>Custom Colors</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                                            App Background
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input type="color" value={customColors.bgApp} onChange={(e) => handleColorChange('bgApp', e.target.value)} style={{ cursor: 'pointer', border: 'none', width: '30px', height: '30px', padding: 0, borderRadius: '4px' }} />
+                                                <span style={{ opacity: 0.6, fontFamily: 'monospace' }}>{customColors.bgApp}</span>
+                                            </div>
+                                        </label>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                                            Card Background
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input type="color" value={customColors.bgCard} onChange={(e) => handleColorChange('bgCard', e.target.value)} style={{ cursor: 'pointer', border: 'none', width: '30px', height: '30px', padding: 0, borderRadius: '4px' }} />
+                                                <span style={{ opacity: 0.6, fontFamily: 'monospace' }}>{customColors.bgCard}</span>
+                                            </div>
+                                        </label>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                                            Text Color
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input type="color" value={customColors.textPrimary} onChange={(e) => handleColorChange('textPrimary', e.target.value)} style={{ cursor: 'pointer', border: 'none', width: '30px', height: '30px', padding: 0, borderRadius: '4px' }} />
+                                                <span style={{ opacity: 0.6, fontFamily: 'monospace' }}>{customColors.textPrimary}</span>
+                                            </div>
+                                        </label>
+                                        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.85rem' }}>
+                                            Accent Color
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input
+                                                    type="color"
+                                                    value={customColors.accentColor}
+                                                    onChange={(e) => handleColorChange('accentColor', e.target.value)}
+                                                    disabled={useSystemAccent}
+                                                    style={{
+                                                        cursor: useSystemAccent ? 'not-allowed' : 'pointer',
+                                                        border: 'none', width: '30px', height: '30px', padding: 0, borderRadius: '4px',
+                                                        opacity: useSystemAccent ? 0.3 : 1
+                                                    }}
+                                                />
+                                                <span style={{ opacity: 0.6, fontFamily: 'monospace' }}>
+                                                    {customColors.accentColor} {useSystemAccent && <span style={{ fontSize: '0.7em', fontStyle: 'italic' }}>(System Active)</span>}
+                                                </span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            localStorage.removeItem('customColors');
+                                            window.location.reload();
+                                        }}
+                                        style={{ marginTop: '16px', background: 'transparent', border: '1px solid rgba(128,128,128,0.3)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'inherit' }}
+                                    >
+                                        Reset to Defaults
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="setting-item" style={{ marginTop: '16px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Window Opacity ({opacity}%)</label>
@@ -668,8 +792,8 @@ export default function SettingsPage({
                                 </div>
                                 <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
                                     {/* Presets */}
-                                    <button onClick={() => setNewRegex('^password.*')} style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', cursor: 'pointer' }}>Password Preset</button>
-                                    <button onClick={() => setNewRegex('\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b')} style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', cursor: 'pointer' }}>Credit Card Preset</button>
+                                    <button onClick={() => setNewRegex('^password.*')} style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', cursor: 'pointer', color: 'inherit' }}>Password Preset</button>
+                                    <button onClick={() => setNewRegex('\\b\\d{4}[- ]?\\d{4}[- ]?\\d{4}[- ]?\\d{4}\\b')} style={{ fontSize: '0.8rem', padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', cursor: 'pointer', color: 'inherit' }}>Credit Card Preset</button>
                                 </div>
                                 <div style={{ maxHeight: '150px', overflowY: 'auto', background: 'rgba(0,0,0,0.02)', borderRadius: '6px', padding: '8px' }}>
                                     {privacyRules.filter(r => r.rule_type === 'REGEX_MASK').length === 0 && <p style={{ opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>No privacy filters.</p>}

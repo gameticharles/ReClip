@@ -4,8 +4,16 @@
   line-height: normal;
   font-weight: 400;
 
-  color: #0f0f0f;
-  /* background-color: transparent handled in body */
+  /* Theme Defaults (Light) */
+  --bg-app: rgba(255, 255, 255, 0.85);
+  --bg-card: rgba(255, 255, 255, 0.6);
+  --text-primary: #0f0f0f;
+  --text-secondary: #666666;
+  --border-color: rgba(255, 255, 255, 0.4);
+  --accent-color: #4f46e5;
+  --accent-rgb: 79, 70, 229;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.1);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -14,8 +22,18 @@
 }
 
 body.dark {
-  color: #ffffff;
-  /* Brighter white for dark mode */
+  /* Theme Defaults (Dark) */
+  --bg-app: rgba(30, 30, 35, 0.95);
+  --bg-card: rgba(50, 52, 58, 0.9);
+  --text-primary: #ffffff;
+  --text-secondary: #c1c2c5;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --accent-color: #818cf8;
+  --accent-rgb: 129, 140, 248;
+  --shadow-color: rgba(0, 0, 0, 0.6);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+
+  color: var(--text-primary);
 }
 
 html,
@@ -23,11 +41,10 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  /* App container handles structure */
   height: 100vh;
   width: 100vw;
   background: transparent;
-  /* Essential for Tauri transparency */
+  color: var(--text-primary);
 }
 
 /* Glassmorphism Container */
@@ -36,30 +53,17 @@ body {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: rgba(255, 255, 255, var(--window-opacity, 0.85));
-  /* More transparent */
+  background-color: var(--bg-app);
   backdrop-filter: blur(20px);
-  /* Stronger blur */
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  /* Glass border */
+  box-shadow: 0 8px 32px var(--shadow-color);
+  border: 1px solid var(--border-color);
   overflow: hidden;
-}
-
-body.dark {
-  .app-container {
-    background-color: rgba(30, 30, 35, var(--window-opacity, 0.95));
-    /* Much more opaque for readability */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
 }
 
 /* Custom Titlebar */
 .titlebar {
   height: 48px;
-  /* Taller */
   background: rgba(0, 0, 0, 0.03);
   display: flex;
   justify-content: space-between;
@@ -70,11 +74,9 @@ body.dark {
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-body.dark {
-  .titlebar {
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  }
+body.dark .titlebar {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .title-left {
@@ -82,7 +84,6 @@ body.dark {
   font-size: 0.9rem;
   letter-spacing: 0.02em;
   opacity: 0.9;
-  /* Improved visibility */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -103,7 +104,6 @@ body.dark {
   line-height: 1;
   color: inherit;
   opacity: 0.7;
-  /* Improved visibility */
   transition: all 0.2s;
 }
 
@@ -112,10 +112,8 @@ body.dark {
   opacity: 1;
 }
 
-body.dark {
-  .title-btn:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-  }
+body.dark .title-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Settings Panel */
@@ -145,12 +143,10 @@ body.dark {
   }
 }
 
-body.dark {
-  .settings-panel {
-    background: #25262b;
-    border-color: #373a40;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  }
+body.dark .settings-panel {
+  background: #25262b;
+  border-color: #373a40;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
 
 .settings-panel h3 {
@@ -185,10 +181,8 @@ body.dark {
   display: flex;
   flex-direction: column;
   padding: 0 16px 16px 16px;
-  /* No top padding needed as titlebar handles it */
   box-sizing: border-box;
   overflow: hidden;
-  /* Inner scrolling handled by clip-list */
 }
 
 .clip-list {
@@ -196,10 +190,9 @@ body.dark {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   padding-top: 16px;
   padding-right: 4px;
-  /* Space for scrollbar */
 }
 
 /* Scrollbar Styling */
@@ -212,7 +205,7 @@ body.dark {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
@@ -220,40 +213,41 @@ body.dark {
   background: rgba(0, 0, 0, 0.2);
 }
 
-body.dark {
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
+body.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Clip Card Styling (Preserved & Enhanced) */
+/* Clip Card Styling */
 .clip-card {
-  background-color: rgba(255, 255, 255, 0.6);
-  /* Translucent */
+  background-color: var(--bg-card);
   border-radius: 12px;
   padding: 16px;
-  /* Slightly increased padding */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--border-color);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s, background-color 0.2s;
   cursor: pointer;
   position: relative;
   overflow: visible;
-  /* Allow content to breathe */
   flex-shrink: 0;
-  /* CRITICAL: Prevents squashing */
   display: flex;
   flex-direction: column;
   gap: 8px;
+  color: var(--text-primary);
 }
 
-/* Compact Mode */
-.clip-list.compact {
-  gap: 6px;
+body.dark .clip-card {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.clip-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 10;
+}
+
+body.dark .clip-card:hover {
+  background-color: rgba(60, 62, 68, 1);
 }
 
 .clip-list.compact .clip-card {
@@ -265,7 +259,6 @@ body.dark {
 
 .clip-list.compact .clip-content {
   max-height: 2.8em;
-  /* Roughly 2 lines */
   -webkit-line-clamp: 2;
   line-clamp: 2;
   display: -webkit-box;
@@ -277,22 +270,7 @@ body.dark {
   margin-bottom: 0;
 }
 
-body.dark {
-  .clip-card {
-    background-color: rgba(50, 52, 58, 0.9);
-    /* Higher opacity for readability */
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  }
-}
-
-.clip-card:hover {
-  transform: scale(1.01);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  background-color: rgba(255, 255, 255, 0.85);
-  z-index: 10;
-}
-
+/* Icon Buttons */
 .icon-btn {
   background: transparent;
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -300,39 +278,35 @@ body.dark {
   cursor: pointer;
   padding: 1px 4px;
   font-size: 0.65rem;
-  color: #666;
+  color: var(--text-secondary);
   opacity: 0.7;
 }
 
 .icon-btn:hover {
   background: rgba(0, 0, 0, 0.05);
-  border-color: var(--accent-color, #6366f1);
-  color: var(--accent-color, #6366f1);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
   opacity: 1;
 }
 
-.transform-actions {
-  margin-left: auto;
-  margin-right: 8px;
+.clip-card.selected {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.2);
 }
 
-.clip-card.selected {
-  outline: 2px solid var(--accent-color, #4f46e5);
-  outline-offset: -2px;
-  background-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.2);
+body.dark .clip-card.selected {
+  background-color: rgba(60, 62, 68, 1);
 }
 
 .clip-card.multi-selected {
-  background-color: rgba(var(--accent-rgb, 79, 70, 229), 0.1);
-  border-color: var(--accent-color, #4f46e5);
+  background-color: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent-color);
 }
 
-body.dark {
-  .clip-card.multi-selected {
-    background-color: rgba(var(--accent-rgb, 79, 70, 229), 0.2);
-    border-color: var(--accent-color, #6366f1);
-  }
+body.dark .clip-card.multi-selected {
+  background-color: rgba(var(--accent-rgb), 0.2);
 }
 
 /* Bulk Actions Bar */
@@ -392,34 +366,8 @@ body.dark {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.bulk-buttons button:active {
-  transform: scale(0.96);
-}
-
-body.dark {
-  .clip-card:hover {
-    background-color: rgba(60, 62, 68, 1);
-    /* Opaque on hover */
-  }
-
-  .clip-card.selected {
-    outline-color: var(--accent-color, #818cf8);
-    background-color: rgba(60, 62, 68, 1);
-    box-shadow: 0 4px 16px rgba(var(--accent-rgb, 129, 140, 248), 0.2);
-  }
-}
-
 .clip-card.pinned {
   border-left: 3px solid #f59e0b;
-}
-
-.add-tag-btn:hover {
-  border-color: var(--accent-color, #4f46e5) !important;
-  color: var(--accent-color, #4f46e5) !important;
-}
-
-.clip-tag:hover {
-  background: rgba(var(--accent-rgb, 67, 56, 202), 0.2) !important;
 }
 
 .clip-header {
@@ -428,7 +376,7 @@ body.dark {
   align-items: center;
   margin-bottom: 10px;
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .header-right {
@@ -437,30 +385,7 @@ body.dark {
   gap: 8px;
 }
 
-.fav-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  margin-right: 4px;
-  font-size: 1rem;
-  opacity: 0.6;
-  color: inherit;
-  transition: all 0.2s;
-  border-radius: 6px;
-}
-
-.fav-btn:hover {
-  opacity: 1;
-  background-color: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-}
-
-.fav-btn.active {
-  opacity: 1;
-  color: #f59e0b;
-}
-
+.fav-btn,
 .pin-btn {
   background: none;
   border: none;
@@ -473,12 +398,14 @@ body.dark {
   border-radius: 6px;
 }
 
+.fav-btn:hover,
 .pin-btn:hover {
   opacity: 1;
   background-color: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
 
+.fav-btn.active,
 .pin-btn.active {
   opacity: 1;
   color: #f59e0b;
@@ -504,32 +431,22 @@ body.dark {
   letter-spacing: 0.06em;
 }
 
-body.dark {
-  .clip-type {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: #c1c2c5;
-  }
+body.dark .clip-type {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #c1c2c5;
 }
 
 .clip-content {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
-  /* Modern monospace */
   white-space: pre-wrap;
   word-break: break-all;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: #333;
+  color: var(--text-primary);
   max-height: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
-}
-
-body.dark {
-  .clip-content {
-    color: #ffffff;
-    /* Improved text Contrast */
-  }
 }
 
 .empty-state {

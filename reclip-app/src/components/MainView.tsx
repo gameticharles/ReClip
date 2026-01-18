@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { motion, AnimatePresence } from "framer-motion";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRCodeSVG } from "qrcode.react";
 import ClipContent from "./ClipContent";
 import UrlPreview from "./UrlPreview";
@@ -492,6 +493,63 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
         }
     }
 
+    const onDragEnd = async (result: DropResult) => {
+        if (!result.destination) return;
+        const sourceIndex = result.source.index;
+        const destIndex = result.destination.index;
+
+        if (sourceIndex === destIndex) return;
+
+        // Optimistic reorder
+        const newClips = Array.from(clips);
+        const [movedClip] = newClips.splice(sourceIndex, 1);
+        newClips.splice(destIndex, 0, movedClip);
+        setClips(newClips);
+
+        // Calculate new position
+        // Logic: position = (prev.pos + next.pos) / 2
+        // If undefined, we need defaults.
+        // Backend sorts: favorite > pinned > position > created_at
+        // We assume we are reordering within the same 'group' (e.g. unpinned items).
+
+        let newPosition = 0;
+        const prevClip = newClips[destIndex - 1];
+        const nextClip = newClips[destIndex + 1];
+
+
+        // Wait, default sort is Position DESC? If items have position=NULL (0), they are at bottom?
+        // Let's assume default "high" is Date.now() (which is ~1.7e12).
+
+        // Strategy:
+        // Top of list: (next.position ?? 0) + 1000000;
+        // Bottom of list: (prev.position ?? Date.now()) - 1000000;
+        // Middle: (prev.pos + next.pos) / 2
+
+        // Wait, if next.position is NULL (0), and we drag to top.
+        // We want > 0. 1000000.
+
+        const getPos = (c?: Clip) => c?.position ?? 0;
+
+        if (!prevClip) {
+            // Moved to top
+            newPosition = getPos(nextClip) + 1000000;
+            // If nextClip also 0/null? 
+            if (newPosition === 1000000 && getPos(nextClip) === 0) newPosition = Date.now();
+        } else if (!nextClip) {
+            // Moved to bottom
+            newPosition = getPos(prevClip) - 1000000;
+        } else {
+            // Between two
+            newPosition = Math.floor((getPos(prevClip) + getPos(nextClip)) / 2);
+        }
+
+        try {
+            await invoke("reorder_clip", { id: movedClip.id, position: Math.floor(newPosition) });
+        } catch (e) {
+            console.error("Failed to persist drag order", e);
+        }
+    };
+
     // Load incognito state on mount
     useEffect(() => {
         invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
@@ -569,217 +627,228 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
             </div>
 
             <main className="container">
-                <div ref={clipListRef} className={`clip-list ${compactMode ? 'compact' : ''}`}>
-                    <AnimatePresence mode="popLayout">
-                        {clips.map((clip, index) => (
-                            <motion.div
-                                key={clip.id}
-                                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, x: -20, scale: 0.95 }}
-                                transition={{ duration: 0.2 }}
-                                className={`clip-card ${selectedIndex === index ? 'selected' : ''} ${selectedClipIds.has(clip.id) ? 'multi-selected' : ''} ${clip.pinned ? 'pinned' : ''}`}
-                                onClick={(e) => handleClipClick(e, clip)}
-                                onMouseEnter={() => setSelectedIndex(index)}
+                <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="clip-list">
+                        {(provided) => (
+                            <div
+                                ref={(el) => { provided.innerRef(el); clipListRef.current = el; }}
+                                {...provided.droppableProps}
+                                className={`clip-list ${compactMode ? 'compact' : ''}`}
                             >
-                                <div className="clip-header">
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        {index < 9 && (
-                                            <span
-                                                title={`Shortcut: ${shortcuts[`paste_${index + 1}`] || `Ctrl+${index + 1}`}`}
-                                                style={{
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 'bold',
-                                                    color: compactMode ? '#888' : '#aaa',
-                                                    background: 'rgba(0,0,0,0.05)',
-                                                    border: '1px solid rgba(0,0,0,0.1)',
-                                                    borderRadius: '4px',
-                                                    padding: '0 4px',
-                                                    minWidth: '1.2em',
-                                                    textAlign: 'center',
-                                                    cursor: 'help'
-                                                }}>
-                                                {index + 1}
-                                            </span>
-                                        )}
-                                        <span className="clip-type">{clip.type}</span>
-                                        {clip.sensitive && (
-                                            <span
-                                                title="Sensitive - Auto-deletes in 60 seconds"
-                                                style={{
-                                                    fontSize: '0.65rem',
-                                                    background: 'rgba(239, 68, 68, 0.15)',
-                                                    color: '#dc2626',
-                                                    padding: '2px 6px',
-                                                    borderRadius: '10px',
-                                                    fontWeight: 600,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '3px'
-                                                }}
+                                {clips.map((clip, index) => (
+                                    <Draggable key={clip.id} draggableId={clip.id.toString()} index={index}>
+                                        {(provided, snapshot) => (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                {...provided.dragHandleProps}
+                                                style={{ ...provided.draggableProps.style }}
                                             >
-                                                🔐 Sensitive
-                                            </span>
-                                        )}
-                                        {clip.tags && JSON.parse(clip.tags).map((tag: string) => (
-                                            <span
-                                                key={tag}
-                                                className="clip-tag"
-                                                style={{
-                                                    fontSize: '0.7rem',
-                                                    background: 'rgba(67, 56, 202, 0.1)',
-                                                    color: '#4338ca',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '12px',
-                                                    fontWeight: 600,
-                                                    cursor: 'pointer'
-                                                }}
-                                                onClick={(e) => { e.stopPropagation(); filterByTag(tag); }}
-                                                title={`Filter by ${tag}`}
-                                            >
-                                                {tag}
-                                            </span>
-                                        ))}
-                                        <button
-                                            className="add-tag-btn"
-                                            onClick={(e) => addTagToClip(e, clip.id, clip.tags || null)}
-                                            title="Add tag"
-                                            style={{
-                                                fontSize: '0.65rem',
-                                                padding: '2px 6px',
-                                                borderRadius: '12px',
-                                                border: '1px dashed #aaa',
-                                                background: 'transparent',
-                                                cursor: 'pointer',
-                                                color: '#888'
-                                            }}
-                                        >
-                                            + tag
-                                        </button>
-                                        {clip.type === 'text' && (
-                                            <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
-                                                <button onClick={(e) => transformText(e, clip.id, 'upper')} title="UPPERCASE" className="icon-btn">TT</button>
-                                                <button onClick={(e) => transformText(e, clip.id, 'lower')} title="lowercase" className="icon-btn">tt</button>
-                                                <button onClick={(e) => transformText(e, clip.id, 'title')} title="Title Case" className="icon-btn">Tt</button>
-                                                <button onClick={(e) => transformText(e, clip.id, 'trim')} title="Trim Whitespace" className="icon-btn">Tr</button>
+                                                <motion.div
+                                                    // layout={!snapshot.isDragging} // Disable layout anim to prevent conflict
+                                                    className={`clip-card ${selectedIndex === index ? 'selected' : ''} ${selectedClipIds.has(clip.id) ? 'multi-selected' : ''} ${clip.pinned ? 'pinned' : ''}`}
+                                                    onClick={(e) => handleClipClick(e, clip)}
+                                                    onMouseEnter={() => setSelectedIndex(index)}
+                                                    style={{
+                                                        boxShadow: snapshot.isDragging ? "0 10px 30px rgba(0,0,0,0.3)" : undefined,
+                                                        background: snapshot.isDragging ? "var(--bg-card)" : undefined
+                                                    }}
+                                                >
+                                                    <div className="clip-header">
+                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                            {index < 9 && (
+                                                                <span
+                                                                    title={`Shortcut: ${shortcuts[`paste_${index + 1}`] || `Ctrl+${index + 1}`}`}
+                                                                    style={{
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 'bold',
+                                                                        color: compactMode ? '#888' : '#aaa',
+                                                                        background: 'rgba(0,0,0,0.05)',
+                                                                        border: '1px solid rgba(0,0,0,0.1)',
+                                                                        borderRadius: '4px',
+                                                                        padding: '0 4px',
+                                                                        minWidth: '1.2em',
+                                                                        textAlign: 'center',
+                                                                        cursor: 'help'
+                                                                    }}>
+                                                                    {index + 1}
+                                                                </span>
+                                                            )}
+                                                            <span className="clip-type">{clip.type}</span>
+                                                            {clip.sensitive && (
+                                                                <span
+                                                                    title="Sensitive - Auto-deletes in 60 seconds"
+                                                                    style={{
+                                                                        fontSize: '0.65rem',
+                                                                        background: 'rgba(239, 68, 68, 0.15)',
+                                                                        color: '#dc2626',
+                                                                        padding: '2px 6px',
+                                                                        borderRadius: '10px',
+                                                                        fontWeight: 600,
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '3px'
+                                                                    }}
+                                                                >
+                                                                    🔐 Sensitive
+                                                                </span>
+                                                            )}
+                                                            {clip.tags && JSON.parse(clip.tags).map((tag: string) => (
+                                                                <span
+                                                                    key={tag}
+                                                                    className="clip-tag"
+                                                                    style={{
+                                                                        fontSize: '0.7rem',
+                                                                        background: 'rgba(67, 56, 202, 0.1)',
+                                                                        color: '#4338ca',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '12px',
+                                                                        fontWeight: 600,
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                    onClick={(e) => { e.stopPropagation(); filterByTag(tag); }}
+                                                                    title={`Filter by ${tag}`}
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            <button
+                                                                className="add-tag-btn"
+                                                                onClick={(e) => addTagToClip(e, clip.id, clip.tags || null)}
+                                                                title="Add tag"
+                                                                style={{
+                                                                    fontSize: '0.65rem',
+                                                                    padding: '2px 6px',
+                                                                    borderRadius: '12px',
+                                                                    border: '1px dashed #aaa',
+                                                                    background: 'transparent',
+                                                                    cursor: 'pointer',
+                                                                    color: '#888'
+                                                                }}
+                                                            >
+                                                                + tag
+                                                            </button>
+                                                            {clip.type === 'text' && (
+                                                                <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
+                                                                    <button onClick={(e) => transformText(e, clip.id, 'upper')} title="UPPERCASE" className="icon-btn">TT</button>
+                                                                    <button onClick={(e) => transformText(e, clip.id, 'lower')} title="lowercase" className="icon-btn">tt</button>
+                                                                    <button onClick={(e) => transformText(e, clip.id, 'title')} title="Title Case" className="icon-btn">Tt</button>
+                                                                    <button onClick={(e) => transformText(e, clip.id, 'trim')} title="Trim Whitespace" className="icon-btn">Tr</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="header-right">
+                                                            <button
+                                                                className={`fav-btn ${clip.favorite ? 'active' : ''}`}
+                                                                onClick={(e) => toggleFavorite(e, clip.id)}
+                                                                title={clip.favorite ? "Unfavorite" : "Favorite"}
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
+                                                            >
+                                                                {clip.favorite ? (
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                                ) : (
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                                                                )}
+                                                            </button>
+                                                            <button
+                                                                className={`pin-btn ${clip.pinned ? 'active' : ''}`}
+                                                                onClick={(e) => togglePin(e, clip.id)}
+                                                                title={clip.pinned ? "Unpin" : "Pin"}
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
+                                                            >
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill={clip.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
+                                                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
+                                                                </svg>
+                                                            </button>
+                                                            {(clip.pinned || clip.favorite) && (
+                                                                <button
+                                                                    className="icon-btn"
+                                                                    onClick={(e) => moveToTop(e, clip.id)}
+                                                                    title="Move to Top"
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', opacity: 0.6 }}
+                                                                >
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                        <polyline points="18 15 12 9 6 15"></polyline>
+                                                                        <line x1="12" y1="9" x2="12" y2="21"></line>
+                                                                        <line x1="4" y1="3" x2="20" y2="3"></line>
+                                                                    </svg>
+                                                                </button>
+                                                            )}
+
+                                                            <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
+
+                                                            <div style={{ position: 'relative' }}>
+                                                                <button
+                                                                    className={`icon-btn menu-btn ${activeMenuId === clip.id ? 'active' : ''}`}
+                                                                    onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === clip.id ? null : clip.id); }}
+                                                                    title="More Options"
+                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
+                                                                >
+                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
+                                                                </button>
+
+                                                                {activeMenuId === clip.id && (
+                                                                    <div
+                                                                        ref={menuRef}
+                                                                        className="clip-menu-dropdown"
+                                                                        style={{
+                                                                            position: 'absolute', top: '100%', right: 0,
+                                                                            background: 'var(--bg-card)',
+                                                                            border: '1px solid rgba(128,128,128,0.2)',
+                                                                            borderRadius: '8px',
+                                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                                                            zIndex: 100, overflow: 'hidden', minWidth: '140px',
+                                                                            backdropFilter: 'blur(10px)'
+                                                                        }}
+                                                                        onClick={e => e.stopPropagation()}
+                                                                    >
+                                                                        <button
+                                                                            onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
+                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                        >
+                                                                            📱 QR Code
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => { deleteClip(e, clip.id); setActiveMenuId(null); }}
+                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem' }}
+                                                                        >
+                                                                            🗑️ Delete
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="clip-content">
+                                                        {clip.type === 'text' && isColorCode(clip.content) ? (
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                <div style={{
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '6px',
+                                                                    backgroundColor: clip.content,
+                                                                    border: '2px solid rgba(0,0,0,0.25)',
+                                                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
+                                                                }} />
+                                                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <ClipContent content={clip.content} type={clip.type} isCompact={compactMode} />
+                                                                {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
                                             </div>
                                         )}
-                                    </div>
-                                    <div className="header-right">
-                                        <button
-                                            className={`fav-btn ${clip.favorite ? 'active' : ''}`}
-                                            onClick={(e) => toggleFavorite(e, clip.id)}
-                                            title={clip.favorite ? "Unfavorite" : "Favorite"}
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                        >
-                                            {clip.favorite ? (
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                            ) : (
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                            )}
-                                        </button>
-                                        <button
-                                            className={`pin-btn ${clip.pinned ? 'active' : ''}`}
-                                            onClick={(e) => togglePin(e, clip.id)}
-                                            title={clip.pinned ? "Unpin" : "Pin"}
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill={clip.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-                                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
-                                            </svg>
-                                        </button>
-                                        {(clip.pinned || clip.favorite) && (
-                                            <button
-                                                className="icon-btn"
-                                                onClick={(e) => moveToTop(e, clip.id)}
-                                                title="Move to Top"
-                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', opacity: 0.6 }}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="18 15 12 9 6 15"></polyline>
-                                                    <line x1="12" y1="9" x2="12" y2="21"></line>
-                                                    <line x1="4" y1="3" x2="20" y2="3"></line>
-                                                </svg>
-                                            </button>
-                                        )}
-
-                                        <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
-
-                                        <div style={{ position: 'relative' }}>
-                                            <button
-                                                className={`icon-btn menu-btn ${activeMenuId === clip.id ? 'active' : ''}`}
-                                                onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === clip.id ? null : clip.id); }}
-                                                title="More Options"
-                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                            >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
-                                            </button>
-
-                                            {activeMenuId === clip.id && (
-                                                <div
-                                                    ref={menuRef}
-                                                    className="clip-menu-dropdown"
-                                                    style={{
-                                                        position: 'absolute', top: '100%', right: 0,
-                                                        background: 'var(--bg-card)',
-                                                        border: '1px solid rgba(128,128,128,0.2)',
-                                                        borderRadius: '8px',
-                                                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                                                        zIndex: 100, overflow: 'hidden', minWidth: '140px',
-                                                        backdropFilter: 'blur(10px)'
-                                                    }}
-                                                    onClick={e => e.stopPropagation()}
-                                                >
-                                                    <button
-                                                        onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                    >
-                                                        📱 QR Code
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { deleteClip(e, clip.id); setActiveMenuId(null); }}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem' }}
-                                                    >
-                                                        🗑️ Delete
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="clip-content">
-                                    {clip.type === 'text' && isColorCode(clip.content) ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{
-                                                width: '32px',
-                                                height: '32px',
-                                                borderRadius: '6px',
-                                                backgroundColor: clip.content,
-                                                border: '2px solid rgba(0,0,0,0.25)',
-                                                boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
-                                            }} />
-                                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <ClipContent content={clip.content} type={clip.type} isCompact={compactMode} />
-                                            {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
-                                        </>
-                                    )}
-                                </div>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                    {clips.length === 0 && (
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="empty-state"
-                        >
-                            No clips found{searchTerm ? " matching your search" : ""}.
-                        </motion.p>
-                    )}
-                </div>
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
+                </DragDropContext>
             </main >
 
             {queueMode && pasteQueue.length > 0 && (

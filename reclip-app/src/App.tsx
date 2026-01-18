@@ -17,6 +17,10 @@ function App() {
     localStorage.setItem('useSystemAccent', useSystemAccent.toString());
     localStorage.setItem('compactMode', compactMode.toString());
 
+    // Clear any previous custom color inline styles on body to let CSS take over
+    const colorVars = ['--bg-app', '--bg-card', '--text-primary'];
+    colorVars.forEach(v => document.body.style.removeProperty(v));
+
     // Apply Theme
     const applyTheme = () => {
       const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -41,21 +45,41 @@ function App() {
         .then(color => setAccentColor(color))
         .catch(e => console.error(e));
     } else {
-      setAccentColor('#4f46e5');
+      // Load custom accent color from localStorage, or use default
+      const savedCustomColors = localStorage.getItem('customColors');
+      if (savedCustomColors) {
+        try {
+          const parsed = JSON.parse(savedCustomColors);
+          if (parsed.accentColor) {
+            setAccentColor(parsed.accentColor);
+          }
+        } catch (e) { console.error('Failed to parse customColors', e); }
+      } else {
+        setAccentColor('#4f46e5');
+      }
     }
+
+    // NOTE: We only apply custom bg/text colors to :root (not body) to avoid breaking dark mode CSS
+    // The accent color is applied separately via the second useEffect and works in both themes
 
     return () => mediaQuery.removeEventListener('change', handler);
   }, [theme, useSystemAccent, compactMode]);
 
-  // Apply accent color variable
+  // Apply accent color variable (to both :root and body - accent works in both themes)
   useEffect(() => {
-    document.documentElement.style.setProperty('--accent-color', accentColor);
     const hexToRgb = (hex: string) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
       return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : null;
     };
     const rgb = hexToRgb(accentColor);
-    if (rgb) document.documentElement.style.setProperty('--accent-rgb', rgb);
+
+    // Apply accent to both :root and body - accent overrides both themes
+    document.documentElement.style.setProperty('--accent-color', accentColor);
+    document.body.style.setProperty('--accent-color', accentColor);
+    if (rgb) {
+      document.documentElement.style.setProperty('--accent-rgb', rgb);
+      document.body.style.setProperty('--accent-rgb', rgb);
+    }
   }, [accentColor]);
 
   // Prevent context menu
@@ -67,8 +91,8 @@ function App() {
 
     // Listen for Tray Events
     import('@tauri-apps/api/event').then(async ({ listen }) => {
-      const unlistenSettings = await listen('open-settings', () => setView('settings'));
-      const unlistenMaintenance = await listen('run-maintenance', () => {
+      await listen('open-settings', () => setView('settings'));
+      await listen('run-maintenance', () => {
         // Find and click maintenance button or trigger it directly
         // For now just switch view
         setView('settings');
@@ -250,6 +274,8 @@ function App() {
           setTheme={setTheme}
           useSystemAccent={useSystemAccent}
           setUseSystemAccent={setUseSystemAccent}
+          accentColor={accentColor}
+          setAccentColor={setAccentColor}
         />
       )}
     </div>
