@@ -907,6 +907,7 @@ async fn get_url_metadata(url: String) -> Result<UrlMetadata, String> {
 }
 
 #[tauri::command]
+#[allow(unused_variables)]
 async fn run_ocr(path: String) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {

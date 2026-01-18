@@ -80,6 +80,7 @@ fn is_newer(remote: &str, current: &str) -> bool {
 }
 
 #[tauri::command]
+#[allow(unused_variables)]
 pub async fn install_update(url: String) -> Result<(), String> {
     let client = reqwest::Client::new();
     let res = client.get(&url)
