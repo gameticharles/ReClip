@@ -306,21 +306,36 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                Ok(id) => {
                                    let _ = app_handle_clone.emit("clip-created", id);
                                    
-                                   // Auto-delete sensitive clips after 30 seconds
+                                   // Auto-delete sensitive clips - read settings from DB
                                    if is_sensitive {
                                        let pool_del = pool_clone.clone();
                                        let app_del = app_handle_clone.clone();
                                        std::thread::spawn(move || {
-                                           std::thread::sleep(std::time::Duration::from_secs(30));
-                                           tauri::async_runtime::block_on(async move {
-                                               match crate::db::delete_clip(&pool_del, id).await {
-                                                   Ok(_) => {
-                                                       info!("Auto-deleted sensitive clip #{} after 30 seconds", id);
-                                                       let _ = app_del.emit("clip-deleted", id);
-                                                   },
-                                                   Err(e) => error!("Failed to auto-delete sensitive clip: {}", e),
-                                               }
+                                           // Read settings synchronously
+                                           let (enabled, timer_secs) = tauri::async_runtime::block_on(async {
+                                               let enabled = crate::db::get_setting(&pool_del, "sensitive_auto_delete").await
+                                                   .map(|v| v != "false")
+                                                   .unwrap_or(true);
+                                               let timer = crate::db::get_setting(&pool_del, "sensitive_delete_timer").await
+                                                   .and_then(|v| v.parse::<u64>().ok())
+                                                   .unwrap_or(30);
+                                               (enabled, timer)
                                            });
+                                           
+                                           if enabled {
+                                               std::thread::sleep(std::time::Duration::from_secs(timer_secs));
+                                               tauri::async_runtime::block_on(async move {
+                                                   match crate::db::delete_clip(&pool_del, id).await {
+                                                       Ok(_) => {
+                                                           info!("Auto-deleted sensitive clip #{} after {} seconds", id, timer_secs);
+                                                           let _ = app_del.emit("clip-deleted", id);
+                                                       },
+                                                       Err(e) => error!("Failed to auto-delete sensitive clip: {}", e),
+                                                   }
+                                               });
+                                           } else {
+                                               info!("Sensitive auto-delete disabled, clip #{} preserved", id);
+                                           }
                                        });
                                    }
                                },

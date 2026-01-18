@@ -155,6 +155,58 @@ async fn update_template(state: State<'_, DbState>, id: i64, name: String, conte
     db::update_template(&state.pool, id, &name, &content).await.map_err(|e| e.to_string())
 }
 
+// Sensitive settings
+#[tauri::command]
+async fn get_sensitive_settings(state: State<'_, DbState>) -> Result<(bool, u64), String> {
+    let enabled = db::get_setting(&state.pool, "sensitive_auto_delete").await
+        .map(|v| v != "false")
+        .unwrap_or(true); // Default enabled
+    let timer = db::get_setting(&state.pool, "sensitive_delete_timer").await
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(30); // Default 30 seconds
+    Ok((enabled, timer))
+}
+
+#[tauri::command]
+async fn set_sensitive_settings(state: State<'_, DbState>, enabled: bool, timer: u64) -> Result<(), String> {
+    db::set_setting(&state.pool, "sensitive_auto_delete", if enabled { "true" } else { "false" })
+        .await.map_err(|e| e.to_string())?;
+    db::set_setting(&state.pool, "sensitive_delete_timer", &timer.to_string())
+        .await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// Maintenance settings
+#[tauri::command]
+async fn get_maintenance_settings(state: State<'_, DbState>) -> Result<(bool, i64, bool, i64), String> {
+    let age_enabled = db::get_setting(&state.pool, "maintenance_age_enabled").await
+        .map(|v| v == "true")
+        .unwrap_or(false); // Default disabled
+    let age_days = db::get_setting(&state.pool, "maintenance_age_days").await
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(30);
+    let limit_enabled = db::get_setting(&state.pool, "maintenance_limit_enabled").await
+        .map(|v| v == "true")
+        .unwrap_or(false); // Default disabled
+    let max_clips = db::get_setting(&state.pool, "maintenance_max_clips").await
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(10000);
+    Ok((age_enabled, age_days, limit_enabled, max_clips))
+}
+
+#[tauri::command]
+async fn set_maintenance_settings(state: State<'_, DbState>, age_enabled: bool, age_days: i64, limit_enabled: bool, max_clips: i64) -> Result<(), String> {
+    db::set_setting(&state.pool, "maintenance_age_enabled", if age_enabled { "true" } else { "false" })
+        .await.map_err(|e| e.to_string())?;
+    db::set_setting(&state.pool, "maintenance_age_days", &age_days.to_string())
+        .await.map_err(|e| e.to_string())?;
+    db::set_setting(&state.pool, "maintenance_limit_enabled", if limit_enabled { "true" } else { "false" })
+        .await.map_err(|e| e.to_string())?;
+    db::set_setting(&state.pool, "maintenance_max_clips", &max_clips.to_string())
+        .await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -324,7 +376,8 @@ pub fn run() {
              validate_paths, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
              get_system_accent_color, clear_clips, reorder_clip, get_autostart, set_autostart,
              save_window_position, load_window_position,
-             get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule
+             get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
+             get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -50,7 +50,8 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
 
     // Timeline View State
     const [showTimeline, setShowTimeline] = useState(false);
-    const [timelineFilter, setTimelineFilter] = useState<Date | null>(null);
+    const [timelineRange, setTimelineRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+    const [allClips, setAllClips] = useState<Clip[]>([]);
 
     // Advanced Settings States
     const [dateFormat, setDateFormat] = useState<'absolute' | 'relative'>('relative');
@@ -291,12 +292,40 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
 
     async function fetchClips(search = "") {
         try {
-            const recentClips = await invoke<Clip[]>("get_recent_clips", { limit: 50, offset: 0, search: search || null });
-            setClips(recentClips);
+            const recentClips = await invoke<Clip[]>("get_recent_clips", { limit: 200, offset: 0, search: search || null });
+
+            // Store all clips for timeline
+            setAllClips(recentClips);
+
+            // Apply timeline filtering if range is selected
+            let filteredClips = recentClips;
+            if (timelineRange.start && timelineRange.end) {
+                filteredClips = recentClips.filter(clip => {
+                    const clipDate = new Date(clip.created_at);
+                    return clipDate >= timelineRange.start! && clipDate <= timelineRange.end!;
+                });
+            }
+
+            setClips(filteredClips);
         } catch (error) {
             console.error("Failed to fetch clips:", error);
         }
     }
+
+    // Re-fetch when timeline filter changes
+    useEffect(() => {
+        if (allClips.length > 0) {
+            if (timelineRange.start && timelineRange.end) {
+                const filtered = allClips.filter(clip => {
+                    const clipDate = new Date(clip.created_at);
+                    return clipDate >= timelineRange.start! && clipDate <= timelineRange.end!;
+                });
+                setClips(filtered);
+            } else {
+                setClips(allClips);
+            }
+        }
+    }, [timelineRange]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -715,11 +744,18 @@ export default function MainView({ compactMode, onOpenSettings }: MainViewProps)
 
                 {/* Timeline View */}
                 <TimelineView
-                    clips={clips}
+                    clips={allClips}
                     visible={showTimeline}
-                    onSelectTime={(date) => {
-                        setTimelineFilter(date);
-                        // Could filter clips by date here in the future
+                    onSelectTimeRange={(start, end) => {
+                        setTimelineRange({ start, end });
+                    }}
+                    onExportRange={(rangeClips) => {
+                        // Trigger export of selected clips
+                        if (rangeClips.length > 0) {
+                            const content = rangeClips.map(c => c.content).join('\n---\n');
+                            navigator.clipboard.writeText(content);
+                            console.log(`Exported ${rangeClips.length} clips to clipboard`);
+                        }
                     }}
                 />
                 <DragDropContext onDragEnd={onDragEnd}>

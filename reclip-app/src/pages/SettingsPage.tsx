@@ -31,6 +31,8 @@ export default function SettingsPage({
     const [opacity, setOpacity] = useState(100);
     const [retainDays, setRetainDays] = useState(30);
     const [maxClips, setMaxClips] = useState(10000);
+    const [ageEnabled, setAgeEnabled] = useState(() => localStorage.getItem('maintenanceAgeEnabled') === 'true');
+    const [limitEnabled, setLimitEnabled] = useState(() => localStorage.getItem('maintenanceLimitEnabled') === 'true');
     const [exportStatus, setExportStatus] = useState("");
     const [privacyRules, setPrivacyRules] = useState<any[]>([]);
     const [shortcuts, setShortcuts] = useState<{ [key: string]: string }>({});
@@ -593,18 +595,20 @@ export default function SettingsPage({
                             <div className="setting-item" style={{ marginTop: '16px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Date Display Format</label>
                                 <div style={{ display: 'flex', gap: '12px' }}>
-                                    <label style={{ cursor: 'pointer' }}>
+                                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <input
                                             type="radio" name="dateFormat" value="relative"
                                             checked={localStorage.getItem('dateFormat') !== 'absolute'}
                                             onChange={() => { localStorage.setItem('dateFormat', 'relative'); window.location.reload(); }}
+                                            style={{ accentColor: 'var(--accent-color)' }}
                                         /> Relative (e.g. 5m ago)
                                     </label>
-                                    <label style={{ cursor: 'pointer' }}>
+                                    <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <input
                                             type="radio" name="dateFormat" value="absolute"
                                             checked={localStorage.getItem('dateFormat') === 'absolute'}
                                             onChange={() => { localStorage.setItem('dateFormat', 'absolute'); window.location.reload(); }}
+                                            style={{ accentColor: 'var(--accent-color)' }}
                                         /> Absolute (Date & Time)
                                     </label>
                                 </div>
@@ -616,7 +620,7 @@ export default function SettingsPage({
                                     <input
                                         type="number" min="0" max="600" defaultValue={localStorage.getItem('autoHideDuration') || "0"}
                                         onChange={(e) => { localStorage.setItem('autoHideDuration', e.target.value); }}
-                                        style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid #444' }}
+                                        style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.3)', background: 'var(--bg-card)', color: 'var(--text-primary, inherit)' }}
                                     />
                                     <span>seconds (0 to disable)</span>
                                 </div>
@@ -747,6 +751,58 @@ export default function SettingsPage({
                             <h2 style={{ marginTop: 0 }}>Security & Privacy</h2>
                             <p style={{ opacity: 0.7, marginBottom: '24px' }}>Manage ignored applications and content filtering.</p>
 
+                            {/* Sensitive Clip Auto-Delete */}
+                            <div className="setting-item" style={{ marginBottom: '24px', padding: '16px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '12px', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    🔐 Sensitive Content Protection
+                                </h3>
+                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '12px' }}>
+                                    Automatically detects passwords, API keys, tokens, and private keys. Sensitive clips are tagged and can be auto-deleted.
+                                </p>
+
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Auto-delete sensitive clips</div>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Automatically remove detected sensitive content after a delay</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={localStorage.getItem('sensitiveAutoDelete') !== 'false'}
+                                        onChange={(e) => {
+                                            localStorage.setItem('sensitiveAutoDelete', e.target.checked ? 'true' : 'false');
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>Delete after:</label>
+                                    <select
+                                        value={localStorage.getItem('sensitiveDeleteTimer') || '30'}
+                                        onChange={(e) => {
+                                            localStorage.setItem('sensitiveDeleteTimer', e.target.value);
+                                        }}
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            border: '1px solid rgba(128,128,128,0.3)',
+                                            background: 'var(--bg-card)',
+                                            color: 'var(--text-primary, inherit)',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <option value="15">15 seconds</option>
+                                        <option value="30">30 seconds</option>
+                                        <option value="60">1 minute</option>
+                                        <option value="120">2 minutes</option>
+                                        <option value="300">5 minutes</option>
+                                    </select>
+                                </div>
+                                <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '8px', marginBottom: 0 }}>
+                                    Note: Changes apply to newly captured clips. Requires app restart for backend timer.
+                                </p>
+                            </div>
+
                             <div className="setting-item">
                                 <h3 style={{ fontSize: '0.9rem', marginBottom: '12px' }}>Ignored Apps</h3>
                                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
@@ -755,7 +811,7 @@ export default function SettingsPage({
                                         placeholder="App Name or Window Title (e.g., Notepad)"
                                         value={newIgnoreApp}
                                         onChange={(e) => setNewIgnoreApp(e.target.value)}
-                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)', background: 'rgba(255,255,255,0.1)' }}
+                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.3)', background: 'var(--bg-card)', color: 'var(--text-primary, inherit)' }}
                                     />
                                     <button
                                         onClick={() => handleAddRule('APP_IGNORE', newIgnoreApp)}
@@ -783,7 +839,7 @@ export default function SettingsPage({
                                         placeholder="Regex Pattern (e.g., ^password.*)"
                                         value={newRegex}
                                         onChange={(e) => setNewRegex(e.target.value)}
-                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)', background: 'rgba(255,255,255,0.1)' }}
+                                        style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.3)', background: 'var(--bg-card)', color: 'var(--text-primary, inherit)' }}
                                     />
                                     <button
                                         onClick={() => handleAddRule('REGEX_MASK', newRegex)}
@@ -811,33 +867,101 @@ export default function SettingsPage({
                     )}
 
 
-
                     {activeTab === 'maintenance' && (
                         <div className="setting-section">
                             <h2 style={{ marginTop: 0 }}>Maintenance</h2>
-                            <p style={{ opacity: 0.7, marginBottom: '24px' }}>Configure automatic cleanup of old clips.</p>
+                            <p style={{ opacity: 0.7, marginBottom: '24px' }}>Configure automatic cleanup of old clips. Disable both options to keep clips indefinitely.</p>
 
-                            <div className="setting-item">
-                                <label style={{ display: 'block', marginBottom: '8px' }}>Delete older than (days):</label>
-                                <input
-                                    type="number"
-                                    value={retainDays}
-                                    onChange={(e) => setRetainDays(parseInt(e.target.value))}
-                                    onBlur={handleMaintenanceChange}
-                                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)', background: 'rgba(255,255,255,0.1)' }}
-                                />
+                            {/* Age-based Cleanup */}
+                            <div className="setting-item" style={{
+                                padding: '16px',
+                                background: 'rgba(128,128,128,0.05)',
+                                borderRadius: '8px',
+                                marginBottom: '16px'
+                            }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Delete clips older than X days</div>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Automatically remove clips after a certain age</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={ageEnabled}
+                                        onChange={(e) => {
+                                            setAgeEnabled(e.target.checked);
+                                            localStorage.setItem('maintenanceAgeEnabled', e.target.checked ? 'true' : 'false');
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                                {ageEnabled && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <label style={{ fontSize: '0.85rem' }}>Delete after:</label>
+                                        <input
+                                            type="number"
+                                            value={retainDays}
+                                            onChange={(e) => setRetainDays(parseInt(e.target.value) || 30)}
+                                            onBlur={handleMaintenanceChange}
+                                            style={{
+                                                width: '80px',
+                                                padding: '8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(128,128,128,0.3)',
+                                                background: 'var(--bg-card)',
+                                                color: 'var(--text-primary, inherit)'
+                                            }}
+                                        />
+                                        <span style={{ fontSize: '0.85rem' }}>days</span>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="setting-item" style={{ marginTop: '16px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px' }}>Soft Limit (Max Clips):</label>
-                                <input
-                                    type="number"
-                                    value={maxClips}
-                                    onChange={(e) => setMaxClips(parseInt(e.target.value))}
-                                    onBlur={handleMaintenanceChange}
-                                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)', background: 'rgba(255,255,255,0.1)' }}
-                                />
+                            {/* Limit-based Cleanup */}
+                            <div className="setting-item" style={{
+                                padding: '16px',
+                                background: 'rgba(128,128,128,0.05)',
+                                borderRadius: '8px',
+                                marginBottom: '16px'
+                            }}>
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Limit maximum clips (soft limit)</div>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Delete oldest clips when limit is exceeded</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={limitEnabled}
+                                        onChange={(e) => {
+                                            setLimitEnabled(e.target.checked);
+                                            localStorage.setItem('maintenanceLimitEnabled', e.target.checked ? 'true' : 'false');
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                                {limitEnabled && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <label style={{ fontSize: '0.85rem' }}>Max clips:</label>
+                                        <input
+                                            type="number"
+                                            value={maxClips}
+                                            onChange={(e) => setMaxClips(parseInt(e.target.value) || 10000)}
+                                            onBlur={handleMaintenanceChange}
+                                            style={{
+                                                width: '100px',
+                                                padding: '8px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(128,128,128,0.3)',
+                                                background: 'var(--bg-card)',
+                                                color: 'var(--text-primary, inherit)'
+                                            }}
+                                        />
+                                    </div>
+                                )}
                             </div>
+
+                            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '16px' }}>
+                                💡 Disable both options above to keep all clips indefinitely (unlimited storage).
+                            </p>
 
                             <div className="setting-item" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.2)', paddingTop: '24px' }}>
                                 <h3 style={{ color: '#ef4444', marginTop: 0, fontSize: '0.9rem' }}>Danger Zone</h3>
