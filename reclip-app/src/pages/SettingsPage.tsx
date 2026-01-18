@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
-import { THEMES, getAllThemes } from "../utils/themes";
+import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
 

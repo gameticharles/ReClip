@@ -38,7 +38,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
     const [templates, setTemplates] = useState<any[]>([]);
 
     // Settings
-    const [editorSettings, setEditorSettings] = useState(() => ({
+    const [editorSettings] = useState(() => ({
         fontSize: parseInt(localStorage.getItem('snippetFontSize') || '14'),
         tabSize: parseInt(localStorage.getItem('snippetTabSize') || '4'),
         wordWrap: localStorage.getItem('snippetWordWrap') === 'true',
