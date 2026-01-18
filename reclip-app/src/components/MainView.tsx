@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from '@tauri-apps/api/app';
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
 import ClipContent from "./ClipContent";
@@ -292,6 +292,19 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
             clipCards[selectedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, [selectedIndex]);
+
+    const handleExtractText = async (e: React.MouseEvent, clip: Clip) => {
+        e.stopPropagation();
+        try {
+            const text = await invoke<string>('run_ocr', { path: clip.content });
+            if (text) {
+                await invoke('copy_to_system', { content: text });
+            }
+        } catch (error) {
+            console.error("OCR Failed", error);
+        }
+        setActiveMenuId(null);
+    };
 
     async function fetchClips(search = "") {
         try {
@@ -955,6 +968,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                         }}
                                                                         onClick={e => e.stopPropagation()}
                                                                     >
+                                                                        {clip.type === 'image' && (
+                                                                            <button
+                                                                                onClick={(e) => handleExtractText(e, clip)}
+                                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                            >
+                                                                                👁️ Extract Text
+                                                                            </button>
+                                                                        )}
                                                                         <button
                                                                             onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
                                                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
