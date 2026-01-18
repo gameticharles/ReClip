@@ -10,17 +10,22 @@ All notable changes to this project will be documented in this file.
   - **Editor Preferences**: Adjustable Font Size, Tab Size, Word Wrap, and Line Numbers.
   - **Theming**: Select separate Syntax Highlighting themes for Light (`Atom One Light`, `GitHub`, `VS`) and Dark (`Atom Dark`, `Dracula`, `VSC Dark+`) modes.
   - **Template Management**: Centralized management of snippet templates.
+  - **Auto Update**: Built-in check for updates in Settings > About.
 
 ### 🎨 UI/UX Improvements
-- **Snippet Settings UI**:
-  - Implemented cleaner grid layout for settings.
-  - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
+  - **Snippet Settings UI**:
+    - Implemented cleaner grid layout for settings.
+    - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
+  - **About Page Overhaul**:
+    - Updated with official app icon, detailed description, and developer profile link.
 
 ### 🐛 Bug Fixes
 - **Persistence**:
   - Fixed **Always on Top** not applying automatically on startup.
   - Fixed **Incognito Mode** and **Timeline View** states not persisting across restarts.
   - Fixed **Paste Queue Mode** state not persisting across restarts.
+- **Sidebar**:
+  - Fixed duplicate "Maintenance" tab appearing in settings.
 
 ## [0.3.0] - 2026-01-18
 

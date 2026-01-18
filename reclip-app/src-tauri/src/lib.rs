@@ -3,6 +3,7 @@ mod clipboard;
 mod tray;
 #[cfg(target_os = "windows")]
 mod ocr;
+mod update;
 
 use db::{DbState, init_db, Clip, Snippet};
 use tauri::{State, Manager, Emitter};
@@ -444,7 +445,8 @@ pub fn run() {
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
              get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
-             run_ocr
+             run_ocr,
+             update::check_update, update::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

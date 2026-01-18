@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { THEMES, getAllThemes } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
+import { getVersion } from '@tauri-apps/api/app';
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -68,7 +69,14 @@ export default function SettingsPage({
 
     // Startup & Window Position
     const [autostart, setAutostart] = useState(false);
+
     const [rememberPosition, setRememberPosition] = useState(localStorage.getItem('rememberWindowPosition') === 'true');
+
+    // Updates
+    const [updateInfo, setUpdateInfo] = useState<any | null>(null);
+    const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'uptodate' | 'error'>('idle');
+    const [updateError, setUpdateError] = useState("");
+    const [appVersion, setAppVersion] = useState("...");
 
     // Custom Colors - load from localStorage on mount
     const [customColors, setCustomColors] = useState(() => {
@@ -245,7 +253,39 @@ export default function SettingsPage({
             // Fetch autostart status
             invoke<boolean>("get_autostart").then(setAutostart).catch(console.error);
         }
+        if (activeTab === 'about') {
+            getVersion().then(setAppVersion).catch(console.error);
+        }
     }, [activeTab]);
+
+    const checkForUpdates = async () => {
+        setUpdateStatus('checking');
+        setUpdateError("");
+        try {
+            const info = await invoke<any | null>("check_update");
+            if (info) {
+                setUpdateInfo(info);
+                setUpdateStatus('available');
+            } else {
+                setUpdateStatus('uptodate');
+            }
+        } catch (e) {
+            setUpdateStatus('error');
+            setUpdateError(String(e));
+        }
+    };
+
+    const installUpdate = async () => {
+        if (!updateInfo) return;
+        if (!confirm(`Download and install ${updateInfo.version}? The app will close.`)) return;
+        try {
+            // We can't easily show progress without events, but we can set status
+            setUpdateStatus('checking'); // Reuse checking spinner or add 'installing'
+            await invoke("install_update", { url: updateInfo.url });
+        } catch (e) {
+            alert("Install failed: " + e);
+        }
+    };
 
     const handleAddRule = async (type: string, value: string) => {
         if (!value.trim()) return;
@@ -376,7 +416,8 @@ export default function SettingsPage({
         { id: 'snippets', label: 'Snippets', icon: '📋' },
         { id: 'automations', label: 'Automations', icon: '🤖' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
-        { id: 'backup', label: 'Backup', icon: '💾' }
+        { id: 'backup', label: 'Backup', icon: '💾' },
+        { id: 'about', label: 'About', icon: 'ℹ️' }
     ];
 
     return (
@@ -642,6 +683,81 @@ export default function SettingsPage({
                                     <span>seconds (0 to disable)</span>
                                 </div>
                                 <p style={{ fontSize: '0.7rem', color: '#fbbf24', marginTop: '4px' }}>Note: Requires restart or reload to take effect fully.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'about' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>About ReClip</h2>
+                            <div style={{ textAlign: 'center', padding: '48px 32px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                                <img src="/icon.png" alt="ReClip Icon" style={{ width: '100px', height: '100px', marginBottom: '16px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }} />
+                                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.8rem', fontWeight: 700 }}>ReClip</h3>
+                                <div style={{ opacity: 0.7, marginBottom: '32px' }}>Version {appVersion}</div>
+
+                                <div style={{ maxWidth: '420px', margin: '0 auto 32px auto', lineHeight: '1.6' }}>
+                                    <p style={{ marginBottom: '24px', fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
+                                        ReClip is your ultimate clipboard companion. Seamlessly manage your history, organize code snippets, and streamline your workflow with a beautiful, keyboard-centric interface.
+                                    </p>
+
+                                    <a
+                                        href="https://github.com/gameticharles"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, background 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'var(--bg-input)'; }}
+                                    >
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700 }}>CG</div>
+                                        <div style={{ textAlign: 'left' }}>
+                                            <div style={{ fontSize: '0.8rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Developed by</div>
+                                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Charles Gameti</div>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                                    {updateStatus === 'idle' && (
+                                        <button onClick={checkForUpdates} className="primary-btn">Check for Updates</button>
+                                    )}
+                                    {updateStatus === 'checking' && (
+                                        <div style={{ opacity: 0.7 }}>Checking for updates...</div>
+                                    )}
+                                    {updateStatus === 'uptodate' && (
+                                        <div>
+                                            <div style={{ color: '#10b981', fontWeight: 600, marginBottom: '8px' }}>You're up to date!</div>
+                                            <button onClick={checkForUpdates} style={{ fontSize: '0.85rem', opacity: 0.7, background: 'transparent', border: '1px solid currentColor', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Check Again</button>
+                                        </div>
+                                    )}
+                                    {updateStatus === 'available' && updateInfo && (
+                                        <div style={{ maxWidth: '400px', width: '100%' }}>
+                                            <div style={{ background: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '8px', padding: '16px', textAlign: 'left' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                    <strong style={{ color: 'var(--accent-color)' }}>New Update Available</strong>
+                                                    <span style={{ background: 'var(--accent-color)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem' }}>{updateInfo.version}</span>
+                                                </div>
+                                                <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '0.9rem', opacity: 0.9, marginBottom: '16px', whiteSpace: 'pre-wrap' }}>
+                                                    {updateInfo.notes}
+                                                </div>
+                                                <button onClick={installUpdate} className="primary-btn" style={{ width: '100%' }}>
+                                                    Download & Install
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {updateStatus === 'error' && (
+                                        <div style={{ color: '#ef4444' }}>
+                                            <div style={{ marginBottom: '8px' }}>Failed to check for updates</div>
+                                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{updateError}</div>
+                                            <button onClick={checkForUpdates} style={{ marginTop: '8px', background: 'transparent', border: '1px solid currentColor', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Try Again</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: '32px', textAlign: 'center', fontSize: '0.85rem', opacity: 0.5 }}>
+                                <p>ReClip is open source software.</p>
+                                <a href="https://github.com/gameticharles/ReClip" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>View on GitHub</a>
                             </div>
                         </div>
                     )}
@@ -1290,7 +1406,7 @@ export default function SettingsPage({
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }
