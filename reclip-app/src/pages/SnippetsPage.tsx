@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { Snippet } from '../types';
 import { ArrowLeft, Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { atomDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { QRModal } from '../components/QRModal';
 
 interface SnippetsPageProps {
@@ -45,12 +45,22 @@ const selectStyle: React.CSSProperties = {
     cursor: 'pointer',
 };
 
-const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack }) => {
+const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
     const [snippets, setSnippets] = useState<Snippet[]>([]);
     const [search, setSearch] = useState('');
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
+
+    // Theme Detection
+    const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    useEffect(() => {
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+        media.addEventListener('change', handler);
+        return () => media.removeEventListener('change', handler);
+    }, []);
+    const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
     // Filter & Sort State
     const [filterLanguage, setFilterLanguage] = useState<string>('');
@@ -364,7 +374,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack }) => {
                                         )}
 
                                         <div style={{ maxHeight: 350, overflow: 'auto' }}>
-                                            <SyntaxHighlighter language={snippet.language} style={atomDark} customStyle={{ margin: 0, padding: 14, background: 'rgba(0,0,0,0.3)', fontSize: '0.8rem' }} showLineNumbers lineNumberStyle={{ opacity: 0.4, minWidth: '2.5em' }}>
+                                            <SyntaxHighlighter language={snippet.language} style={isDark ? atomDark : oneLight} customStyle={{ margin: 0, padding: 14, background: 'rgba(0,0,0,0.02)', fontSize: '0.8rem' }} showLineNumbers lineNumberStyle={{ opacity: 0.4, minWidth: '2.5em' }}>
                                                 {snippet.content || '// Empty snippet'}
                                             </SyntaxHighlighter>
                                         </div>
