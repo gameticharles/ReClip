@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 
+
 interface ClipContentProps {
     content: string;
     type: string;
@@ -494,6 +495,72 @@ const CodePreview: React.FC<{ content: string; isCompact: boolean; isDark: boole
     );
 };
 
+
+
+const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src, isCompact }) => {
+    const [palette, setPalette] = useState<any>(null);
+    const [copiedColor, setCopiedColor] = useState<string | null>(null);
+
+
+
+    if (!palette || isCompact) return null;
+
+    const swatches = [
+        { name: 'Vibrant', swatch: palette.Vibrant },
+        { name: 'Light Vibrant', swatch: palette.LightVibrant },
+        { name: 'Dark Vibrant', swatch: palette.DarkVibrant },
+        { name: 'Muted', swatch: palette.Muted },
+        { name: 'Light Muted', swatch: palette.LightMuted },
+        { name: 'Dark Muted', swatch: palette.DarkMuted },
+    ].filter(s => s.swatch);
+
+    const handleCopy = (hex: string) => {
+        navigator.clipboard.writeText(hex);
+        setCopiedColor(hex);
+        setTimeout(() => setCopiedColor(null), 2000);
+    };
+
+    if (swatches.length === 0) return null;
+
+    return (
+        <div className="color-palette" onClick={e => e.stopPropagation()} style={{
+            display: 'flex',
+            gap: '6px',
+            overflowX: 'auto',
+            padding: '4px 0',
+            marginBottom: '4px',
+            scrollbarWidth: 'none'
+        }}>
+            {swatches.map((s) => (
+                <div
+                    key={s.name}
+                    title={`${s.name}: ${s.swatch.getHex()}`}
+                    onClick={(e) => { e.stopPropagation(); handleCopy(s.swatch.getHex()); }}
+                    style={{
+                        minWidth: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        backgroundColor: s.swatch.getHex(),
+                        cursor: 'pointer',
+                        border: '1px solid rgba(128,128,128,0.2)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.6rem',
+                        color: s.swatch.getTitleTextColor(),
+                        transition: 'transform 0.1s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'}
+                >
+                    {copiedColor === s.swatch.getHex() && '✓'}
+                </div>
+            ))}
+        </div>
+    );
+};
+
 // ============= MAIN COMPONENT =============
 
 export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true }: ClipContentProps) {
@@ -546,8 +613,11 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
     if (type === 'image') {
         const src = convertFileSrc(content);
         return (
-            <div className="clip-image" style={{ height: isCompact ? '40px' : '150px', overflow: 'hidden', borderRadius: '4px', position: 'relative', background: '#000' }}>
-                <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <div className="clip-image" style={{ maxHeight: isCompact ? '40px' : '200px', overflow: 'hidden', borderRadius: '4px', position: 'relative', background: '#000', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+
+                    <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
             </div>
         );
     }
