@@ -430,6 +430,22 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                                                 {snippet.content || '// Empty snippet'}
                                             </SyntaxHighlighter>
                                         </div>
+
+                                        {/* Snippet Stats Footer */}
+                                        <div style={{
+                                            padding: '6px 14px',
+                                            borderTop: '1px solid var(--border-color)',
+                                            display: 'flex',
+                                            gap: '16px',
+                                            fontSize: '0.7rem',
+                                            opacity: 0.6,
+                                            background: 'rgba(128,128,128,0.05)'
+                                        }}>
+                                            <span>{snippet.content.split('\n').length} lines</span>
+                                            <span>{snippet.content.length} chars</span>
+                                            <span>{snippet.content.trim().split(/\s+/).filter(w => w).length} words</span>
+                                            <span style={{ marginLeft: 'auto' }}>{new Blob([snippet.content]).size} bytes</span>
+                                        </div>
                                     </>
                                 )}
                             </div>

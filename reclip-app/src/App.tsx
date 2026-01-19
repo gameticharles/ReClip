@@ -4,9 +4,10 @@ import "./App.css";
 import MainView from "./components/MainView";
 import SettingsPage from "./pages/SettingsPage";
 import SnippetsPage from "./pages/SnippetsPage";
+import ColorToolPage from "./pages/ColorToolPage";
 
 function App() {
-  const [view, setView] = useState<'main' | 'settings' | 'snippets'>('main');
+  const [view, setView] = useState<'main' | 'settings' | 'snippets' | 'colors'>('main');
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compactMode') === 'true');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
   const [useSystemAccent, setUseSystemAccent] = useState(() => localStorage.getItem('useSystemAccent') === 'true');
@@ -280,11 +281,17 @@ function App() {
           compactMode={compactMode}
           onOpenSettings={() => setView('settings')}
           onOpenSnippets={() => setView('snippets')}
+          onOpenColors={() => setView('colors')}
         />
       ) : view === 'snippets' ? (
         <SnippetsPage
           onBack={() => setView('main')}
           compactMode={compactMode}
+          theme={theme}
+        />
+      ) : view === 'colors' ? (
+        <ColorToolPage
+          onBack={() => setView('main')}
           theme={theme}
         />
       ) : (

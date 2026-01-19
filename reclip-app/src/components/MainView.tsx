@@ -20,6 +20,7 @@ interface MainViewProps {
     compactMode: boolean;
     onOpenSettings: () => void;
     onOpenSnippets: () => void;
+    onOpenColors: () => void;
 }
 
 const isUrl = (text: string) => {
@@ -35,7 +36,7 @@ const isColorCode = (text: string) => {
     return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
 };
 
-export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }: MainViewProps) {
+export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, onOpenColors }: MainViewProps) {
     const [clips, setClips] = useState<Clip[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
