@@ -158,16 +158,27 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                     if let Ok(html) = ctx.get_html() {
                         // Only capture if it's meaningful HTML (not just wrapper)
                         if !html.trim().is_empty() && html.len() > 50 && html.contains("<") {
-                            let hash = blake3::hash(html.as_bytes()).to_string();
+                            // Extract Clean HTML (Fragment only)
+                            let clean_html = if let Some(start) = html.find("<!--StartFragment-->") {
+                                if let Some(end) = html.find("<!--EndFragment-->") {
+                                    html[start + 20..end].to_string()
+                                } else {
+                                    html
+                                }
+                            } else {
+                                html
+                            };
+
+                            let hash = blake3::hash(clean_html.as_bytes()).to_string();
                             
                             if hash != last_hash {
                                 last_hash = hash.clone();
                                 let pool_clone = pool.clone();
                                 let app_handle_clone = app_handle.clone();
-                                let html_clone = html.clone();
+                                let html_clone = clean_html.clone();
                                 let hash_clone = hash.clone();
                                 
-                                info!("New HTML clip detected ({} bytes)", html.len());
+                                info!("New HTML clip detected ({} bytes)", clean_html.len());
                                 
                                 tauri::async_runtime::spawn(async move {
                                     match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None).await {

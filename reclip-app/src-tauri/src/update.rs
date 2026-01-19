@@ -1,9 +1,8 @@
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateInfo {

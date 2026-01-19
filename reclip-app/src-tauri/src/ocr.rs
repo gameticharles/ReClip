@@ -10,12 +10,6 @@ use windows::Storage::Streams::{DataWriter, InMemoryRandomAccessStream};
 pub async fn extract_text_from_image(image_path: &str) -> Result<String, String> {
     // 1. Load image into memory using helper
     let img = image::open(image_path).map_err(|e| format!("Failed to open image: {}", e))?;
-    let (width, height) = img.dimensions();
-    
-    // Convert to RGBA8
-    let rgba = img.to_rgba8();
-    let raw_pixels = rgba.as_raw();
-
     // 2. Create SoftwareBitmap
     // We need to feed data into a RandomAccessStream to use BitmapDecoder to create SoftwareBitmap? 
     // Or create SoftwareBitmap directly. 
