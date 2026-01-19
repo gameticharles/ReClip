@@ -141,6 +141,40 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+            <style>{`
+                .custom-range {
+                    -webkit-appearance: none;
+                    width: 100%;
+                    height: 6px;
+                    background: var(--bg-hover);
+                    border-radius: 3px;
+                    outline: none;
+                }
+                .custom-range::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 50%;
+                    background: var(--accent-color);
+                    cursor: pointer;
+                    border: 2px solid var(--bg-secondary);
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                .custom-select {
+                    padding: 8px;
+                    border-radius: 6px;
+                    border: 1px solid var(--border-color);
+                    background: var(--bg-input);
+                    color: var(--text-primary);
+                    outline: none;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                }
+                .custom-select:focus {
+                    border-color: var(--accent-color);
+                }
+            `}</style>
             {/* Header */}
             <div className="titlebar" data-tauri-drag-region style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>
                 <div className="title-left" data-tauri-drag-region style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -416,7 +450,7 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                                             <select
                                                 value={gradientType}
                                                 onChange={e => setGradientType(e.target.value as any)}
-                                                style={{ padding: '8px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                                                className="custom-select"
                                             >
                                                 <option value="linear">Linear</option>
                                                 <option value="radial">Radial</option>
@@ -430,6 +464,7 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                                                         max="360"
                                                         value={gradientAngle}
                                                         onChange={e => setGradientAngle(parseInt(e.target.value))}
+                                                        className="custom-range"
                                                         style={{ width: 100 }}
                                                     />
                                                     <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', width: 30 }}>{gradientAngle}°</span>

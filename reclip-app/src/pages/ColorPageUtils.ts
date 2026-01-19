@@ -11,7 +11,7 @@ export const hexToRgb = (hex: string): { r: number; g: number; b: number } | nul
 };
 
 export const rgbToHex = (r: number, g: number, b: number): string => {
-    return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    return '#' + [r, g, b].map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
 };
 
 export const rgbToHsl = (r: number, g: number, b: number): { h: number; s: number; l: number } => {
@@ -237,9 +237,9 @@ export const simulateColorBlindness = (r: number, g: number, b: number, type: 'p
     const B = r * m[6] + g * m[7] + b * m[8];
 
     return {
-        r: Math.min(255, Math.max(0, R)),
-        g: Math.min(255, Math.max(0, G)),
-        b: Math.min(255, Math.max(0, B))
+        r: Math.round(Math.min(255, Math.max(0, R))),
+        g: Math.round(Math.min(255, Math.max(0, G))),
+        b: Math.round(Math.min(255, Math.max(0, B)))
     };
 };
 

@@ -13,9 +13,15 @@ All notable changes to this project will be documented in this file.
 - **Calendar Navigation**: New calendar picker in Timeline - click 📆 to browse by month, days with clips are highlighted, click to filter.
 - **Clip Preview Tooltip**: Hover over clips to see full content preview (configurable in Settings → General, default OFF).
 - **Timeline Quick Presets**: New buttons for 7d, 30d, MTD (Month-to-Date), and Clear filter.
+- **Advanced Color Tool**: A complete suite for designers:
+  - **Accessibility**: WCAG Contrast Checker & Color Blindness Simulator.
+  - **Analysis**: Nearest Tailwind color match, Human-readable color names.
+  - **Generators**: Gradients (Linear/Radial) and Harmonies with local library storage.
+- **Snippet Library Stats**: Footer showing lines, words, chars, and size for code snippets.
 
 ### 🔧 Improvements
 - **File Clips**: Smart icons now distinguish files (📄) from folders (📁), with extension-specific icons (🐍 Python, 🦀 Rust, 📕 PDF, 🎵 audio, etc.). Missing paths show ❌ with red strikethrough.
+- **Snippet Library**: Added 
 
 
 
