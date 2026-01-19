@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
 ### 🐛 Bug Fixes
 - **Maintenance**:
   - Fixed "Clear Entire Database" button not functioning (now split into working individual buttons).
+- **QR Code Modal**:
+  - Removed duplicate close button (kept only the bottom "Close" button).
 
 ## [0.4.0] - 2026-01-18
 

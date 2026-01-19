@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface QRModalProps {
     title: string;
@@ -107,24 +107,6 @@ export const QRModal: React.FC<QRModalProps> = ({ title, content, onClose }) => 
                     position: 'relative',
                 }}
             >
-                {/* Close button */}
-                <button
-                    onClick={() => { setPage(0); onClose(); }}
-                    style={{
-                        position: 'absolute',
-                        top: 16,
-                        right: 16,
-                        background: 'rgba(128,128,128,0.2)',
-                        border: 'none',
-                        borderRadius: 8,
-                        padding: 8,
-                        cursor: 'pointer',
-                        color: 'inherit',
-                    }}
-                >
-                    <X size={18} />
-                </button>
-
                 {/* Title */}
                 <div style={{ marginBottom: 20, fontWeight: 600, fontSize: '1.1rem' }}>
                     {title || 'QR Code'}
