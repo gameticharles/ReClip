@@ -118,6 +118,41 @@ pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Opt
     Ok(clips)
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct ClipStats {
+    pub total_count: i64,
+    pub oldest_date: Option<String>,
+    pub newest_date: Option<String>,
+}
+
+pub async fn get_clip_stats(pool: &Pool<Sqlite>, search: Option<String>) -> Result<ClipStats, sqlx::Error> {
+    let (count_query, date_query) = if let Some(ref term) = search {
+        (
+            format!("SELECT COUNT(*) as count FROM clips WHERE content LIKE '%{}%' OR tags LIKE '%{}%'", term, term),
+            format!("SELECT MIN(created_at) as oldest, MAX(created_at) as newest FROM clips WHERE content LIKE '%{}%' OR tags LIKE '%{}%'", term, term)
+        )
+    } else {
+        (
+            "SELECT COUNT(*) as count FROM clips".to_string(),
+            "SELECT MIN(created_at) as oldest, MAX(created_at) as newest FROM clips".to_string()
+        )
+    };
+
+    let count: i64 = sqlx::query_scalar(&count_query)
+        .fetch_one(pool)
+        .await?;
+
+    let dates: (Option<String>, Option<String>) = sqlx::query_as(&date_query)
+        .fetch_one(pool)
+        .await?;
+
+    Ok(ClipStats {
+        total_count: count,
+        oldest_date: dates.0,
+        newest_date: dates.1,
+    })
+}
+
 pub async fn delete_clip(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM clips WHERE id = ?")
         .bind(id)

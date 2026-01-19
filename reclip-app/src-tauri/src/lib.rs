@@ -22,6 +22,13 @@ async fn get_recent_clips(state: State<'_, DbState>, limit: i64, offset: i64, se
 }
 
 #[tauri::command]
+async fn get_clip_stats(state: State<'_, DbState>, search: Option<String>) -> Result<db::ClipStats, String> {
+    db::get_clip_stats(&state.pool, search)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn add_privacy_rule(state: State<'_, DbState>, rule_type: String, value: String) -> Result<i64, String> {
     db::add_privacy_rule(&state.pool, rule_type, value).await.map_err(|e| e.to_string())
 }
@@ -433,7 +440,7 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .invoke_handler(tauri::generate_handler![
-             greet, get_recent_clips, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
+             greet, get_recent_clips, get_clip_stats, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
              update_shortcut, get_shortcuts,
              get_templates, add_template, delete_template, update_template,
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
@@ -74,9 +75,10 @@ export default function SettingsPage({
 
     // Updates
     const [updateInfo, setUpdateInfo] = useState<any | null>(null);
-    const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'uptodate' | 'error'>('idle');
+    const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'uptodate' | 'error' | 'downloading'>('idle');
     const [updateError, setUpdateError] = useState("");
     const [appVersion, setAppVersion] = useState("...");
+    const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number, total: number } | null>(null);
 
     // Custom Colors - load from localStorage on mount
     const [customColors, setCustomColors] = useState(() => {
@@ -278,12 +280,22 @@ export default function SettingsPage({
     const installUpdate = async () => {
         if (!updateInfo) return;
         if (!confirm(`Download and install ${updateInfo.version}? The app will close.`)) return;
+
+        // Set up progress listener
+        const unlisten = await listen<{ downloaded: number, total: number }>("update-progress", (event) => {
+            setDownloadProgress(event.payload);
+        });
+
         try {
-            // We can't easily show progress without events, but we can set status
-            setUpdateStatus('checking'); // Reuse checking spinner or add 'installing'
+            setUpdateStatus('downloading');
+            setDownloadProgress({ downloaded: 0, total: 0 });
             await invoke("install_update", { url: updateInfo.url });
         } catch (e) {
-            alert("Install failed: " + e);
+            setUpdateStatus('error');
+            setUpdateError("Install failed: " + e);
+        } finally {
+            unlisten();
+            setDownloadProgress(null);
         }
     };
 
@@ -742,6 +754,35 @@ export default function SettingsPage({
                                                 <button onClick={installUpdate} className="primary-btn" style={{ width: '100%' }}>
                                                     Download & Install
                                                 </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {updateStatus === 'downloading' && downloadProgress && (
+                                        <div style={{ maxWidth: '400px', width: '100%' }}>
+                                            <div style={{ background: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                                                <div style={{ marginBottom: '12px', fontWeight: 600 }}>Downloading Update...</div>
+                                                <div style={{
+                                                    height: '8px',
+                                                    background: 'rgba(128,128,128,0.2)',
+                                                    borderRadius: '4px',
+                                                    overflow: 'hidden',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    <div style={{
+                                                        height: '100%',
+                                                        background: 'var(--accent-color)',
+                                                        borderRadius: '4px',
+                                                        width: downloadProgress.total > 0
+                                                            ? `${(downloadProgress.downloaded / downloadProgress.total) * 100}%`
+                                                            : '0%',
+                                                        transition: 'width 0.3s ease'
+                                                    }} />
+                                                </div>
+                                                <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>
+                                                    {downloadProgress.total > 0
+                                                        ? `${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)} MB / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB`
+                                                        : 'Starting download...'}
+                                                </div>
                                             </div>
                                         </div>
                                     )}

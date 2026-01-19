@@ -80,7 +80,10 @@ fn is_newer(remote: &str, current: &str) -> bool {
 
 #[tauri::command]
 #[allow(unused_variables)]
-pub async fn install_update(url: String) -> Result<(), String> {
+pub async fn install_update(app: AppHandle, url: String) -> Result<(), String> {
+    use futures_util::StreamExt;
+    use tauri::Emitter;
+    
     let client = reqwest::Client::new();
     let res = client.get(&url)
         .header("User-Agent", "ReClip-App")
@@ -88,16 +91,29 @@ pub async fn install_update(url: String) -> Result<(), String> {
         .await
         .map_err(|e| format!("Download failed: {}", e))?;
 
-    let bytes = res.bytes().await.map_err(|e| format!("Failed to read body: {}", e))?;
+    let total_size = res.content_length().unwrap_or(0);
+    let mut downloaded: u64 = 0;
     
     let temp_dir = std::env::temp_dir();
     let file_name = url.split('/').last().unwrap_or("reclip_update.exe");
     let file_path = temp_dir.join(file_name);
-
-    {
-        let mut file = File::create(&file_path).map_err(|e| format!("Failed to create file: {}", e))?;
-        file.write_all(&bytes).map_err(|e| format!("Failed to write file: {}", e))?;
+    
+    let mut file = File::create(&file_path).map_err(|e| format!("Failed to create file: {}", e))?;
+    let mut stream = res.bytes_stream();
+    
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("Failed to read chunk: {}", e))?;
+        file.write_all(&chunk).map_err(|e| format!("Failed to write chunk: {}", e))?;
+        
+        downloaded += chunk.len() as u64;
+        
+        // Emit progress event
+        let _ = app.emit("update-progress", serde_json::json!({
+            "downloaded": downloaded,
+            "total": total_size
+        }));
     }
+
 
     // Run installer
     // Use shell or Command. Command is direct.

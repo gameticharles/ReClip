@@ -5,6 +5,7 @@ type ZoomLevel = 'hour' | 'day' | 'week' | 'month' | 'year';
 
 interface TimelineViewProps {
     clips: Clip[];
+    totalCount?: number;
     onSelectTimeRange: (startDate: Date | null, endDate: Date | null) => void;
     onExportRange: (clips: Clip[]) => void;
     visible: boolean;
@@ -19,7 +20,7 @@ interface TimelineMarker {
     intensity: number; // 0-1 for heatmap
 }
 
-export function TimelineView({ clips, onSelectTimeRange, onExportRange, visible }: TimelineViewProps) {
+export function TimelineView({ clips, totalCount, onSelectTimeRange, onExportRange, visible }: TimelineViewProps) {
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('hour');
     const [selectedRange, setSelectedRange] = useState<{ start: number; end: number }>({ start: 0, end: 100 });
     const [isDragging, setIsDragging] = useState(false);
@@ -212,7 +213,7 @@ export function TimelineView({ clips, onSelectTimeRange, onExportRange, visible 
                         📅 Timeline
                     </span>
                     <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
-                        {clips.length} clips
+                        {totalCount ?? clips.length} clips {totalCount && totalCount > clips.length ? `(${clips.length} loaded)` : ''}
                     </span>
                 </div>
 

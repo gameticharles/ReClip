@@ -84,6 +84,20 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const loaderRef = useRef<HTMLDivElement>(null);
     const LIMIT = 30;
 
+    // Database Stats
+    const [totalClipCount, setTotalClipCount] = useState(0);
+
+    const fetchClipStats = async (search?: string) => {
+        try {
+            const stats = await invoke<{ total_count: number, oldest_date: string | null, newest_date: string | null }>(
+                "get_clip_stats", { search: search || null }
+            );
+            setTotalClipCount(stats.total_count);
+        } catch (e) {
+            console.error("Failed to fetch clip stats", e);
+        }
+    };
+
     const fetchShortcuts = async () => {
         try {
             const map = await invoke<Record<string, string>>("get_shortcuts");
@@ -428,6 +442,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
         const timer = setTimeout(() => {
             setPage(0); // Reset page logic
             fetchClips(searchTerm, true); // Trigger absolute reset
+            fetchClipStats(searchTerm); // Refresh DB stats
         }, 300);
         return () => clearTimeout(timer);
     }, [searchTerm]);
@@ -885,9 +900,9 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                             </span>
                         ) : (
                             <>
-                                <span title="Total clips">📋 {clips.length}</span>
-                                <span title="Pinned clips">📌 {clips.filter(c => c.pinned).length}</span>
-                                <span title="Favorites">⭐ {clips.filter(c => c.favorite).length}</span>
+                                <span title="Total clips in database">📋 {totalClipCount}</span>
+                                <span title="Pinned clips (loaded)">📌 {clips.filter(c => c.pinned).length}</span>
+                                <span title="Favorites (loaded)">⭐ {clips.filter(c => c.favorite).length}</span>
                             </>
                         )}
                     </div>
@@ -896,6 +911,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                 {/* Timeline View */}
                 <TimelineView
                     clips={allClips}
+                    totalCount={totalClipCount}
                     visible={showTimeline}
                     onSelectTimeRange={(start, end) => {
                         if (start && end) {
