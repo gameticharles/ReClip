@@ -55,6 +55,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     // Gradient Tab
     const [gradientType, setGradientType] = useState<'linear' | 'radial'>('linear');
     const [gradientAngle, setGradientAngle] = useState(90);
+    const [gradientColor2, setGradientColor2] = useState('#6366f1');
 
     // Saved Palettes
     const [savedPalettes, setSavedPalettes] = useState<Utils.SavedPalette[]>([]);
@@ -592,10 +593,10 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     {/* --- Gradient Tab --- */}
                     {activeTab === 'gradient' && (
                         <motion.div key="gradient" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            <div style={{ height: 200, background: `${gradientType}-gradient(${gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, ${hex}, ${Utils.generateHarmonies(hex).complementary[1]})`, borderRadius: 12, marginBottom: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                            <div style={{ height: 200, background: `${gradientType}-gradient(${gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, ${hex}, ${gradientColor2})`, borderRadius: 12, marginBottom: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
 
-                            <div style={{ display: 'flex', gap: 20 }}>
-                                <div style={{ flex: 1 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                <div>
                                     <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Gradient Type</label>
                                     <select
                                         value={gradientType}
@@ -608,7 +609,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                     </select>
                                 </div>
                                 {gradientType === 'linear' && (
-                                    <div style={{ flex: 1 }}>
+                                    <div>
                                         <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Angle ({gradientAngle}°)</label>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <input
@@ -622,12 +623,30 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                         </div>
                                     </div>
                                 )}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Start Color</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ position: 'relative', width: '100%' }}>
+                                            <div style={{ height: 36, background: hex, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                            <input type="color" value={hex} onChange={e => setHex(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>End Color</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ position: 'relative', width: '100%' }}>
+                                            <div style={{ height: 36, background: gradientColor2, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                            <input type="color" value={gradientColor2} onChange={e => setGradientColor2(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div style={{ marginTop: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
                                 <div style={{ fontSize: '0.8rem', opacity: 0.6, marginBottom: 8 }}>CSS Code</div>
                                 <code style={{ fontSize: '0.85rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                                    background: {gradientType}-gradient({gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, {hex}, {Utils.generateHarmonies(hex).complementary[1]});
+                                    background: {gradientType}-gradient({gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, {hex}, {gradientColor2});
                                 </code>
                             </div>
                         </motion.div>
