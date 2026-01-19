@@ -11,7 +11,12 @@ All notable changes to this project will be documented in this file.
 ### ✨ New Features
 - **Update Download Progress**: Real-time progress bar when downloading app updates (MB downloaded / total).
 - **Calendar Navigation**: New calendar picker in Timeline - click 📆 to browse by month, days with clips are highlighted, click to filter.
-- **Clip Preview Tooltip**: Hover over any text/HTML/code clip to see full content preview (first 500 characters).
+- **Clip Preview Tooltip**: Hover over clips to see full content preview (configurable in Settings → General, default OFF).
+- **Timeline Quick Presets**: New buttons for 7d, 30d, MTD (Month-to-Date), and Clear filter.
+
+### 🔧 Improvements
+- **File Clips**: Missing file paths now individually highlighted with ❌, red text, and strikethrough.
+
 
 
 ---

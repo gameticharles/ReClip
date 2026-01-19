@@ -296,6 +296,85 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                     >
                         Today
                     </button>
+
+                    {/* Quick Presets */}
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '8px', borderLeft: '1px solid rgba(128,128,128,0.3)', paddingLeft: '8px' }}>
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                                sevenDaysAgo.setHours(0, 0, 0, 0);
+                                onSelectTimeRange(sevenDaysAgo, now);
+                            }}
+                            style={{
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: 'rgba(128,128,128,0.15)',
+                                color: 'inherit',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                            }}
+                            title="Filter to last 7 days"
+                        >
+                            7d
+                        </button>
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                                thirtyDaysAgo.setHours(0, 0, 0, 0);
+                                onSelectTimeRange(thirtyDaysAgo, now);
+                            }}
+                            style={{
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: 'rgba(128,128,128,0.15)',
+                                color: 'inherit',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                            }}
+                            title="Filter to last 30 days"
+                        >
+                            30d
+                        </button>
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                                onSelectTimeRange(firstOfMonth, now);
+                            }}
+                            style={{
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: 'rgba(128,128,128,0.15)',
+                                color: 'inherit',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                            }}
+                            title="Filter to this month"
+                        >
+                            MTD
+                        </button>
+                        <button
+                            onClick={() => onSelectTimeRange(null, null)}
+                            style={{
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                                fontWeight: 600,
+                            }}
+                            title="Clear time filter"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
             </div>
 

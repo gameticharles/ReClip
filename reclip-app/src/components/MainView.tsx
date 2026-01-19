@@ -87,6 +87,18 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     // Database Stats
     const [totalClipCount, setTotalClipCount] = useState(0);
 
+    // Tooltip setting
+    const [showTooltipPreview, setShowTooltipPreview] = useState(() =>
+        localStorage.getItem('showTooltipPreview') === 'true'
+    );
+
+    // Listen for tooltip setting changes
+    useEffect(() => {
+        const handler = () => setShowTooltipPreview(localStorage.getItem('showTooltipPreview') === 'true');
+        window.addEventListener('storage', handler);
+        return () => window.removeEventListener('storage', handler);
+    }, []);
+
     const fetchClipStats = async (search?: string) => {
         try {
             const stats = await invoke<{ total_count: number, oldest_date: string | null, newest_date: string | null }>(
@@ -1221,8 +1233,8 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                         ) : (
                                                             <div
                                                                 className="clip-content-wrapper"
-                                                                title={clip.type !== 'image' && clip.type !== 'file' ? clip.content.slice(0, 500) + (clip.content.length > 500 ? '...' : '') : undefined}
-                                                                style={{ cursor: clip.type !== 'image' ? 'help' : 'default' }}
+                                                                title={showTooltipPreview && clip.type !== 'image' && clip.type !== 'file' ? clip.content.slice(0, 500) + (clip.content.length > 500 ? '...' : '') : undefined}
+                                                                style={{ cursor: showTooltipPreview && clip.type !== 'image' ? 'help' : 'default' }}
                                                             >
                                                                 <ClipContent
                                                                     content={clip.content}

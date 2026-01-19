@@ -532,6 +532,25 @@ export default function SettingsPage({
                                 </label>
                             </div>
 
+                            {/* Tooltip Preview */}
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Show Tooltip Preview</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Hover over clips to see full content preview.</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={localStorage.getItem('showTooltipPreview') === 'true'}
+                                        onChange={(e) => {
+                                            localStorage.setItem('showTooltipPreview', String(e.target.checked));
+                                            window.dispatchEvent(new Event('storage')); // Notify other components
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                            </div>
+
                             {/* Launch on Startup */}
                             <div className="setting-item">
                                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>

@@ -706,17 +706,36 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                     <span style={{ fontSize: '1.2rem' }}>📁</span>
                     <span style={{ fontWeight: 600 }}>{files.length} File{files.length !== 1 ? 's' : ''}</span>
                     {validity.checked && !validity.valid && (
-                        <span title={`Missing: ${validity.invalidPaths.join(', ')}`} style={{ color: '#ef4444', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
-                            ⚠️ Missing
+                        <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                            ⚠️ {validity.invalidPaths.length} Missing
                         </span>
                     )}
                 </div>
                 {!isCompact && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', opacity: 0.8, fontSize: '0.8rem' }}>
-                        {files.slice(0, 3).map((f, i) => (
-                            <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f}</div>
-                        ))}
-                        {files.length > 3 && <div style={{ opacity: 0.5 }}>+ {files.length - 3} more</div>}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.8rem' }}>
+                        {files.slice(0, 5).map((f, i) => {
+                            const isMissing = validity.checked && validity.invalidPaths.includes(f);
+                            return (
+                                <div
+                                    key={i}
+                                    style={{
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        color: isMissing ? '#ef4444' : 'inherit',
+                                        textDecoration: isMissing ? 'line-through' : 'none',
+                                        opacity: isMissing ? 0.9 : 0.8,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                    title={f}
+                                >
+                                    {isMissing ? '❌' : '📄'} {f.split(/[/\\]/).pop()}
+                                </div>
+                            );
+                        })}
+                        {files.length > 5 && <div style={{ opacity: 0.5 }}>+ {files.length - 5} more</div>}
                     </div>
                 )}
             </div>
