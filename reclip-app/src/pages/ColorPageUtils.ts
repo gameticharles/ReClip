@@ -84,7 +84,7 @@ export const rgbToCmyk = (r: number, g: number, b: number): { c: number; m: numb
 };
 
 // Generate tints (lighter versions)
-export const generateTints = (hex: string, count: number = 5): string[] => {
+export const generateTints = (hex: string, count: number = 10): string[] => {
     const rgb = hexToRgb(hex);
     if (!rgb) return [];
     const tints: string[] = [];
@@ -100,7 +100,7 @@ export const generateTints = (hex: string, count: number = 5): string[] => {
 };
 
 // Generate shades (darker versions)
-export const generateShades = (hex: string, count: number = 5): string[] => {
+export const generateShades = (hex: string, count: number = 10): string[] => {
     const rgb = hexToRgb(hex);
     if (!rgb) return [];
     const shades: string[] = [];
