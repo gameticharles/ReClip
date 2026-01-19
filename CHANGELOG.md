@@ -1,3 +1,6 @@
+## [0.5.0] - 2026-01-19
+
+Fixed bugs
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -89,6 +92,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.1] - 2026-01-18
 - Fixed release script.
 - Initial project setup.
+
 
 
 
