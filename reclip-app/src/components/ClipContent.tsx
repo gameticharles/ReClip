@@ -568,7 +568,7 @@ export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = 
                 const thief = new ColorThief();
 
                 // Get dominant color + palette
-                const palette = thief.getPalette(img, 15); // Get more colors to filter
+                const palette = thief.getPalette(img, 20); // Get more colors to filter
                 if (palette) {
                     // Deduplicate similar colors
                     const seen = new Set<string>();
@@ -578,7 +578,7 @@ export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = 
                         if (seen.has(key)) return false;
                         seen.add(key);
                         return true;
-                    }).slice(0, 15); // Limit to 15 unique colors
+                    }).slice(0, 20); // Limit to 20 unique colors
                     setColors(unique);
                 }
             } catch (e) {
