@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -498,29 +498,52 @@ const CodePreview: React.FC<{ content: string; isCompact: boolean; isDark: boole
 
 
 const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src, isCompact }) => {
-    const [palette, setPalette] = useState<any>(null);
+    const [colors, setColors] = useState<[number, number, number][]>([]);
     const [copiedColor, setCopiedColor] = useState<string | null>(null);
+    const imgRef = useRef<HTMLImageElement | null>(null);
 
+    useEffect(() => {
+        if (!src || isCompact) return;
 
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = src;
+        imgRef.current = img;
 
-    if (!palette || isCompact) return null;
+        img.onload = async () => {
+            try {
+                // Dynamically import to avoid bundling issues
+                const ColorThief = (await import('colorthief')).default;
+                const thief = new ColorThief();
 
-    const swatches = [
-        { name: 'Vibrant', swatch: palette.Vibrant },
-        { name: 'Light Vibrant', swatch: palette.LightVibrant },
-        { name: 'Dark Vibrant', swatch: palette.DarkVibrant },
-        { name: 'Muted', swatch: palette.Muted },
-        { name: 'Light Muted', swatch: palette.LightMuted },
-        { name: 'Dark Muted', swatch: palette.DarkMuted },
-    ].filter(s => s.swatch);
+                // Get dominant color + palette
+                const palette = thief.getPalette(img, 6);
+                if (palette) {
+                    setColors(palette);
+                }
+            } catch (e) {
+                console.error('ColorThief extraction failed:', e);
+            }
+        };
+
+        return () => {
+            imgRef.current = null;
+        };
+    }, [src, isCompact]);
+
+    if (colors.length === 0 || isCompact) return null;
+
+    const rgbToHex = (r: number, g: number, b: number) =>
+        '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+
+    const getContrastColor = (r: number, g: number, b: number) =>
+        (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? '#000' : '#fff';
 
     const handleCopy = (hex: string) => {
         navigator.clipboard.writeText(hex);
         setCopiedColor(hex);
         setTimeout(() => setCopiedColor(null), 2000);
     };
-
-    if (swatches.length === 0) return null;
 
     return (
         <div className="color-palette" onClick={e => e.stopPropagation()} style={{
@@ -531,32 +554,36 @@ const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src,
             marginBottom: '4px',
             scrollbarWidth: 'none'
         }}>
-            {swatches.map((s) => (
-                <div
-                    key={s.name}
-                    title={`${s.name}: ${s.swatch.getHex()}`}
-                    onClick={(e) => { e.stopPropagation(); handleCopy(s.swatch.getHex()); }}
-                    style={{
-                        minWidth: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        backgroundColor: s.swatch.getHex(),
-                        cursor: 'pointer',
-                        border: '1px solid rgba(128,128,128,0.2)',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.6rem',
-                        color: s.swatch.getTitleTextColor(),
-                        transition: 'transform 0.1s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'}
-                >
-                    {copiedColor === s.swatch.getHex() && '✓'}
-                </div>
-            ))}
+            {colors.map((color, i) => {
+                const hex = rgbToHex(color[0], color[1], color[2]);
+                const contrast = getContrastColor(color[0], color[1], color[2]);
+                return (
+                    <div
+                        key={i}
+                        title={hex}
+                        onClick={(e) => { e.stopPropagation(); handleCopy(hex); }}
+                        style={{
+                            minWidth: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            backgroundColor: hex,
+                            cursor: 'pointer',
+                            border: '1px solid rgba(128,128,128,0.2)',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.6rem',
+                            color: contrast,
+                            transition: 'transform 0.1s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1.0)'}
+                    >
+                        {copiedColor === hex && '✓'}
+                    </div>
+                );
+            })}
         </div>
     );
 };
@@ -614,6 +641,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
         const src = convertFileSrc(content);
         return (
             <div className="clip-image" style={{ maxHeight: isCompact ? '40px' : '200px', overflow: 'hidden', borderRadius: '4px', position: 'relative', background: '#000', display: 'flex', flexDirection: 'column' }}>
+                <ImageColorPalette src={src} isCompact={isCompact} />
                 <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
 
                     <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
