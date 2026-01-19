@@ -707,6 +707,20 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
         );
     }
 
+    // Handle HTML clip type (captured from Word/Excel/rich apps)
+    if (type === 'html') {
+        if (showRaw || isCompact) {
+            // Show raw HTML source
+            return (
+                <div className="clip-text" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: isCompact ? '0.8rem' : '0.9rem', fontFamily: 'monospace' }}>
+                    {isCompact ? content.slice(0, 50) + (content.length > 50 ? '...' : '') : content.slice(0, 500) + (content.length > 500 ? '...' : '')}
+                </div>
+            );
+        }
+        // Render HTML with sanitization
+        return <HTMLPreview content={content} isCompact={isCompact} />;
+    }
+
     // Handle Image
     if (type === 'image') {
         const src = convertFileSrc(content);

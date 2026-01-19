@@ -149,6 +149,43 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
             }
         }
 
+            // Check for HTML clipboard content (Windows) - captures Word/Excel rich content
+            #[cfg(target_os = "windows")]
+            {
+                use clipboard_rs::{Clipboard as ClipboardRs, ClipboardContext};
+                
+                if let Ok(ctx) = ClipboardContext::new() {
+                    if let Ok(html) = ctx.get_html() {
+                        // Only capture if it's meaningful HTML (not just wrapper)
+                        if !html.trim().is_empty() && html.len() > 50 && html.contains("<") {
+                            let hash = blake3::hash(html.as_bytes()).to_string();
+                            
+                            if hash != last_hash {
+                                last_hash = hash.clone();
+                                let pool_clone = pool.clone();
+                                let app_handle_clone = app_handle.clone();
+                                let html_clone = html.clone();
+                                let hash_clone = hash.clone();
+                                
+                                info!("New HTML clip detected ({} bytes)", html.len());
+                                
+                                tauri::async_runtime::spawn(async move {
+                                    match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None).await {
+                                        Ok(id) => {
+                                            let _ = app_handle_clone.emit("clip-created", id);
+                                        },
+                                        Err(e) => error!("Failed to insert HTML clip: {}", e),
+                                    }
+                                });
+                                
+                                thread::sleep(Duration::from_millis(500));
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
             let text_result = clipboard.get_text();
             if let Ok(text) = text_result {
                 if !text.trim().is_empty() {

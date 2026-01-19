@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
   - **Image Click-to-Zoom**: Fullscreen preview modal (click image or press Escape to close).
   - **Image Dimensions + Size**: Displays resolution (WxH) and file size in clip header.
   - **Enhanced Code Preview**: 20+ languages, line numbers, copy button, language badge.
+  - **HTML Clipboard Capture**: Preserves rich formatting from Word, Excel, web pages (bold, tables, colors).
 - **Clip Content Editing**: Full-screen editor to modify clip content (via context menu).
 - **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.
 
