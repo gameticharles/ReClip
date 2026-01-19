@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-01-19
+
+### 🐛 Bug Fixes
+- **Stats & Timeline**: Now display total clips from database, not just loaded clips.
+- **App Metadata**: Fixed installer properties (Publisher, Copyright, Description) for Windows.
+
+### ✨ New Features
+- **Update Download Progress**: Real-time progress bar when downloading app updates (MB downloaded / total).
+
+---
+
 ## [0.6.0] - 2026-01-19
 
 ### 🚀 Performance
