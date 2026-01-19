@@ -449,8 +449,3 @@ pub async fn delete_snippet(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Er
     Ok(())
 }
 
-pub async fn delete_all_snippets(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM snippets").execute(pool).await?;
-    Ok(())
-}
-

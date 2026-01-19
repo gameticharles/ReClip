@@ -1,9 +1,3 @@
-## [0.4.0] - 2026-01-18
-
-Added new features (snippet and updater) and fixed bugs
-## [0.4.0] - 2026-01-18
-
-Added new features (snippet and updater) and fixed bugs
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -32,9 +26,6 @@ All notable changes to this project will be documented in this file.
   - Fixed **Paste Queue Mode** state not persisting across restarts.
 - **Sidebar**:
   - Fixed duplicate "Maintenance" tab appearing in settings.
-- **Settings**:
-  - Separate "Clear Clipboard" and "Clear Snippets" options.
-  - Fixed UI bugs in Automations and About tabs.
 
 ## [0.3.0] - 2026-01-18
 

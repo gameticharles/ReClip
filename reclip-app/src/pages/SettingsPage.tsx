@@ -449,7 +449,7 @@ export default function SettingsPage({
 
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Sidebar */}
-                <div style={{ width: '150px', padding: '20px 0', borderRight: '1px solid rgba(128,128,128,0.1)', background: 'rgba(128,128,128,0.02)' }}>
+                <div style={{ width: '200px', padding: '20px 0', borderRight: '1px solid rgba(128,128,128,0.1)', background: 'rgba(128,128,128,0.02)' }}>
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
@@ -726,7 +726,7 @@ export default function SettingsPage({
                                     {updateStatus === 'uptodate' && (
                                         <div>
                                             <div style={{ color: '#10b981', fontWeight: 600, marginBottom: '8px' }}>You're up to date!</div>
-                                            <button onClick={checkForUpdates} className="secondary-btn" style={{ fontSize: '0.85rem', padding: '6px 12px' }}>Check Again</button>
+                                            <button onClick={checkForUpdates} style={{ fontSize: '0.85rem', opacity: 0.7, background: 'transparent', border: '1px solid currentColor', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Check Again</button>
                                         </div>
                                     )}
                                     {updateStatus === 'available' && updateInfo && (
@@ -1105,35 +1105,10 @@ export default function SettingsPage({
                                         if (await window.confirm("Are you sure you want to delete ALL clips? This cannot be undone.")) {
                                             try {
                                                 await invoke("clear_clips");
-                                                window.alert("Clipboard history cleared successfully.");
+                                                window.alert("Database cleared successfully.");
                                             } catch (e) {
                                                 console.error(e);
-                                                window.alert("Failed to clear clipboard history.");
-                                            }
-                                        }
-                                    }}
-                                    style={{
-                                        background: 'rgba(239,68,68,0.1)',
-                                        color: '#ef4444',
-                                        border: '1px solid #ef4444',
-                                        padding: '8px 16px',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        marginRight: '12px'
-                                    }}
-                                >
-                                    🗑️ Clear Clipboard History
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (await window.confirm("Are you sure you want to delete ALL snippets? This cannot be undone.")) {
-                                            try {
-                                                await invoke("clear_snippets");
-                                                window.alert("Snippet library cleared successfully.");
-                                            } catch (e) {
-                                                console.error(e);
-                                                window.alert("Failed to clear snippet library.");
+                                                window.alert("Failed to clear database.");
                                             }
                                         }
                                     }}
@@ -1147,7 +1122,7 @@ export default function SettingsPage({
                                         fontWeight: 600
                                     }}
                                 >
-                                    🗑️ Clear Snippet Library
+                                    🗑️ Clear Entire Database
                                 </button>
                             </div>
                         </div>
@@ -1399,15 +1374,13 @@ export default function SettingsPage({
                                             <option value="open_url">Open URL</option>
                                             <option value="notify">Show Notification</option>
                                         </select>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <input
-                                                type="text"
-                                                placeholder={newAutoAction === 'open_url' ? "Target URL (use $1, $2 for captures)" : "Notification Message"}
-                                                value={newAutoPayload}
-                                                onChange={e => setNewAutoPayload(e.target.value)}
-                                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
-                                            />
-                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder={newAutoAction === 'open_url' ? "Target URL (use $1, $2 for captures)" : "Notification Message"}
+                                            value={newAutoPayload}
+                                            onChange={e => setNewAutoPayload(e.target.value)}
+                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
+                                        />
                                     </div>
                                     <button onClick={addRegexRule} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', alignSelf: 'flex-start' }}>
                                         Add Rule
