@@ -1,61 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import {
-    ArrowLeft, Copy, Check, Palette, Pipette, Sun, Moon, RefreshCw,
-    Eye, Layers, Type, Grid, Save, Trash2, Download, Link, Info, Contrast
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, ArrowLeft, GitMerge, ArrowDown, Image as ImageIcon } from 'lucide-react';
 import * as Utils from './ColorPageUtils';
-import { SavedPalette } from './ColorPageUtils';
 
 interface ColorToolPageProps {
+    initialColor?: string;
+    onClose: () => void;
     onBack: () => void;
-    theme: string;
 }
 
-const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
-    // --- State ---
-    const [colorInput, setColorInput] = useState('#6366f1');
-    const [activeTab, setActiveTab] = useState<'analyze' | 'harmonies' | 'a11y' | 'gradient' | 'saved'>('analyze');
-    const [copiedValue, setCopiedValue] = useState<string | null>(null);
+const TabButton = ({ id, icon: Icon, label, active, onClick }: any) => (
+    <button
+        onClick={() => onClick(id)}
+        style={{
+            flex: 1,
+            padding: '12px 8px',
+            background: active ? 'var(--bg-secondary)' : 'transparent',
+            border: 'none',
+            borderBottom: active ? '2px solid var(--accent-color)' : '1px solid transparent',
+            color: active ? 'var(--accent-color)' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: '0.75rem',
+            transition: 'all 0.2s',
+            fontWeight: active ? 600 : 400
+        }}
+    >
+        <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+        {label}
+    </button>
+);
 
-    // Accessibility State
-    const [contrastColor, setContrastColor] = useState('#ffffff'); // Background/Comparison color
+const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolPageProps) => {
+    const [hex, setHex] = useState(initialColor);
+    const [colorInput, setColorInput] = useState(initialColor);
+    const [activeTab, setActiveTab] = useState<'analyze' | 'mixer' | 'harmonies' | 'a11y' | 'gradient' | 'saved'>('analyze');
 
-    // Gradient State
-    const [gradientEndColor, setGradientEndColor] = useState('#a855f7');
+    // Analyze Tab (Drag & Drop)
+    const [dragActive, setDragActive] = useState(false);
+    const [extractedPalette, setExtractedPalette] = useState<string[]>([]);
+
+    // Mixer Tab
+    const [mixColor1, setMixColor1] = useState('#ff0000');
+    const [mixColor2, setMixColor2] = useState('#0000ff');
+    const [mixRatio, setMixRatio] = useState(0.5);
+    const [mixSteps, setMixSteps] = useState(5);
+
+    // A11y Tab
+    const [contrastColor, setContrastColor] = useState('#ffffff');
+
+    // Gradient Tab
     const [gradientType, setGradientType] = useState<'linear' | 'radial'>('linear');
-    const [gradientAngle, setGradientAngle] = useState(135);
+    const [gradientAngle, setGradientAngle] = useState(90);
 
     // Saved Palettes
-    const [savedPalettes, setSavedPalettes] = useState<SavedPalette[]>([]);
+    const [savedPalettes, setSavedPalettes] = useState<Utils.SavedPalette[]>([]);
 
-    // --- Derived Values ---
-    const hex = Utils.parseColor(colorInput) || '#6366f1';
-    const rgb = Utils.hexToRgb(hex) || { r: 99, g: 102, b: 241 };
-    const hsl = Utils.rgbToHsl(rgb.r, rgb.g, rgb.b);
-    const hsv = Utils.rgbToHsv(rgb.r, rgb.g, rgb.b);
-    const cmyk = Utils.rgbToCmyk(rgb.r, rgb.g, rgb.b);
+    useEffect(() => {
+        const parsed = Utils.parseColor(colorInput);
+        if (parsed) {
+            setHex(parsed);
+        }
+    }, [colorInput]);
 
-    const colorName = Utils.findNearestColorName(hex);
-    const tailwindMatch = Utils.findNearestTailwind(hex);
+    useEffect(() => {
+        setColorInput(hex);
+    }, [hex]);
 
-    // --- Effects ---
     useEffect(() => {
         const saved = localStorage.getItem('reclip_saved_palettes');
         if (saved) {
             try {
                 setSavedPalettes(JSON.parse(saved));
             } catch (e) {
-                console.error("Failed to load palettes", e);
+                console.error("Failed to parse saved palettes", e);
             }
         }
     }, []);
 
-    const savePalette = (name: string, colors: string[]) => {
-        const newPalette: SavedPalette = {
-            id: Date.now().toString(),
-            name: name || `Palette ${savedPalettes.length + 1}`,
-            colors,
+    const savePalette = () => {
+        const newPalette: Utils.SavedPalette = {
+            id: crypto.randomUUID(),
+            name: `Palette ${savedPalettes.length + 1}`,
+            colors: [hex, ...Utils.generateHarmonies(hex).complementary.slice(1)], // Example: Main + Compl
             createdAt: Date.now()
         };
         const updated = [newPalette, ...savedPalettes];
@@ -69,84 +99,60 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
         localStorage.setItem('reclip_saved_palettes', JSON.stringify(updated));
     };
 
-    const copyToClipboard = async (value: string) => {
-        await navigator.clipboard.writeText(value);
-        setCopiedValue(value);
-        setTimeout(() => setCopiedValue(null), 1500);
-    };
-
     const randomColor = () => {
-        const randHex = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-        setColorInput(randHex);
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        setHex(Utils.rgbToHex(r, g, b));
     };
 
-    // --- UI Components ---
-    const ColorSwatch = ({ color, size = 40, label, onClick }: { color: string; size?: number; label?: string; onClick?: () => void }) => (
-        <div
-            onClick={() => onClick ? onClick() : copyToClipboard(color)}
-            style={{
-                width: size,
-                height: size,
-                background: color,
-                borderRadius: 8,
-                cursor: 'pointer',
-                border: '1px solid rgba(128,128,128,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                transition: 'transform 0.1s, box-shadow 0.1s',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}
-            title={`${label || color} - Click to copy`}
-            onMouseEnter={e => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-            }}
-        >
-            {copiedValue === color && <Check size={Math.max(12, size * 0.4)} color={Utils.getLuminance(Utils.hexToRgb(color)?.r || 0, Utils.hexToRgb(color)?.g || 0, Utils.hexToRgb(color)?.b || 0) > 0.5 ? 'black' : 'white'} />}
-        </div>
-    );
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
 
-    const TabButton = ({ id, icon: Icon, label }: { id: typeof activeTab; icon: any; label: string }) => (
-        <button
-            onClick={() => setActiveTab(id)}
-            style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                padding: '8px 4px',
-                background: activeTab === id ? 'var(--bg-hover)' : 'transparent',
-                border: 'none',
-                borderBottom: activeTab === id ? '2px solid var(--accent-color)' : '2px solid transparent',
-                color: activeTab === id ? 'var(--accent-color)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '0.7rem',
-                fontWeight: activeTab === id ? 600 : 500,
-                transition: 'all 0.2s',
-                opacity: activeTab === id ? 1 : 0.7
-            }}
-        >
-            <Icon size={18} />
-            {label}
-        </button>
-    );
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const file = e.dataTransfer.files[0];
+            if (!file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                if (event.target?.result) {
+                    const img = new Image();
+                    img.src = event.target.result as string;
+                    img.onload = async () => {
+                        try {
+                            const ColorThief = (await import('colorthief')).default;
+                            const thief = new ColorThief();
+                            const palette = thief.getPalette(img, 10);
+                            if (palette) {
+                                setExtractedPalette(palette.map((c: number[]) => Utils.rgbToHex(c[0], c[1], c[2])));
+                            }
+                        } catch (err) {
+                            console.error("ColorThief failed", err);
+                        }
+                    };
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }, []);
+
+    const rgb = Utils.hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+    const hsl = Utils.rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const hsv = Utils.rgbToHsv(rgb.r, rgb.g, rgb.b);
+    const cmyk = Utils.rgbToCmyk(rgb.r, rgb.g, rgb.b);
+    const colorName = Utils.findNearestColorName(hex);
+    const tailwindMatch = Utils.findNearestTailwind(hex);
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-primary)' }}>
+        <div className="color-tool-page" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
             <style>{`
                 .custom-range {
                     -webkit-appearance: none;
                     width: 100%;
                     height: 6px;
-                    background: var(--bg-hover);
+                    background: rgba(128, 128, 128, 0.25);
                     border-radius: 3px;
                     outline: none;
                 }
@@ -175,6 +181,7 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                     border-color: var(--accent-color);
                 }
             `}</style>
+
             {/* Header */}
             <div className="titlebar" data-tauri-drag-region style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>
                 <div className="title-left" data-tauri-drag-region style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -186,13 +193,33 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                     </div>
                 </div>
                 <div className="title-right" style={{ display: 'flex', gap: 6 }}>
+                    <select
+                        className="custom-select"
+                        style={{ height: 26, fontSize: '0.8rem', padding: '0 8px', width: 120 }}
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                navigator.clipboard.writeText(Utils.formatCode(hex, e.target.value));
+                            }
+                        }}
+                        defaultValue=""
+                    >
+                        <option value="" disabled>Copy as...</option>
+                        <option value="css-hex">CSS Hex</option>
+                        <option value="css-rgb">CSS RGB</option>
+                        <option value="css-hsl">CSS HSL</option>
+                        <option value="tailwind">Tailwind Name</option>
+                        <option value="swift">Swift UIColor</option>
+                        <option value="flutter">Flutter Color</option>
+                        <option value="kotlin">Kotlin Color</option>
+                    </select>
                     <button onClick={randomColor} style={{ background: 'rgba(128,128,128,0.1)', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: 'var(--text-primary)' }}>
                         <RefreshCw size={12} /> Random
                     </button>
+                    <button onClick={onClose} className="title-btn"><X size={18} /></button>
                 </div>
             </div>
 
-            {/* Input Section (Always Visible) */}
+            {/* Input Section */}
             <div style={{ padding: '16px 20px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div style={{ position: 'relative' }}>
@@ -204,7 +231,6 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
                         />
                     </div>
-
                     <div style={{ flex: 1 }}>
                         <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: 4, fontWeight: 500, textTransform: 'uppercase' }}>Current Color</label>
                         <input
@@ -232,16 +258,18 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
 
             {/* Navigation Tabs */}
             <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-                <TabButton id="analyze" icon={Pipette} label="Analyze" />
-                <TabButton id="harmonies" icon={Palette} label="Harmonies" />
-                <TabButton id="a11y" icon={Eye} label="Accessibility" />
-                <TabButton id="gradient" icon={Layers} label="Gradient" />
-                <TabButton id="saved" icon={Save} label="Library" />
+                <TabButton id="analyze" icon={Pipette} label="Analyze" active={activeTab === 'analyze'} onClick={setActiveTab} />
+                <TabButton id="mixer" icon={GitMerge} label="Mixer" active={activeTab === 'mixer'} onClick={setActiveTab} />
+                <TabButton id="harmonies" icon={Palette} label="Harmonies" active={activeTab === 'harmonies'} onClick={setActiveTab} />
+                <TabButton id="a11y" icon={Eye} label="Accessibility" active={activeTab === 'a11y'} onClick={setActiveTab} />
+                <TabButton id="gradient" icon={Layers} label="Gradient" active={activeTab === 'gradient'} onClick={setActiveTab} />
+                <TabButton id="saved" icon={Save} label="Library" active={activeTab === 'saved'} onClick={setActiveTab} />
             </div>
 
             {/* Content Area */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px', position: 'relative' }}>
                 <AnimatePresence mode="wait">
+
                     {/* --- Analyze Tab --- */}
                     {activeTab === 'analyze' && (
                         <motion.div key="analyze" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
@@ -249,44 +277,176 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                             {tailwindMatch && (
                                 <div style={{ marginBottom: 24, padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{ padding: '4px', background: 'white', borderRadius: 4 }}><Grid size={16} color="#3b82f6" /></div>
-                                        <div>
-                                            <div style={{ fontSize: '0.75rem', opacity: 0.7, color: 'var(--text-secondary)' }}>Nearest Tailwind</div>
-                                            <div style={{ fontWeight: 600, color: '#3b82f6' }}>{tailwindMatch}</div>
-                                        </div>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+                                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)' }}>Matches Tailwind <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{tailwindMatch}</span></span>
                                     </div>
-                                    <button onClick={() => copyToClipboard(tailwindMatch)} style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>Copy</button>
+                                    <Copy size={14} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => navigator.clipboard.writeText(tailwindMatch)} />
                                 </div>
                             )}
 
-                            {/* Formats */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
-                                {[
-                                    { label: 'HEX', value: hex.toUpperCase() },
-                                    { label: 'RGB', value: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` },
-                                    { label: 'HSL', value: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` },
-                                    { label: 'HSV', value: `hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)` },
-                                    { label: 'CMYK', value: `cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)` },
-                                ].map(f => (
-                                    <div key={f.label} onClick={() => copyToClipboard(f.value)} style={{ padding: '10px 12px', background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600 }}>{f.label}</span>
-                                        <code style={{ fontSize: '0.9rem', fontFamily: 'monospace' }}>{f.value}</code>
-                                        {copiedValue === f.value && <div style={{ position: 'absolute', top: 8, right: 8 }}><Check size={14} color="var(--accent-color)" /></div>}
-                                    </div>
-                                ))}
+                            {/* Color Info Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
+                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>RGB</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{rgb.r}, {rgb.g}, {rgb.b}</div>
+                                </div>
+                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>HSL</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hsl.h}°, {hsl.s}%, {hsl.l}%</div>
+                                </div>
+                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>HSV</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hsv.h}°, {hsv.s}%, {hsv.v}%</div>
+                                </div>
+                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>CMYK</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{cmyk.c}, {cmyk.m}, {cmyk.y}, {cmyk.k}</div>
+                                </div>
                             </div>
 
                             {/* Tints & Shades */}
-                            <div style={{ marginBottom: 24 }}>
-                                <h3 style={{ fontSize: '0.9rem', marginBottom: 12, opacity: 0.8, display: 'flex', alignItems: 'center', gap: 6 }}><Sun size={14} /> Tints</h3>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {Utils.generateTints(hex).map((c, i) => <ColorSwatch key={i} color={c} />)}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                <div>
+                                    <h3 style={{ fontSize: '0.9rem', marginBottom: 8, opacity: 0.7 }}>Tints</h3>
+                                    <div style={{ display: 'flex', height: 40, borderRadius: 6, overflow: 'hidden' }}>
+                                        {Utils.generateTints(hex, 10).map((c) => (
+                                            <div key={c} onClick={() => setHex(c)} title={c} style={{ flex: 1, background: c, cursor: 'pointer' }} />
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 style={{ fontSize: '0.9rem', marginBottom: 8, opacity: 0.7 }}>Shades</h3>
+                                    <div style={{ display: 'flex', height: 40, borderRadius: 6, overflow: 'hidden' }}>
+                                        {Utils.generateShades(hex, 10).map((c) => (
+                                            <div key={c} onClick={() => setHex(c)} title={c} style={{ flex: 1, background: c, cursor: 'pointer' }} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <div style={{ marginBottom: 24 }}>
-                                <h3 style={{ fontSize: '0.9rem', marginBottom: 12, opacity: 0.8, display: 'flex', alignItems: 'center', gap: 6 }}><Moon size={14} /> Shades</h3>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {Utils.generateShades(hex).map((c, i) => <ColorSwatch key={i} color={c} />)}
+
+                            {/* Drag & Drop Zone */}
+                            <div
+                                onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={handleDrop}
+                                style={{
+                                    marginTop: 24,
+                                    border: `2px dashed ${dragActive ? 'var(--accent-color)' : 'var(--border-color)'}`,
+                                    borderRadius: 12,
+                                    padding: '24px 12px',
+                                    textAlign: 'center',
+                                    background: dragActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(128,128,128,0.05)',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 8
+                                }}
+                            >
+                                <ImageIcon size={24} style={{ opacity: 0.5 }} />
+                                {extractedPalette.length > 0 ? (
+                                    <div style={{ width: '100%' }}>
+                                        <div style={{ fontSize: '0.8rem', marginBottom: 12, opacity: 0.7 }}>Extracted Palette (Click to set)</div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                                            {extractedPalette.map(c => (
+                                                <div
+                                                    key={c}
+                                                    onClick={() => setHex(c)}
+                                                    title={c}
+                                                    style={{ width: 36, height: 36, background: c, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ pointerEvents: 'none' }}>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drop an image here</div>
+                                        <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>to extract its dominant colors</div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* --- Mixer Tab --- */}
+                    {activeTab === 'mixer' && (
+                        <motion.div key="mixer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                                {/* Inputs */}
+                                <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 12, border: '1px solid var(--border-color)' }}>
+                                    <h3 style={{ fontSize: '0.9rem', marginBottom: 16, opacity: 0.7 }}>Color Mixer</h3>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <div style={{ width: 48, height: 48, background: mixColor1, borderRadius: 8, border: '1px solid var(--border-color)' }} />
+                                            <input type="color" value={mixColor1} onChange={e => setMixColor1(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                                        </div>
+
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', opacity: 0.6 }}>
+                                                <span>{Math.round((1 - mixRatio) * 100)}%</span>
+                                                <span>{Math.round(mixRatio * 100)}%</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.01"
+                                                value={mixRatio}
+                                                onChange={e => setMixRatio(parseFloat(e.target.value))}
+                                                className="custom-range"
+                                            />
+                                        </div>
+
+                                        <div style={{ position: 'relative' }}>
+                                            <div style={{ width: 48, height: 48, background: mixColor2, borderRadius: 8, border: '1px solid var(--border-color)' }} />
+                                            <input type="color" value={mixColor2} onChange={e => setMixColor2(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Result */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                                    <ArrowDown size={20} style={{ opacity: 0.3 }} />
+                                    {(() => {
+                                        const mixed = Utils.mixColors(mixColor1, mixColor2, mixRatio);
+                                        return (
+                                            <div style={{ textAlign: 'center', width: '100%' }}>
+                                                <div style={{ width: '100%', height: 80, background: mixed, borderRadius: 12, border: '1px solid var(--border-color)', marginBottom: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                                <div style={{ fontFamily: 'monospace', fontSize: '1.4rem', fontWeight: 800 }}>{mixed}</div>
+                                                <button
+                                                    onClick={() => setHex(mixed)}
+                                                    style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--accent-color)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                                                >
+                                                    Set as Current Color
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Scale Generator */}
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 24 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                        <h3 style={{ fontSize: '0.9rem', opacity: 0.7 }}>Step Scale</h3>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{mixSteps} Steps</span>
+                                            <input
+                                                type="range"
+                                                min="3"
+                                                max="30"
+                                                value={mixSteps}
+                                                onChange={e => setMixSteps(parseInt(e.target.value))}
+                                                className="custom-range"
+                                                style={{ width: 80 }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                                        {Utils.generateScale(mixColor1, mixColor2, mixSteps).map(c => (
+                                            <div key={c} title={c} onClick={() => setHex(c)} style={{ flex: 1, background: c, cursor: 'pointer' }} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -294,21 +454,20 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
 
                     {/* --- Harmonies Tab --- */}
                     {activeTab === 'harmonies' && (
-                        <motion.div key="harmonies" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <motion.div key="harmonies" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                                 {Object.entries(Utils.generateHarmonies(hex)).map(([name, colors]) => (
-                                    <div key={name} style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: 12, border: '1px solid var(--border-color)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--text-primary)' }}>{name}</span>
-                                            <button
-                                                onClick={() => savePalette(name.charAt(0).toUpperCase() + name.slice(1), colors)}
-                                                style={{ border: 'none', background: 'var(--bg-hover)', color: 'var(--text-secondary)', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', gap: 4, alignItems: 'center' }}
-                                            >
-                                                <Save size={12} /> Save
-                                            </button>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                            {colors.map((c, i) => <ColorSwatch key={i} color={c} size={48} />)}
+                                    <div key={name}>
+                                        <h3 style={{ fontSize: '0.9rem', marginBottom: 8, textTransform: 'capitalize', opacity: 0.8 }}>{name}</h3>
+                                        <div style={{ display: 'flex', height: 48, borderRadius: 8, overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                                            {colors.map((c, i) => (
+                                                <div
+                                                    key={i}
+                                                    onClick={() => setHex(c)}
+                                                    title={c}
+                                                    style={{ flex: 1, background: c, cursor: 'pointer', transition: 'flex 0.2s' }}
+                                                />
+                                            ))}
                                         </div>
                                     </div>
                                 ))}
@@ -318,88 +477,113 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
 
                     {/* --- Accessibility Tab --- */}
                     {activeTab === 'a11y' && (
-                        <motion.div key="a11y" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            {/* Contrast Checker */}
-                            <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 12, border: '1px solid var(--border-color)', marginBottom: 24 }}>
-                                <h3 style={{ fontSize: '1rem', marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Contrast size={18} /> Contrast Checker</h3>
-
-                                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-                                    <div style={{ flex: 1, background: hex, color: contrastColor, padding: '24px', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', transition: 'all 0.3s' }}>
-                                        <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>Aa</span>
-                                        <span style={{ fontSize: '1rem' }}>Large Text</span>
-                                        <span style={{ fontSize: '0.8rem', marginTop: 8 }}>Small Text</span>
-                                    </div>
-
-                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <motion.div key="a11y" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                                {/* Contrast Checker */}
+                                <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 12, border: '1px solid var(--border-color)' }}>
+                                    <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Contrast Checker</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20 }}>
+                                        {/* Preview Card */}
+                                        <div style={{ width: 200, height: 120, background: hex, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', color: contrastColor, gap: 4 }}>
+                                            <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>Aa</span>
+                                            <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Large Text</span>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>Small Text</span>
+                                        </div>
+                                        {/* Controls + Score */}
                                         <div>
-                                            <label style={{ fontSize: '0.75rem', opacity: 0.7, display: 'block', marginBottom: 4 }}>Compare with (Background/Text)</label>
-                                            <div style={{ display: 'flex', gap: 8 }}>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Compare with (Text Color)</label>
+                                            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <div style={{ width: 40, height: 40, background: contrastColor, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                                    <input
+                                                        type="color"
+                                                        value={contrastColor}
+                                                        onChange={e => setContrastColor(e.target.value)}
+                                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                                    />
+                                                </div>
                                                 <input
                                                     type="text"
                                                     value={contrastColor}
                                                     onChange={e => setContrastColor(e.target.value)}
-                                                    style={{ flex: 1, padding: '8px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
-                                                />
-                                                <input
-                                                    type="color"
-                                                    value={contrastColor.length === 7 ? contrastColor : '#ffffff'}
-                                                    onChange={e => setContrastColor(e.target.value)}
-                                                    style={{ width: 40, height: 35, borderRadius: 6, border: 'none', padding: 0, cursor: 'pointer' }}
+                                                    className="custom-select"
+                                                    style={{ width: 100, cursor: 'text' }}
                                                 />
                                             </div>
-                                        </div>
 
-                                        {(() => {
-                                            const ratio = Utils.getContrastRatio(hex, contrastColor);
-                                            return (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                                                        <span style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>{ratio.toFixed(2)}</span>
-                                                        <span style={{ opacity: 0.5, marginBottom: 4 }}>Contrast Ratio</span>
-                                                    </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                                <div style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1 }}>
+                                                    {Utils.getContrastRatio(hex, contrastColor).toFixed(2)}
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                    <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>Contrast Ratio</div>
                                                     <div style={{ display: 'flex', gap: 12 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: ratio >= 4.5 ? '#10b981' : '#ef4444' }}>
-                                                            {ratio >= 4.5 ? <Check size={16} /> : <div style={{ width: 16, textAlign: 'center', fontWeight: 'bold' }}>!</div>}
-                                                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Normal</span>
+                                                        {(() => {
+                                                            const ratio = Utils.getContrastRatio(hex, contrastColor);
+                                                            return (
+                                                                <>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 4.5 ? '#22c55e' : '#ef4444' }}>
+                                                                        {ratio >= 4.5 ? <Check size={14} /> : <X size={14} />}
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Normal</span>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 3.0 ? '#22c55e' : '#ef4444' }}>
+                                                                        {ratio >= 3.0 ? <Check size={14} /> : <X size={14} />}
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Large</span>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 7.0 ? '#22c55e' : '#ef4444' }}>
+                                                                        {ratio >= 7.0 ? <Check size={14} /> : <X size={14} />}
+                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AAA</span>
+                                                                    </div>
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Contrast Grid */}
+                                    <div style={{ marginTop: 24 }}>
+                                        <h3 style={{ fontSize: '1rem', marginBottom: 12 }}>Contrast Grid</h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+                                            {Utils.STANDARD_BACKGROUNDS.map(bg => {
+                                                const ratio = Utils.getContrastRatio(hex, bg.hex);
+                                                const passAA = ratio >= 4.5;
+                                                return (
+                                                    <div key={bg.name} style={{ background: bg.hex, color: hex, padding: 10, borderRadius: 6, border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>{bg.name}</div>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{ratio.toFixed(2)}</div>
+                                                        <div style={{ fontSize: '0.7rem', marginTop: 4, display: 'flex', justifyContent: 'center', gap: 4 }}>
+                                                            {passAA ? <Check size={12} /> : null}
+                                                            <span>{passAA ? 'Pass' : 'Fail'}</span>
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: ratio >= 3 ? '#10b981' : '#ef4444' }}>
-                                                            {ratio >= 3 ? <Check size={16} /> : <div style={{ width: 16, textAlign: 'center', fontWeight: 'bold' }}>!</div>}
-                                                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Large</span>
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: ratio >= 7 ? '#10b981' : '#ef4444' }}>
-                                                            {ratio >= 7 ? <Check size={16} /> : <div style={{ width: 16, textAlign: 'center', fontWeight: 'bold' }}>!</div>}
-                                                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AAA</span>
-                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Color Blindness */}
+                                <div>
+                                    <h3 style={{ fontSize: '1rem', marginBottom: 12 }}>Color Blindness Simulation</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                        {['protanopia', 'deuteranopia', 'tritanopia', 'achromatopsia'].map((type) => {
+                                            const rgbVal = Utils.hexToRgb(hex) || { r: 0, g: 0, b: 0 };
+                                            const sim = Utils.simulateColorBlindness(rgbVal.r, rgbVal.g, rgbVal.b, type as any);
+                                            const simHex = Utils.rgbToHex(sim.r, sim.g, sim.b);
+                                            return (
+                                                <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-card)', padding: 8, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                                    <div style={{ width: 40, height: 40, background: simHex, borderRadius: 6 }} />
+                                                    <div>
+                                                        <div style={{ fontSize: '0.85rem', textTransform: 'capitalize', fontWeight: 600 }}>{type}</div>
+                                                        <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', opacity: 0.7 }}>{simHex}</div>
                                                     </div>
                                                 </div>
                                             );
-                                        })()}
+                                        })}
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Color Blindness */}
-                            <div>
-                                <h3 style={{ fontSize: '1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Eye size={18} /> Color Blindness Simulation</h3>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                                    {[
-                                        { type: 'protanopia', label: 'Protanopia', desc: 'Red-blind' },
-                                        { type: 'deuteranopia', label: 'Deuteranopia', desc: 'Green-blind' },
-                                        { type: 'tritanopia', label: 'Tritanopia', desc: 'Blue-blind' },
-                                        { type: 'achromatopsia', label: 'Monochromacy', desc: 'No color' },
-                                    ].map((mode: any) => {
-                                        const sim = Utils.simulateColorBlindness(rgb.r, rgb.g, rgb.b, mode.type);
-                                        const simHex = Utils.rgbToHex(sim.r, sim.g, sim.b);
-                                        return (
-                                            <div key={mode.type} style={{ background: 'var(--bg-card)', padding: '12px', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                                <div style={{ width: '100%', height: 60, background: simHex, borderRadius: 6, border: '1px solid rgba(128,128,128,0.2)' }} />
-                                                <div style={{ textAlign: 'center' }}>
-                                                    <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{mode.label}</div>
-                                                    <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>{mode.desc}</div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
                                 </div>
                             </div>
                         </motion.div>
@@ -408,113 +592,82 @@ const ColorToolPage: React.FC<ColorToolPageProps> = ({ onBack, theme }) => {
                     {/* --- Gradient Tab --- */}
                     {activeTab === 'gradient' && (
                         <motion.div key="gradient" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                                {/* Preview */}
-                                <div style={{
-                                    height: 160,
-                                    background: `${gradientType}-gradient(${gradientType === 'linear' ? `${gradientAngle}deg` : 'circle'}, ${hex}, ${gradientEndColor})`,
-                                    borderRadius: 12,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    border: '1px solid var(--border-color)'
-                                }}>
+                            <div style={{ height: 200, background: `${gradientType}-gradient(${gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, ${hex}, ${Utils.generateHarmonies(hex).complementary[1]})`, borderRadius: 12, marginBottom: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
 
+                            <div style={{ display: 'flex', gap: 20 }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Gradient Type</label>
+                                    <select
+                                        value={gradientType}
+                                        onChange={e => setGradientType(e.target.value as any)}
+                                        className="custom-select"
+                                        style={{ width: '100%' }}
+                                    >
+                                        <option value="linear">Linear</option>
+                                        <option value="radial">Radial</option>
+                                    </select>
                                 </div>
-
-                                {/* Controls */}
-                                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                                {gradientType === 'linear' && (
                                     <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '0.75rem', opacity: 0.7, display: 'block', marginBottom: 8 }}>End Color</label>
-                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <div style={{ width: 40, height: 40, background: gradientEndColor, borderRadius: 8, border: '1px solid var(--border-color)' }} />
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Angle ({gradientAngle}°)</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <input
-                                                type="text"
-                                                value={gradientEndColor}
-                                                onChange={e => setGradientEndColor(e.target.value)}
-                                                style={{ padding: '8px', borderRadius: 6, border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'monospace' }}
-                                            />
-                                            <input
-                                                type="color"
-                                                value={gradientEndColor}
-                                                onChange={e => setGradientEndColor(e.target.value)}
-                                                style={{ width: 40, height: 35, borderRadius: 6, border: 'none', padding: 0, cursor: 'pointer' }}
+                                                type="range"
+                                                min="0"
+                                                max="360"
+                                                value={gradientAngle}
+                                                onChange={e => setGradientAngle(parseInt(e.target.value))}
+                                                className="custom-range"
                                             />
                                         </div>
                                     </div>
+                                )}
+                            </div>
 
-                                    <div style={{ flex: 1 }}>
-                                        <label style={{ fontSize: '0.75rem', opacity: 0.7, display: 'block', marginBottom: 8 }}>Parameters</label>
-                                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                            <select
-                                                value={gradientType}
-                                                onChange={e => setGradientType(e.target.value as any)}
-                                                className="custom-select"
-                                            >
-                                                <option value="linear">Linear</option>
-                                                <option value="radial">Radial</option>
-                                            </select>
-
-                                            {gradientType === 'linear' && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                    <input
-                                                        type="range"
-                                                        min="0"
-                                                        max="360"
-                                                        value={gradientAngle}
-                                                        onChange={e => setGradientAngle(parseInt(e.target.value))}
-                                                        className="custom-range"
-                                                        style={{ width: 100 }}
-                                                    />
-                                                    <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', width: 30 }}>{gradientAngle}°</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => copyToClipboard(`${gradientType}-gradient(${gradientType === 'linear' ? `${gradientAngle}deg` : 'circle'}, ${hex}, ${gradientEndColor})`)}
-                                    style={{ padding: '12px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                                >
-                                    <Copy size={16} /> Copy CSS
-                                </button>
+                            <div style={{ marginTop: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.6, marginBottom: 8 }}>CSS Code</div>
+                                <code style={{ fontSize: '0.85rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
+                                    background: {gradientType}-gradient({gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, {hex}, {Utils.generateHarmonies(hex).complementary[1]});
+                                </code>
                             </div>
                         </motion.div>
                     )}
 
-                    {/* --- Library Tab --- */}
+                    {/* --- Saved Palettes Tab --- */}
                     {activeTab === 'saved' && (
                         <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            {savedPalettes.length === 0 ? (
-                                <div style={{ textAlign: 'center', opacity: 0.5, marginTop: 40 }}>
-                                    <Save size={48} style={{ marginBottom: 16 }} />
-                                    <p>No saved palettes yet.</p>
-                                    <p style={{ fontSize: '0.8rem' }}>Go to Harmonies tab to save some!</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    {savedPalettes.map(palette => (
-                                        <div key={palette.id} style={{ background: 'var(--bg-card)', padding: '16px', borderRadius: 12, border: '1px solid var(--border-color)', position: 'relative' }}>
+                            <button
+                                onClick={savePalette}
+                                style={{ width: '100%', padding: '12px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 24 }}
+                            >
+                                <Save size={18} /> Save Current Palette
+                            </button>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {savedPalettes.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>
+                                        <Save size={32} style={{ marginBottom: 8 }} />
+                                        <div>No saved palettes yet</div>
+                                    </div>
+                                ) : (
+                                    savedPalettes.map(p => (
+                                        <div key={p.id} style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                <span style={{ fontWeight: 600 }}>{palette.name}</span>
-                                                <div style={{ display: 'flex', gap: 8 }}>
-                                                    <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{new Date(palette.createdAt).toLocaleDateString()}</span>
-                                                    <button onClick={() => deletePalette(palette.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 0 }} title="Delete">
-                                                        <Trash2 size={14} color="#ef4444" />
-                                                    </button>
-                                                </div>
+                                                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
+                                                <button onClick={() => deletePalette(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 4 }}><X size={14} /></button>
                                             </div>
-                                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                                {palette.colors.map((c, i) => (
-                                                    <ColorSwatch key={i} color={c} size={32} />
+                                            <div style={{ display: 'flex', height: 32, borderRadius: 6, overflow: 'hidden' }}>
+                                                {p.colors.map((c, i) => (
+                                                    <div key={i} onClick={() => setHex(c)} title={c} style={{ flex: 1, background: c, cursor: 'pointer' }} />
                                                 ))}
                                             </div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.4, marginTop: 8 }}>
+                                                {new Date(p.createdAt).toLocaleDateString()}
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    ))
+                                )}
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

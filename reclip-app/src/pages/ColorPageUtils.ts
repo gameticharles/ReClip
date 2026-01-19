@@ -115,6 +115,28 @@ export const generateShades = (hex: string, count: number = 10): string[] => {
     return shades;
 };
 
+// Mix two colors
+export const mixColors = (color1: string, color2: string, ratio: number = 0.5): string => {
+    const rgb1 = hexToRgb(color1);
+    const rgb2 = hexToRgb(color2);
+    if (!rgb1 || !rgb2) return color1;
+
+    const r = Math.round(rgb1.r * (1 - ratio) + rgb2.r * ratio);
+    const g = Math.round(rgb1.g * (1 - ratio) + rgb2.g * ratio);
+    const b = Math.round(rgb1.b * (1 - ratio) + rgb2.b * ratio);
+
+    return rgbToHex(r, g, b);
+};
+
+// Generate scale between two colors
+export const generateScale = (color1: string, color2: string, steps: number = 5): string[] => {
+    const scale = [];
+    for (let i = 0; i < steps; i++) {
+        scale.push(mixColors(color1, color2, i / (steps - 1)));
+    }
+    return scale;
+};
+
 // Generate color harmonies
 export const generateHarmonies = (hex: string): Record<string, string[]> => {
     const rgb = hexToRgb(hex);
@@ -319,3 +341,37 @@ export interface SavedPalette {
     colors: string[];
     createdAt: number;
 }
+
+// Standard Backgrounds for Contrast Grid
+export const STANDARD_BACKGROUNDS = [
+    { name: 'White', hex: '#ffffff' },
+    { name: 'Slate-50', hex: '#f8fafc' },
+    { name: 'Slate-100', hex: '#f1f5f9' },
+    { name: 'Gray-200', hex: '#e5e7eb' },
+    { name: 'Gray-800', hex: '#1f2937' },
+    { name: 'Slate-900', hex: '#0f172a' },
+    { name: 'Black', hex: '#000000' }
+];
+
+// Advanced Code Formats
+export const formatCode = (hex: string, format: string): string => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+
+    switch (format) {
+        case 'swift':
+            return `UIColor(red: ${(rgb.r / 255).toFixed(3)}, green: ${(rgb.g / 255).toFixed(3)}, blue: ${(rgb.b / 255).toFixed(3)}, alpha: 1.0)`;
+        case 'flutter':
+            return `Color(0xFF${hex.substring(1).toUpperCase()})`;
+        case 'kotlin':
+            return `Color(0xFF${hex.substring(1).toUpperCase()})`;
+        case 'css-rgb':
+            return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        case 'css-hsl': {
+            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+        }
+        default:
+            return hex;
+    }
+};
