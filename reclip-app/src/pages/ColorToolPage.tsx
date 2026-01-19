@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, ArrowLeft, GitMerge, ArrowDown, Image as ImageIcon } from 'lucide-react';
 import * as Utils from './ColorPageUtils';
+import ColorThief from 'colorthief';
 
 interface ColorToolPageProps {
     initialColor?: string;
@@ -112,20 +113,29 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
         e.stopPropagation();
         setDragActive(false);
 
+        console.log("Drop event detected");
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             const file = e.dataTransfer.files[0];
-            if (!file.type.startsWith('image/')) return;
+            console.log("File dropped:", file.name, file.type);
+
+            if (!file.type.startsWith('image/')) {
+                console.warn("Dropped file is not an image");
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = async (event) => {
                 if (event.target?.result) {
                     const img = new Image();
+                    img.crossOrigin = 'Anonymous';
                     img.src = event.target.result as string;
-                    img.onload = async () => {
+                    img.onload = () => {
+                        console.log("Image loaded for analysis", img.width, img.height);
                         try {
-                            const ColorThief = (await import('colorthief')).default;
                             const thief = new ColorThief();
                             const palette = thief.getPalette(img, 10);
+                            console.log("Palette extracted:", palette);
                             if (palette) {
                                 setExtractedPalette(palette.map((c: number[]) => Utils.rgbToHex(c[0], c[1], c[2])));
                             }
@@ -133,6 +143,9 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             console.error("ColorThief failed", err);
                         }
                     };
+                    img.onerror = (err) => {
+                        console.error("Failed to load image", err);
+                    }
                 }
             };
             reader.readAsDataURL(file);
@@ -181,6 +194,10 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                 .custom-select:focus {
                     border-color: var(--accent-color);
                 }
+                .custom-select option {
+                    background: var(--bg-primary);
+                    color: var(--text-primary);
+                }
             `}</style>
 
             {/* Header */}
@@ -193,7 +210,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                         <span style={{ fontSize: '0.8rem', opacity: 0.5, marginLeft: 8 }}>{colorName}</span>
                     </div>
                 </div>
-                <div className="title-right" style={{ display: 'flex', gap: 6 }}>
+                <div className="title-right" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <select
                         className="custom-select"
                         style={{ height: 26, fontSize: '0.8rem', padding: '0 8px', width: 120 }}
@@ -208,6 +225,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                         <option value="css-hex">CSS Hex</option>
                         <option value="css-rgb">CSS RGB</option>
                         <option value="css-hsl">CSS HSL</option>
+                        <option value="argb-hex">ARGB Hex</option>
                         <option value="tailwind">Tailwind Name</option>
                         <option value="swift">Swift UIColor</option>
                         <option value="flutter">Flutter Color</option>
@@ -286,21 +304,42 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             )}
 
                             {/* Color Info Grid */}
+                            {/* Color Info Grid */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
-                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>RGB</div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)}
+                                    title="Click to copy RGB"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>RGB <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{rgb.r}, {rgb.g}, {rgb.b}</div>
                                 </div>
-                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>HSL</div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`)}
+                                    title="Click to copy HSL"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>HSL <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hsl.h}°, {hsl.s}%, {hsl.l}%</div>
                                 </div>
-                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>HSV</div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`hsv(${hsv.h}, ${hsv.s}%, ${hsv.v}%)`)}
+                                    title="Click to copy HSV"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>HSV <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hsv.h}°, {hsv.s}%, {hsv.v}%</div>
                                 </div>
-                                <div className="info-card" style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>CMYK</div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`cmyk(${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k})`)}
+                                    title="Click to copy CMYK"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>CMYK <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{cmyk.c}, {cmyk.m}, {cmyk.y}, {cmyk.k}</div>
                                 </div>
                             </div>
@@ -345,27 +384,29 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                     gap: 8
                                 }}
                             >
-                                <ImageIcon size={24} style={{ opacity: 0.5 }} />
-                                {extractedPalette.length > 0 ? (
-                                    <div style={{ width: '100%' }}>
-                                        <div style={{ fontSize: '0.8rem', marginBottom: 12, opacity: 0.7 }}>Extracted Palette (Click to set)</div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                                            {extractedPalette.map(c => (
-                                                <div
-                                                    key={c}
-                                                    onClick={() => setHex(c)}
-                                                    title={c}
-                                                    style={{ width: 36, height: 36, background: c, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-                                                />
-                                            ))}
+                                <div style={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                    <ImageIcon size={24} style={{ opacity: 0.5 }} />
+                                    {extractedPalette.length > 0 ? (
+                                        <div style={{ width: '100%' }}>
+                                            <div style={{ fontSize: '0.8rem', marginBottom: 12, opacity: 0.7 }}>Extracted Palette (Click to set)</div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', pointerEvents: 'auto' }}>
+                                                {extractedPalette.map(c => (
+                                                    <div
+                                                        key={c}
+                                                        onClick={() => setHex(c)}
+                                                        title={c}
+                                                        style={{ width: 36, height: 36, background: c, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <div style={{ pointerEvents: 'none' }}>
-                                        <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drop an image here</div>
-                                        <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>to extract its dominant colors</div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        <div>
+                                            <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drop an image here</div>
+                                            <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>to extract its dominant colors</div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
                     )}

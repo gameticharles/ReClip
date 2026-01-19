@@ -371,6 +371,10 @@ export const formatCode = (hex: string, format: string): string => {
             const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
             return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
         }
+        case 'argb-hex':
+            return `#FF${hex.substring(1).toUpperCase()}`;
+        case 'css-rgba':
+            return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1.0)`;
         default:
             return hex;
     }
