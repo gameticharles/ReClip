@@ -33,35 +33,46 @@ const isHTML = (content: string): boolean => {
 const isMarkdown = (content: string): boolean => {
     // Strong signals (Instant match)
     const strongPatterns = [
-        /^\s*#{1,6}\s+/m,        // Headers (allow leading space)
-        /```[\s\S]*?```/,        // Code blocks
-        /^\s*[-*_]{3,}\s*$/m,    // Horizontal rules
-        /^\s*\|.*\|.*\|$/m,      // Tables
+        { name: 'header', regex: /^#{1,6}\s+.+$/m },  // Headers at line start
+        { name: 'codeblock', regex: /```[\s\S]*?```/ }, // Code blocks
+        { name: 'hr', regex: /^[-*_]{3,}\s*$/m },      // Horizontal rules
+        { name: 'table', regex: /^\|.+\|.+\|$/m },     // Tables
     ];
 
     for (const p of strongPatterns) {
-        if (p.test(content)) return true;
+        if (p.regex.test(content)) {
+            console.log('[Markdown] Matched strong pattern:', p.name);
+            return true;
+        }
     }
 
     // Weak signals (Need 2 matches)
     const weakPatterns = [
-        /\*\*[^*]+\*\*/,         // Bold
-        /\*[^*]+\*/,             // Italic
-        /^\s*[-*+]\s+/m,         // Unordered lists
-        /^\s*\d+\.\s+/m,         // Ordered lists
-        /^\s*>\s+/m,             // Blockquotes
-        /`[^`]+`/,               // Inline code
-        /\[([^\]]+)\]\([^)]+\)/, // Links
-        /!\[([^\]]*)\]\([^)]+\)/,// Images
-        /^\s*\[[ x]\]/m,         // Checkboxes
+        { name: 'bold', regex: /\*\*[^*]+\*\*/ },
+        { name: 'italic', regex: /(?<!\*)\*[^*]+\*(?!\*)/ },
+        { name: 'unordered', regex: /^[-*+]\s+/m },
+        { name: 'ordered', regex: /^\d+\.\s+/m },
+        { name: 'blockquote', regex: /^>\s+/m },
+        { name: 'inlinecode', regex: /`[^`]+`/ },
+        { name: 'link', regex: /\[([^\]]+)\]\([^)]+\)/ },
+        { name: 'image', regex: /!\[([^\]]*)\]\([^)]+\)/ },
+        { name: 'checkbox', regex: /^\[[ x]\]/m },
     ];
 
     let matches = 0;
+    const matched: string[] = [];
     for (const p of weakPatterns) {
-        if (p.test(content)) matches++;
-        if (matches >= 2) return true;
+        if (p.regex.test(content)) {
+            matches++;
+            matched.push(p.name);
+        }
+        if (matches >= 2) {
+            console.log('[Markdown] Matched weak patterns:', matched);
+            return true;
+        }
     }
 
+    console.log('[Markdown] Not detected. Weak matches:', matched);
     return false;
 };
 
