@@ -15,11 +15,9 @@ All notable changes to this project will be documented in this file.
 - **Timeline Quick Presets**: New buttons for 7d, 30d, MTD (Month-to-Date), and Clear filter.
 
 ### 🔧 Improvements
-- **File Clips**: Missing file paths now individually highlighted with ❌, red text, and strikethrough.
+- **File Clips**: Smart icons now distinguish files (📄) from folders (📁), with extension-specific icons (🐍 Python, 🦀 Rust, 📕 PDF, 🎵 audio, etc.). Missing paths show ❌ with red strikethrough.
 
 
-
----
 
 ## [0.6.0] - 2026-01-19
 

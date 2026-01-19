@@ -678,7 +678,39 @@ export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = 
 // ============= MAIN COMPONENT =============
 
 export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true, isExtracting = false, onZoom }: ClipContentProps) {
-    const [validity, setValidity] = useState<{ checked: boolean, valid: boolean, invalidPaths: string[] }>({ checked: false, valid: true, invalidPaths: [] });
+    const [validity, setValidity] = useState<{ checked: boolean, valid: boolean, invalidPaths: string[], dirPaths: string[] }>({ checked: false, valid: true, invalidPaths: [], dirPaths: [] });
+
+    // Helper to get file icon based on extension
+    const getFileIcon = (path: string, isDir: boolean, isMissing: boolean): string => {
+        if (isMissing) return '❌';
+        if (isDir) return '📁';
+
+        const ext = path.split('.').pop()?.toLowerCase() || '';
+        const iconMap: Record<string, string> = {
+            // Documents
+            'pdf': '📕', 'doc': '📘', 'docx': '📘', 'txt': '📝', 'rtf': '📝',
+            'xls': '📊', 'xlsx': '📊', 'csv': '📊',
+            'ppt': '📙', 'pptx': '📙',
+            // Code
+            'js': '🟨', 'jsx': '🟨', 'ts': '🔷', 'tsx': '🔷',
+            'py': '🐍', 'rs': '🦀', 'go': '🔵',
+            'html': '🌐', 'css': '🎨', 'scss': '🎨', 'sass': '🎨',
+            'json': '📋', 'xml': '📋', 'yaml': '📋', 'yml': '📋',
+            'md': '📖', 'markdown': '📖',
+            // Images
+            'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'svg': '🖼️', 'webp': '🖼️', 'ico': '🖼️',
+            // Audio/Video
+            'mp3': '🎵', 'wav': '🎵', 'ogg': '🎵', 'flac': '🎵',
+            'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬', 'mov': '🎬', 'webm': '🎬',
+            // Archives
+            'zip': '📦', 'rar': '📦', '7z': '📦', 'tar': '📦', 'gz': '📦',
+            // Executables
+            'exe': '⚙️', 'msi': '⚙️', 'dmg': '⚙️', 'app': '⚙️', 'deb': '⚙️',
+            // Config
+            'env': '🔧', 'ini': '🔧', 'conf': '🔧', 'config': '🔧',
+        };
+        return iconMap[ext] || '📄';
+    };
 
     // Handle Files
     if (type === 'files') {
@@ -694,7 +726,8 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
             try {
                 const results = await invoke<[string, boolean, boolean][]>('validate_paths', { content });
                 const invalid = results.filter(([_, exists]) => !exists).map(([path]) => path);
-                setValidity({ checked: true, valid: invalid.length === 0, invalidPaths: invalid });
+                const dirs = results.filter(([_, exists, isDir]) => exists && isDir).map(([path]) => path);
+                setValidity({ checked: true, valid: invalid.length === 0, invalidPaths: invalid, dirPaths: dirs });
             } catch (e) {
                 console.error("Validation failed", e);
             }
@@ -704,7 +737,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
             <div className="clip-files" onMouseEnter={handleMouseEnter} style={{ fontSize: '0.9rem', color: '#e5e5e5' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '1.2rem' }}>📁</span>
-                    <span style={{ fontWeight: 600 }}>{files.length} File{files.length !== 1 ? 's' : ''}</span>
+                    <span style={{ fontWeight: 600 }}>{files.length} Item{files.length !== 1 ? 's' : ''}</span>
                     {validity.checked && !validity.valid && (
                         <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
                             ⚠️ {validity.invalidPaths.length} Missing
@@ -715,6 +748,8 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.8rem' }}>
                         {files.slice(0, 5).map((f, i) => {
                             const isMissing = validity.checked && validity.invalidPaths.includes(f);
+                            const isDir = validity.checked && validity.dirPaths.includes(f);
+                            const icon = getFileIcon(f, isDir, isMissing);
                             return (
                                 <div
                                     key={i}
@@ -731,7 +766,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                                     }}
                                     title={f}
                                 >
-                                    {isMissing ? '❌' : '📄'} {f.split(/[/\\]/).pop()}
+                                    {icon} {f.split(/[/\\]/).pop()}
                                 </div>
                             );
                         })}
