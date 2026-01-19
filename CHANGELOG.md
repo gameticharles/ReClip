@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-01-19
+
+### ✨ New Features
+- **Maintenance**:
+  - Split "Clear Entire Database" into separate **Clear All Clips** and **Clear All Snippets** buttons for granular control.
+
+### 🎨 UI/UX Improvements
+- **Snippet Library**:
+  - Added hover effects to toolbar buttons (Import, Export, Paste, New) for better interactivity.
+- **Settings > About**:
+  - Fixed "Check Again" button to properly adapt to Light/Dark themes.
+- **Settings > Automations**:
+  - Fixed URL input field overflow issue with proper text truncation.
+- **General**:
+  - Added hover effects to danger zone buttons in Maintenance tab.
+
+### 🐛 Bug Fixes
+- **Maintenance**:
+  - Fixed "Clear Entire Database" button not functioning (now split into working individual buttons).
+
 ## [0.4.0] - 2026-01-18
 
 ### ✨ New Features
