@@ -89,6 +89,15 @@ pub async fn insert_clip_with_sensitive(pool: &Pool<Sqlite>, content: String, ty
     Ok(id)
 }
 
+pub async fn update_clip_content(pool: &Pool<Sqlite>, id: i64, content: String) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE clips SET content = ? WHERE id = ?")
+        .bind(content)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Option<String>) -> Result<Vec<Clip>, sqlx::Error> {
     let query_str = if let Some(term) = search {
         format!(
@@ -216,14 +225,7 @@ pub async fn toggle_favorite(pool: &Pool<Sqlite>, id: i64) -> Result<bool, sqlx:
     Ok(result.get::<bool, _>(0))
 }
 
-pub async fn update_clip_content(pool: &Pool<Sqlite>, id: i64, content: String) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE clips SET content = ? WHERE id = ?")
-        .bind(content)
-        .bind(id)
-        .execute(pool)
-        .await?;
-    Ok(())
-}
+
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct PrivacyRule {

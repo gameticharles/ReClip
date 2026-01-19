@@ -10,6 +10,8 @@ import { QRModal } from "./QRModal";
 import ClipContent from "./ClipContent";
 import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
+import ClipEditDialog from "./ClipEditDialog";
+
 
 interface MainViewProps {
     compactMode: boolean;
@@ -66,6 +68,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
 
     // Theme detection for ClipContent
     const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const [editingClip, setEditingClip] = useState<Clip | null>(null);
     const theme = localStorage.getItem('theme') || 'dark';
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
@@ -487,6 +490,22 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
             console.error("Failed to toggle pin:", error);
         }
     }
+
+    const handleUpdateContent = async (newContent: string) => {
+        if (!editingClip) return;
+        try {
+            await invoke('update_clip_content', { id: editingClip.id, content: newContent });
+
+            // Update local state
+            const updatedClips = clips.map(c => c.id === editingClip.id ? { ...c, content: newContent } : c);
+            setClips(updatedClips);
+            setAllClips(allClips.map(c => c.id === editingClip.id ? { ...c, content: newContent } : c));
+
+        } catch (error) {
+            console.error('Failed to update clip content:', error);
+            throw error;
+        }
+    };
 
     function filterByTag(tag: string) {
         setSearchTerm(tag);
@@ -1000,6 +1019,36 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                                 👁️ Extract Text
                                                                             </button>
                                                                         )}
+                                                                        {clip.type === 'text' && (
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setRawViewClipIds(prev => {
+                                                                                            const next = new Set(prev);
+                                                                                            if (next.has(clip.id)) {
+                                                                                                next.delete(clip.id);
+                                                                                            } else {
+                                                                                                next.add(clip.id);
+                                                                                            }
+                                                                                            return next;
+                                                                                        });
+                                                                                        setActiveMenuId(null);
+                                                                                    }}
+                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                                >
+                                                                                    {rawViewClipIds.has(clip.id) ? '✨ Formatted View' : '📝 Raw View'}
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setEditingClip(clip);
+                                                                                        setActiveMenuId(null);
+                                                                                    }}
+                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                                >
+                                                                                    ✏️ Edit Content
+                                                                                </button>
+                                                                            </>
+                                                                        )}
                                                                         <button
                                                                             onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
                                                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
@@ -1037,17 +1086,6 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                     type={clip.type}
                                                                     isCompact={compactMode}
                                                                     showRaw={rawViewClipIds.has(clip.id)}
-                                                                    onToggleRaw={() => {
-                                                                        setRawViewClipIds(prev => {
-                                                                            const next = new Set(prev);
-                                                                            if (next.has(clip.id)) {
-                                                                                next.delete(clip.id);
-                                                                            } else {
-                                                                                next.add(clip.id);
-                                                                            }
-                                                                            return next;
-                                                                        });
-                                                                    }}
                                                                     isDark={isDark}
                                                                 />
                                                                 {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
@@ -1100,6 +1138,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                     onClose={() => setQrContent(null)}
                 />
             )}
+
+            <ClipEditDialog
+                isOpen={!!editingClip}
+                onClose={() => setEditingClip(null)}
+                onSave={handleUpdateContent}
+                initialContent={editingClip?.content || ''}
+                isDark={systemDark}
+            />
         </>
     );
 }

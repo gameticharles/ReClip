@@ -14,7 +14,8 @@ All notable changes to this project will be documented in this file.
   - **Table Detection**: Auto-formats tab-separated or CSV data as tables.
   - **Contact Detection**: Clickable mailto: and tel: links for emails/phones.
   - **Enhanced Code Preview**: 20+ languages, line numbers, copy button, language badge.
-- **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip.
+- **Clip Content Editing**: Full-screen editor to modify clip content (via context menu).
+- **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.
 
 ## [0.5.0] - 2026-01-19
 

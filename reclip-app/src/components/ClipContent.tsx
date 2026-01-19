@@ -13,7 +13,6 @@ interface ClipContentProps {
     type: string;
     isCompact: boolean;
     showRaw?: boolean;
-    onToggleRaw?: () => void;
     isDark?: boolean;
 }
 
@@ -29,25 +28,37 @@ const isHTML = (content: string): boolean => {
 };
 
 const isMarkdown = (content: string): boolean => {
-    const mdPatterns = [
-        /^#{1,6}\s+/m,           // Headers
+    // Strong signals (Instant match)
+    const strongPatterns = [
+        /^\s*#{1,6}\s+/m,        // Headers (allow leading space)
+        /```[\s\S]*?```/,        // Code blocks
+        /^\s*[-*_]{3,}\s*$/m,    // Horizontal rules
+        /^\s*\|.*\|.*\|$/m,      // Tables
+    ];
+
+    for (const p of strongPatterns) {
+        if (p.test(content)) return true;
+    }
+
+    // Weak signals (Need 2 matches)
+    const weakPatterns = [
         /\*\*[^*]+\*\*/,         // Bold
         /\*[^*]+\*/,             // Italic
         /^\s*[-*+]\s+/m,         // Unordered lists
         /^\s*\d+\.\s+/m,         // Ordered lists
         /^\s*>\s+/m,             // Blockquotes
-        /```[\s\S]*?```/,        // Code blocks
         /`[^`]+`/,               // Inline code
         /\[([^\]]+)\]\([^)]+\)/, // Links
         /!\[([^\]]*)\]\([^)]+\)/,// Images
-        /^\s*[-*_]{3,}\s*$/m,    // Horizontal rules
         /^\s*\[[ x]\]/m,         // Checkboxes
     ];
+
     let matches = 0;
-    for (const pattern of mdPatterns) {
-        if (pattern.test(content)) matches++;
-        if (matches >= 2) return true; // Need at least 2 patterns
+    for (const p of weakPatterns) {
+        if (p.test(content)) matches++;
+        if (matches >= 2) return true;
     }
+
     return false;
 };
 
@@ -485,7 +496,7 @@ const CodePreview: React.FC<{ content: string; isCompact: boolean; isDark: boole
 
 // ============= MAIN COMPONENT =============
 
-export default function ClipContent({ content, type, isCompact, showRaw = false, onToggleRaw, isDark = true }: ClipContentProps) {
+export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true }: ClipContentProps) {
     const [validity, setValidity] = useState<{ checked: boolean, valid: boolean, invalidPaths: string[] }>({ checked: false, valid: true, invalidPaths: [] });
 
     // Handle Files
@@ -558,24 +569,21 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                 }}>
                     {isCompact ? content.slice(0, 150) : content}
                 </pre>
-                {onToggleRaw && !isCompact && (
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onToggleRaw(); }}
-                        style={{
-                            position: 'absolute',
-                            top: '4px',
-                            right: '4px',
-                            fontSize: '0.7rem',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            border: '1px solid var(--border-color)',
-                            background: 'var(--bg-card)',
-                            color: 'inherit',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        ✨ Format
-                    </button>
+                {!isCompact && (
+                    <span style={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        fontSize: '0.6rem',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: 'rgba(128,128,128,0.3)',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        pointerEvents: 'none'
+                    }}>
+                        RAW
+                    </span>
                 )}
             </div>
         );
@@ -620,44 +628,22 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
         <div style={{ position: 'relative' }}>
             {renderContent()}
 
-            {/* Content type badge + toggle */}
+            {/* Content type badge */}
             {!isCompact && contentType !== 'text' && (
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
+                <span style={{
                     position: 'absolute',
                     bottom: '4px',
-                    left: '4px'
+                    left: '4px',
+                    fontSize: '0.6rem',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    background: 'rgba(128,128,128,0.3)',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    pointerEvents: 'none'
                 }}>
-                    <span style={{
-                        fontSize: '0.6rem',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: 'rgba(128,128,128,0.2)',
-                        textTransform: 'uppercase',
-                        fontWeight: 600
-                    }}>
-                        {contentType}
-                    </span>
-                    {onToggleRaw && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onToggleRaw(); }}
-                            style={{
-                                fontSize: '0.6rem',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                border: '1px solid var(--border-color)',
-                                background: 'transparent',
-                                color: 'inherit',
-                                cursor: 'pointer',
-                                opacity: 0.7
-                            }}
-                        >
-                            📝 Raw
-                        </button>
-                    )}
-                </div>
+                    {contentType}
+                </span>
             )}
         </div>
     );
