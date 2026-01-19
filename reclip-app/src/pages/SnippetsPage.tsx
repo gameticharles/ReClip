@@ -278,10 +278,33 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                     <span data-tauri-drag-region style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: 8, pointerEvents: 'none' }}>{snippets.length} snippets</span>
                 </div>
                 <div className="title-right" style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={handlePasteFromClipboard} style={btnStyle()} title="Paste from Clipboard"><Clipboard size={14} /></button>
-                    <button onClick={handleImport} style={btnStyle()} title="Import Snippets"><FileUp size={14} /></button>
-                    <button onClick={handleExport} style={btnStyle()} title="Export All Snippets"><FileDown size={14} /></button>
-                    <button onClick={openNewSnippet} style={{ ...btnStyle(true), padding: '6px 12px', fontWeight: 500 }}>
+                    <button
+                        onClick={handlePasteFromClipboard}
+                        style={btnStyle()}
+                        title="Paste from Clipboard"
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-color)'; e.currentTarget.style.color = 'white'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(128,128,128,0.2)'; e.currentTarget.style.color = 'inherit'; }}
+                    ><Clipboard size={14} /></button>
+                    <button
+                        onClick={handleImport}
+                        style={btnStyle()}
+                        title="Import Snippets"
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-color)'; e.currentTarget.style.color = 'white'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(128,128,128,0.2)'; e.currentTarget.style.color = 'inherit'; }}
+                    ><FileUp size={14} /></button>
+                    <button
+                        onClick={handleExport}
+                        style={btnStyle()}
+                        title="Export All Snippets"
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-color)'; e.currentTarget.style.color = 'white'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(128,128,128,0.2)'; e.currentTarget.style.color = 'inherit'; }}
+                    ><FileDown size={14} /></button>
+                    <button
+                        onClick={openNewSnippet}
+                        style={{ ...btnStyle(true), padding: '6px 12px', fontWeight: 500, transition: 'filter 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
+                    >
                         <Plus size={14} /> New
                     </button>
                 </div>

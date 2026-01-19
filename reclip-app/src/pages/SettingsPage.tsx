@@ -726,7 +726,7 @@ export default function SettingsPage({
                                     {updateStatus === 'uptodate' && (
                                         <div>
                                             <div style={{ color: '#10b981', fontWeight: 600, marginBottom: '8px' }}>You're up to date!</div>
-                                            <button onClick={checkForUpdates} style={{ fontSize: '0.85rem', opacity: 0.7, background: 'transparent', border: '1px solid currentColor', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Check Again</button>
+                                            <button onClick={checkForUpdates} style={{ fontSize: '0.85rem', opacity: 0.7, background: 'transparent', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: 'inherit', transition: 'background 0.2s, opacity 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.opacity = '1'} onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}>Check Again</button>
                                         </div>
                                     )}
                                     {updateStatus === 'available' && updateInfo && (
@@ -1100,30 +1100,62 @@ export default function SettingsPage({
 
                             <div className="setting-item" style={{ marginTop: '24px', borderTop: '1px solid rgba(255,0,0,0.2)', paddingTop: '24px' }}>
                                 <h3 style={{ color: '#ef4444', marginTop: 0, fontSize: '0.9rem' }}>Danger Zone</h3>
-                                <button
-                                    onClick={async () => {
-                                        if (await window.confirm("Are you sure you want to delete ALL clips? This cannot be undone.")) {
-                                            try {
-                                                await invoke("clear_clips");
-                                                window.alert("Database cleared successfully.");
-                                            } catch (e) {
-                                                console.error(e);
-                                                window.alert("Failed to clear database.");
+                                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                    <button
+                                        onClick={async () => {
+                                            if (window.confirm("Are you sure you want to delete ALL clips? This cannot be undone.")) {
+                                                try {
+                                                    await invoke("clear_clips");
+                                                    window.alert("All clips cleared successfully.");
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    window.alert("Failed to clear clips.");
+                                                }
                                             }
-                                        }
-                                    }}
-                                    style={{
-                                        background: 'rgba(239,68,68,0.1)',
-                                        color: '#ef4444',
-                                        border: '1px solid #ef4444',
-                                        padding: '8px 16px',
-                                        borderRadius: '6px',
-                                        cursor: 'pointer',
-                                        fontWeight: 600
-                                    }}
-                                >
-                                    🗑️ Clear Entire Database
-                                </button>
+                                        }}
+                                        style={{
+                                            background: 'rgba(239,68,68,0.1)',
+                                            color: '#ef4444',
+                                            border: '1px solid #ef4444',
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                                    >
+                                        🗑️ Clear All Clips
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (window.confirm("Are you sure you want to delete ALL snippets? This cannot be undone.")) {
+                                                try {
+                                                    await invoke("clear_snippets");
+                                                    window.alert("All snippets cleared successfully.");
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    window.alert("Failed to clear snippets.");
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            background: 'rgba(239,68,68,0.1)',
+                                            color: '#ef4444',
+                                            border: '1px solid #ef4444',
+                                            padding: '8px 16px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            transition: 'background 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                                    >
+                                        🗑️ Clear All Snippets
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1379,7 +1411,7 @@ export default function SettingsPage({
                                             placeholder={newAutoAction === 'open_url' ? "Target URL (use $1, $2 for captures)" : "Notification Message"}
                                             value={newAutoPayload}
                                             onChange={e => setNewAutoPayload(e.target.value)}
-                                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit' }}
+                                            style={{ flex: 1, minWidth: 0, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                         />
                                     </div>
                                     <button onClick={addRegexRule} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', alignSelf: 'flex-start' }}>

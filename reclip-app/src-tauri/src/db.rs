@@ -282,6 +282,11 @@ pub async fn delete_all_clips(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
+pub async fn delete_all_snippets(pool: &Pool<Sqlite>) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM snippets").execute(pool).await?;
+    Ok(())
+}
+
 /// Delete sensitive clips older than specified seconds
 pub async fn cleanup_sensitive_clips(pool: &Pool<Sqlite>, max_age_seconds: i64) -> Result<u64, sqlx::Error> {
     let result = sqlx::query(

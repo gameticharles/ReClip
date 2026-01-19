@@ -439,7 +439,7 @@ pub fn run() {
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
              export_clips, import_clips, update_clip_tags, toggle_clip_pin, set_incognito_mode, 
              validate_paths, get_incognito_mode, update_clip_content, toggle_clip_favorite, get_url_metadata, 
-             get_system_accent_color, clear_clips, reorder_clip, get_autostart, set_autostart,
+             get_system_accent_color, clear_clips, clear_snippets, reorder_clip, get_autostart, set_autostart,
              save_window_position, load_window_position,
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
@@ -469,6 +469,13 @@ async fn delete_clip(state: State<'_, DbState>, id: i64) -> Result<(), String> {
 #[tauri::command]
 async fn clear_clips(state: State<'_, DbState>) -> Result<(), String> {
     db::delete_all_clips(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn clear_snippets(state: State<'_, DbState>) -> Result<(), String> {
+    db::delete_all_snippets(&state.pool)
         .await
         .map_err(|e| e.to_string())
 }
