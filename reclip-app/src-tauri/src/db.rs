@@ -153,6 +153,28 @@ pub async fn get_clip_stats(pool: &Pool<Sqlite>, search: Option<String>) -> Resu
     })
 }
 
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct DateCount {
+    pub date: String,
+    pub count: i64,
+}
+
+pub async fn get_clip_dates(pool: &Pool<Sqlite>, year: i32, month: i32) -> Result<Vec<DateCount>, sqlx::Error> {
+    // Get clip counts grouped by date for a specific month
+    let query = format!(
+        "SELECT DATE(created_at) as date, COUNT(*) as count FROM clips 
+         WHERE strftime('%Y', created_at) = '{:04}' AND strftime('%m', created_at) = '{:02}'
+         GROUP BY DATE(created_at) ORDER BY date",
+        year, month
+    );
+    
+    let dates = sqlx::query_as::<_, DateCount>(&query)
+        .fetch_all(pool)
+        .await?;
+    
+    Ok(dates)
+}
+
 pub async fn delete_clip(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM clips WHERE id = ?")
         .bind(id)

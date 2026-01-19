@@ -1,12 +1,19 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Clip } from '../types';
 
 type ZoomLevel = 'hour' | 'day' | 'week' | 'month' | 'year';
+
+interface DateCount {
+    date: string;
+    count: number;
+}
 
 interface TimelineViewProps {
     clips: Clip[];
     totalCount?: number;
     onSelectTimeRange: (startDate: Date | null, endDate: Date | null) => void;
+    onSelectDate: (date: Date) => void;
     onExportRange: (clips: Clip[]) => void;
     visible: boolean;
 }
@@ -20,11 +27,28 @@ interface TimelineMarker {
     intensity: number; // 0-1 for heatmap
 }
 
-export function TimelineView({ clips, totalCount, onSelectTimeRange, onExportRange, visible }: TimelineViewProps) {
+export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDate, onExportRange, visible }: TimelineViewProps) {
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('hour');
     const [selectedRange, setSelectedRange] = useState<{ start: number; end: number }>({ start: 0, end: 100 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState<number | null>(null);
+
+    // Calendar state
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [clipDates, setClipDates] = useState<DateCount[]>([]);
+
+    // Fetch clip dates for the calendar month
+    useEffect(() => {
+        if (showCalendar) {
+            invoke<DateCount[]>('get_clip_dates', {
+                year: calendarMonth.getFullYear(),
+                month: calendarMonth.getMonth() + 1
+            }).then(setClipDates).catch(console.error);
+        }
+    }, [showCalendar, calendarMonth]);
+
+
 
     // Group clips by time periods based on zoom level
     const timelineData = useMemo(() => {
@@ -237,8 +261,138 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onExportRan
                             {level}
                         </button>
                     ))}
+                    <button
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            background: showCalendar ? 'var(--accent-color)' : 'rgba(128,128,128,0.2)',
+                            color: showCalendar ? 'white' : 'inherit',
+                            cursor: 'pointer',
+                            marginLeft: '8px',
+                        }}
+                        title="Open calendar"
+                    >
+                        📆
+                    </button>
+                    <button
+                        onClick={() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const endOfDay = new Date(today);
+                            endOfDay.setHours(23, 59, 59, 999);
+                            onSelectDate(today);
+                        }}
+                        style={{
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: 'none',
+                            background: 'rgba(128,128,128,0.2)',
+                            color: 'inherit',
+                            cursor: 'pointer',
+                        }}
+                        title="Jump to today"
+                    >
+                        Today
+                    </button>
                 </div>
             </div>
+
+            {/* Calendar Mini Month View */}
+            {showCalendar && (
+                <div style={{
+                    background: 'rgba(128,128,128,0.05)',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    marginBottom: '12px',
+                }}>
+                    {/* Month Navigation */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <button
+                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '1rem' }}
+                        >
+                            ◀
+                        </button>
+                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                            {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '1rem' }}
+                        >
+                            ▶
+                        </button>
+                    </div>
+
+                    {/* Day Headers */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '0.7rem', opacity: 0.6, marginBottom: '4px' }}>
+                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={i}>{d}</div>)}
+                    </div>
+
+                    {/* Calendar Days */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}>
+                        {(() => {
+                            const days = [];
+                            const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+                            const lastDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0);
+                            const startPadding = firstDay.getDay();
+
+                            // Empty cells for padding
+                            for (let i = 0; i < startPadding; i++) {
+                                days.push(<div key={`pad-${i}`} />);
+                            }
+
+                            // Actual days
+                            for (let d = 1; d <= lastDay.getDate(); d++) {
+                                const dateStr = `${calendarMonth.getFullYear()}-${String(calendarMonth.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                                const clipCount = clipDates.find(c => c.date === dateStr)?.count || 0;
+                                const isToday = new Date().toDateString() === new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), d).toDateString();
+
+                                days.push(
+                                    <button
+                                        key={d}
+                                        onClick={() => {
+                                            const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), d);
+                                            onSelectDate(date);
+                                            setShowCalendar(false);
+                                        }}
+                                        style={{
+                                            background: clipCount > 0 ? `rgba(var(--accent-rgb, 99, 102, 241), ${Math.min(0.2 + clipCount * 0.02, 0.8)})` : 'transparent',
+                                            border: isToday ? '2px solid var(--accent-color)' : 'none',
+                                            borderRadius: '4px',
+                                            padding: '4px',
+                                            cursor: clipCount > 0 ? 'pointer' : 'default',
+                                            color: 'inherit',
+                                            fontSize: '0.75rem',
+                                            position: 'relative',
+                                            opacity: clipCount > 0 ? 1 : 0.5,
+                                        }}
+                                        title={clipCount > 0 ? `${clipCount} clips` : ''}
+                                        disabled={clipCount === 0}
+                                    >
+                                        {d}
+                                        {clipCount > 0 && (
+                                            <span style={{
+                                                position: 'absolute',
+                                                bottom: '1px',
+                                                left: '50%',
+                                                transform: 'translateX(-50%)',
+                                                width: '4px',
+                                                height: '4px',
+                                                borderRadius: '50%',
+                                                background: 'var(--accent-color)',
+                                            }} />
+                                        )}
+                                    </button>
+                                );
+                            }
+                            return days;
+                        })()}
+                    </div>
+                </div>
+            )}
 
             {/* Timeline Track with Heatmap */}
             <div

@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 
 ### ✨ New Features
 - **Update Download Progress**: Real-time progress bar when downloading app updates (MB downloaded / total).
+- **Calendar Navigation**: New calendar picker in Timeline - click 📆 to browse by month, days with clips are highlighted, click to filter.
+- **Clip Preview Tooltip**: Hover over any text/HTML/code clip to see full content preview (first 500 characters).
+
 
 ---
 

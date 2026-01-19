@@ -920,6 +920,18 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                             setTimelineFilter(null);
                         }
                     }}
+                    onSelectDate={(date) => {
+                        // Set timeline filter for the selected day
+                        const startOfDay = new Date(date);
+                        startOfDay.setHours(0, 0, 0, 0);
+                        const endOfDay = new Date(date);
+                        endOfDay.setHours(23, 59, 59, 999);
+                        setTimelineFilter({ start: startOfDay.getTime(), end: endOfDay.getTime() });
+                        // Also fetch clips for that day with reset
+                        setSearchTerm(''); // Clear any search
+                        setPage(0);
+                        fetchClips('', true);
+                    }}
                     onExportRange={(rangeClips) => {
                         // Trigger export of selected clips
                         if (rangeClips.length > 0) {
@@ -1207,7 +1219,11 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                 <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
                                                             </div>
                                                         ) : (
-                                                            <>
+                                                            <div
+                                                                className="clip-content-wrapper"
+                                                                title={clip.type !== 'image' && clip.type !== 'file' ? clip.content.slice(0, 500) + (clip.content.length > 500 ? '...' : '') : undefined}
+                                                                style={{ cursor: clip.type !== 'image' ? 'help' : 'default' }}
+                                                            >
                                                                 <ClipContent
                                                                     content={clip.content}
                                                                     type={clip.type}
@@ -1218,7 +1234,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                     onZoom={(src) => setZoomedImageSrc(src)}
                                                                 />
                                                                 {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
-                                                            </>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </motion.div>
