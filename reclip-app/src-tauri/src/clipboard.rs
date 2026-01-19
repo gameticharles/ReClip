@@ -149,6 +149,57 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
             }
         }
 
+            // Process Images (Priority over HTML/Text)
+            if let Ok(image) = clipboard.get_image() {
+                 let hash = blake3::hash(&image.bytes).to_string();
+                 if hash != last_hash {
+                    info!("New image clip detected");
+                    last_hash = hash.clone();
+
+                    let width = image.width;
+                    let height = image.height;
+                    let bytes = image.bytes.into_owned();
+                    
+                    let pool_clone = pool.clone();
+                    let hash_clone = hash.clone();
+                    let app_handle_clone = app_handle.clone();
+
+                    tauri::async_runtime::spawn(async move {
+                         let app_dir = app_handle_clone.path().app_data_dir().unwrap();
+                         let img_path = app_dir.join("images").join(format!("{}.png", hash_clone));
+                         
+                         if let Some(parent) = img_path.parent() {
+                             let _ = std::fs::create_dir_all(parent);
+                         }
+
+                         // Save as PNG
+                         match image::save_buffer(
+                             &img_path,
+                             &bytes,
+                             width as u32,
+                             height as u32,
+                             image::ColorType::Rgba8
+                         ) {
+                             Ok(_) => {
+                                 let content_path = img_path.to_string_lossy().to_string();
+                                 match insert_clip(&pool_clone, content_path, "image".to_string(), hash_clone, None).await {
+                                     Ok(id) => {
+                                         let _ = app_handle_clone.emit("clip-created", id);
+                                     },
+                                     Err(e) => error!("Failed to insert image clip: {}", e),
+                                 }
+                             },
+                             Err(e) => error!("Failed to save image to disk: {}", e)
+                         }
+                    });
+                 }
+                 
+                 // If we found an image (new or old), we always continue logic to assume
+                 // this clipboard state is "Image" and ignore HTML/Text versions.
+                 thread::sleep(Duration::from_millis(500));
+                 continue;
+            }
+
             // Check for Text first to see if we have special content (Colors, Links, etc.)
             let text_result = clipboard.get_text();
             let mut force_text = false;
@@ -423,52 +474,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                 }
             }
 
-            // Process Images
-            if let Ok(image) = clipboard.get_image() {
-                 let hash = blake3::hash(&image.bytes).to_string();
-                 if hash != last_hash {
-                    info!("New image clip detected");
-                    last_hash = hash.clone();
 
-                    let width = image.width;
-                    let height = image.height;
-                    let bytes = image.bytes.into_owned();
-                    
-                    let pool_clone = pool.clone();
-                    let hash_clone = hash.clone();
-                    let app_handle_clone = app_handle.clone();
-
-                    tauri::async_runtime::spawn(async move {
-                         let app_dir = app_handle_clone.path().app_data_dir().unwrap();
-                         let img_path = app_dir.join("images").join(format!("{}.png", hash_clone));
-                         
-                         if let Some(parent) = img_path.parent() {
-                             let _ = std::fs::create_dir_all(parent);
-                         }
-
-                         // Save as PNG
-                         // arboard returns Rgba8
-                         match image::save_buffer(
-                             &img_path,
-                             &bytes,
-                             width as u32,
-                             height as u32,
-                             image::ColorType::Rgba8
-                         ) {
-                             Ok(_) => {
-                                 let content_path = img_path.to_string_lossy().to_string();
-                                 match insert_clip(&pool_clone, content_path, "image".to_string(), hash_clone, None).await {
-                                     Ok(id) => {
-                                         let _ = app_handle_clone.emit("clip-created", id);
-                                     },
-                                     Err(e) => error!("Failed to insert image clip: {}", e),
-                                 }
-                             },
-                             Err(e) => error!("Failed to save image to disk: {}", e)
-                         }
-                    });
-                 }
-            }
             
             thread::sleep(Duration::from_millis(1000));
         }
