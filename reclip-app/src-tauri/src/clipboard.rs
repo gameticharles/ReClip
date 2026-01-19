@@ -149,57 +149,81 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
             }
         }
 
+            // Check for Text first to see if we have special content (Colors, Links, etc.)
+            let text_result = clipboard.get_text();
+            let mut force_text = false;
+            
+            if let Ok(text) = &text_result {
+                // If text looks like a special type (Color, code, link), we prefer Text format
+                // So that the UI renders the special card instead of generic HTML
+                if crate::clipboard::detect_tags(text).is_some() {
+                    force_text = true;
+                }
+            }
+
             // Check for HTML clipboard content (Windows) - captures Word/Excel rich content
             #[cfg(target_os = "windows")]
             {
-                use clipboard_rs::{Clipboard as ClipboardRs, ClipboardContext};
-                
-                if let Ok(ctx) = ClipboardContext::new() {
-                    if let Ok(html) = ctx.get_html() {
-                        // Only capture if it's meaningful HTML (not just wrapper)
-                        if !html.trim().is_empty() && html.len() > 50 && html.contains("<") {
-                            // Extract Clean HTML (Fragment only)
-                            let clean_html = if let Some(start) = html.find("<!--StartFragment-->") {
-                                if let Some(end) = html.find("<!--EndFragment-->") {
-                                    html[start + 20..end].to_string()
+                if !force_text {
+                    use clipboard_rs::{Clipboard as ClipboardRs, ClipboardContext};
+                    
+                    if let Ok(ctx) = ClipboardContext::new() {
+                        if let Ok(html) = ctx.get_html() {
+                            // Only capture if it's meaningful HTML (not just wrapper)
+                            if !html.trim().is_empty() && html.len() > 50 && html.contains("<") {
+                                // Extract Clean HTML (Fragment only)
+                                let clean_html = if let Some(start) = html.find("<!--StartFragment-->") {
+                                    if let Some(end) = html.find("<!--EndFragment-->") {
+                                        html[start + 20..end].to_string()
+                                    } else {
+                                        html
+                                    }
                                 } else {
                                     html
-                                }
-                            } else {
-                                html
-                            };
+                                };
 
-                            let hash = blake3::hash(clean_html.as_bytes()).to_string();
-                            
-                            if hash != last_hash {
-                                last_hash = hash.clone();
-                                let pool_clone = pool.clone();
-                                let app_handle_clone = app_handle.clone();
-                                let html_clone = clean_html.clone();
-                                let hash_clone = hash.clone();
-                                
-                                info!("New HTML clip detected ({} bytes)", clean_html.len());
-                                
-                                tauri::async_runtime::spawn(async move {
-                                    match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None).await {
-                                        Ok(id) => {
-                                            let _ = app_handle_clone.emit("clip-created", id);
-                                        },
-                                        Err(e) => error!("Failed to insert HTML clip: {}", e),
+                                // Basic check: Does it effectively just contain the text?
+                                // If html length is very close to text length, it's likely just a wrapper.
+                                // But calculating "text length" from HTML is hard without stripping tags.
+                                // Heuristic: Check for structure tags
+                                let has_structure = clean_html.contains("<table") || clean_html.contains("<ul") || clean_html.contains("<ol") 
+                                                    || clean_html.contains("<h1") || clean_html.contains("<img") || clean_html.contains("<br")
+                                                    || clean_html.contains("style=");
+
+                                if has_structure {
+                                    let hash = blake3::hash(clean_html.as_bytes()).to_string();
+                                    
+                                    if hash != last_hash {
+                                        last_hash = hash.clone();
+                                        let pool_clone = pool.clone();
+                                        let app_handle_clone = app_handle.clone();
+                                        let html_clone = clean_html.clone();
+                                        let hash_clone = hash.clone();
+                                        
+                                        info!("New HTML clip detected ({} bytes)", clean_html.len());
+                                        
+                                        tauri::async_runtime::spawn(async move {
+                                            match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None).await {
+                                                Ok(id) => {
+                                                    let _ = app_handle_clone.emit("clip-created", id);
+                                                },
+                                                Err(e) => error!("Failed to insert HTML clip: {}", e),
+                                            }
+                                        });
                                     }
-                                });
+                                    
+                                    // Always continue if we found valid HTML (handled or not)
+                                    // This prevents falling through to text capture for the same content
+                                    thread::sleep(Duration::from_millis(500));
+                                    continue;
+                                }
                             }
-                            
-                            // Always continue if we found valid HTML (handled or not)
-                            // This prevents falling through to text capture for the same content
-                            thread::sleep(Duration::from_millis(500));
-                            continue;
                         }
                     }
                 }
             }
 
-            let text_result = clipboard.get_text();
+            // let text_result = clipboard.get_text(); // Already called above
             if let Ok(text) = text_result {
                 if !text.trim().is_empty() {
                     let hash = blake3::hash(text.as_bytes()).to_string();
