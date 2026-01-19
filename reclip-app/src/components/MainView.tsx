@@ -61,6 +61,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const [autoHideDuration, setAutoHideDuration] = useState(0); // 0 = disabled
     const [shortcuts, setShortcuts] = useState<Record<string, string>>({});
 
+    // Rich Content View Toggle - per-clip basis
+    const [rawViewClipIds, setRawViewClipIds] = useState<Set<number>>(new Set());
+
+    // Theme detection for ClipContent
+    const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const theme = localStorage.getItem('theme') || 'dark';
+    const isDark = theme === 'dark' || (theme === 'system' && systemDark);
+
     const fetchShortcuts = async () => {
         try {
             const map = await invoke<Record<string, string>>("get_shortcuts");
@@ -72,6 +80,11 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
 
     useEffect(() => {
         fetchShortcuts();
+        // Listen for system theme changes
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+        media.addEventListener('change', handler);
+        return () => media.removeEventListener('change', handler);
     }, []);
 
     // Persistence Effects
@@ -1019,7 +1032,24 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <ClipContent content={clip.content} type={clip.type} isCompact={compactMode} />
+                                                                <ClipContent
+                                                                    content={clip.content}
+                                                                    type={clip.type}
+                                                                    isCompact={compactMode}
+                                                                    showRaw={rawViewClipIds.has(clip.id)}
+                                                                    onToggleRaw={() => {
+                                                                        setRawViewClipIds(prev => {
+                                                                            const next = new Set(prev);
+                                                                            if (next.has(clip.id)) {
+                                                                                next.delete(clip.id);
+                                                                            } else {
+                                                                                next.add(clip.id);
+                                                                            }
+                                                                            return next;
+                                                                        });
+                                                                    }}
+                                                                    isDark={isDark}
+                                                                />
                                                                 {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
                                                             </>
                                                         )}

@@ -1,9 +1,20 @@
-## [0.5.0] - 2026-01-19
-
-Fixed bugs
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
+
+## [0.6.0] - 2026-01-19
+
+### ✨ New Features
+- **Rich Clip Card Rendering**:
+  - **HTML Preview**: Safely renders sanitized HTML content with links, lists, and formatting.
+  - **Markdown Preview**: Full GFM support (tables, checkboxes, code blocks, links).
+  - **JSON Pretty Print**: Colorized, collapsible JSON with key/value highlighting.
+  - **Diff View**: Git-style diff with green/red additions/deletions highlighting.
+  - **LaTeX Math**: Renders mathematical expressions using KaTeX ($...$ and $$...$$).
+  - **Table Detection**: Auto-formats tab-separated or CSV data as tables.
+  - **Contact Detection**: Clickable mailto: and tel: links for emails/phones.
+  - **Enhanced Code Preview**: 20+ languages, line numbers, copy button, language badge.
+- **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip.
 
 ## [0.5.0] - 2026-01-19
 
