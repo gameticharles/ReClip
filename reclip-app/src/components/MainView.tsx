@@ -1104,7 +1104,11 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                                         try {
                                                                                             const path = await save({
                                                                                                 defaultPath: 'image.png',
-                                                                                                filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+                                                                                                filters: [
+                                                                                                    { name: 'PNG Image', extensions: ['png'] },
+                                                                                                    { name: 'JPEG Image', extensions: ['jpg', 'jpeg'] },
+                                                                                                    { name: 'WebP Image', extensions: ['webp'] }
+                                                                                                ]
                                                                                             });
                                                                                             if (path) {
                                                                                                 await invoke('export_image', { sourcePath: clip.content, targetPath: path });
