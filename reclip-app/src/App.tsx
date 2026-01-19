@@ -292,7 +292,7 @@ function App() {
       ) : view === 'colors' ? (
         <ColorToolPage
           onBack={() => setView('main')}
-          theme={theme}
+          onClose={() => setView('main')}
         />
       ) : (
         <SettingsPage
