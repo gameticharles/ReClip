@@ -278,10 +278,10 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
                     <span data-tauri-drag-region style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: 8, pointerEvents: 'none' }}>{snippets.length} snippets</span>
                 </div>
                 <div className="title-right" style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={handlePasteFromClipboard} style={btnStyle()} title="Paste from Clipboard"><Clipboard size={14} /></button>
-                    <button onClick={handleImport} style={btnStyle()} title="Import Snippets"><FileUp size={14} /></button>
-                    <button onClick={handleExport} style={btnStyle()} title="Export All Snippets"><FileDown size={14} /></button>
-                    <button onClick={openNewSnippet} style={{ ...btnStyle(true), padding: '6px 12px', fontWeight: 500 }}>
+                    <button onClick={handlePasteFromClipboard} className="snippet-header-btn" title="Paste from Clipboard"><Clipboard size={14} /></button>
+                    <button onClick={handleImport} className="snippet-header-btn" title="Import Snippets"><FileUp size={14} /></button>
+                    <button onClick={handleExport} className="snippet-header-btn" title="Export All Snippets"><FileDown size={14} /></button>
+                    <button onClick={openNewSnippet} className="primary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem', height: 'auto' }}>
                         <Plus size={14} /> New
                     </button>
                 </div>
