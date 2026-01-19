@@ -7,10 +7,12 @@ import { getVersion } from '@tauri-apps/api/app';
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
-import ClipContent from "./ClipContent";
+import ClipContent, { ImageColorPalette } from "./ClipContent";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
+import ImageZoomModal from "./ImageZoomModal";
 
 
 interface MainViewProps {
@@ -69,6 +71,8 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     // Theme detection for ClipContent
     const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
     const [editingClip, setEditingClip] = useState<Clip | null>(null);
+    const [extractingOcrClipId, setExtractingOcrClipId] = useState<number | null>(null);
+    const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
     const theme = localStorage.getItem('theme') || 'dark';
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
@@ -322,6 +326,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
 
     const handleExtractText = async (e: React.MouseEvent, clip: Clip) => {
         e.stopPropagation();
+        setExtractingOcrClipId(clip.id);
         try {
             const text = await invoke<string>('run_ocr', { path: clip.content });
             if (text) {
@@ -329,6 +334,8 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
             }
         } catch (error) {
             console.error("OCR Failed", error);
+        } finally {
+            setExtractingOcrClipId(null);
         }
         setActiveMenuId(null);
     };
@@ -937,6 +944,9 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                             >
                                                                 + tag
                                                             </button>
+                                                            {clip.type === 'image' && (
+                                                                <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
+                                                            )}
                                                             {clip.type === 'text' && (
                                                                 <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
                                                                     <button onClick={(e) => transformText(e, clip.id, 'upper')} title="UPPERCASE" className="icon-btn">TT</button>
@@ -1087,6 +1097,8 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                     isCompact={compactMode}
                                                                     showRaw={rawViewClipIds.has(clip.id)}
                                                                     isDark={isDark}
+                                                                    isExtracting={extractingOcrClipId === clip.id}
+                                                                    onZoom={(src) => setZoomedImageSrc(src)}
                                                                 />
                                                                 {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
                                                             </>
@@ -1146,6 +1158,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                 initialContent={editingClip?.content || ''}
                 isDark={systemDark}
             />
+
+            {/* Image Zoom Modal */}
+            {zoomedImageSrc && (
+                <ImageZoomModal
+                    src={zoomedImageSrc}
+                    onClose={() => setZoomedImageSrc(null)}
+                />
+            )}
         </>
     );
 }

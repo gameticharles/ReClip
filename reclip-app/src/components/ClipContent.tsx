@@ -15,6 +15,8 @@ interface ClipContentProps {
     isCompact: boolean;
     showRaw?: boolean;
     isDark?: boolean;
+    isExtracting?: boolean;
+    onZoom?: (src: string) => void;
 }
 
 // ============= CONTENT TYPE DETECTION =============
@@ -497,7 +499,8 @@ const CodePreview: React.FC<{ content: string; isCompact: boolean; isDark: boole
 
 
 
-const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src, isCompact }) => {
+
+export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src, isCompact }) => {
     const [colors, setColors] = useState<[number, number, number][]>([]);
     const [copiedColor, setCopiedColor] = useState<string | null>(null);
     const imgRef = useRef<HTMLImageElement | null>(null);
@@ -517,9 +520,18 @@ const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src,
                 const thief = new ColorThief();
 
                 // Get dominant color + palette
-                const palette = thief.getPalette(img, 6);
+                const palette = thief.getPalette(img, 15); // Get more colors to filter
                 if (palette) {
-                    setColors(palette);
+                    // Deduplicate similar colors
+                    const seen = new Set<string>();
+                    const unique = palette.filter(([r, g, b]) => {
+                        // Round to reduce near-duplicates (e.g., #1a1a1a vs #1b1b1b)
+                        const key = `${Math.round(r / 10)}-${Math.round(g / 10)}-${Math.round(b / 10)}`;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    }).slice(0, 15); // Limit to 15 unique colors
+                    setColors(unique);
                 }
             } catch (e) {
                 console.error('ColorThief extraction failed:', e);
@@ -563,12 +575,12 @@ const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src,
                         title={hex}
                         onClick={(e) => { e.stopPropagation(); handleCopy(hex); }}
                         style={{
-                            minWidth: '24px',
-                            height: '24px',
+                            minWidth: '15px',
+                            height: '15px',
                             borderRadius: '50%',
                             backgroundColor: hex,
                             cursor: 'pointer',
-                            border: '1px solid rgba(128,128,128,0.2)',
+                            border: '2px solid rgba(198, 193, 193, 0.19)',
                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                             display: 'flex',
                             alignItems: 'center',
@@ -590,7 +602,7 @@ const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src,
 
 // ============= MAIN COMPONENT =============
 
-export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true }: ClipContentProps) {
+export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true, isExtracting = false, onZoom }: ClipContentProps) {
     const [validity, setValidity] = useState<{ checked: boolean, valid: boolean, invalidPaths: string[] }>({ checked: false, valid: true, invalidPaths: [] });
 
     // Handle Files
@@ -640,12 +652,45 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
     if (type === 'image') {
         const src = convertFileSrc(content);
         return (
-            <div className="clip-image" style={{ maxHeight: isCompact ? '40px' : '200px', overflow: 'hidden', borderRadius: '4px', position: 'relative', background: '#000', display: 'flex', flexDirection: 'column' }}>
-                <ImageColorPalette src={src} isCompact={isCompact} />
-                <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <div
+                className="clip-image"
+                style={{
+                    maxHeight: isCompact ? '40px' : '200px',
+                    overflow: 'hidden',
+                    borderRadius: '4px',
+                    position: 'relative',
+                    background: '#000',
+                    cursor: onZoom ? 'zoom-in' : 'default'
+                }}
+                onClick={() => onZoom?.(src)}
+            >
+                <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
 
-                    <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </div>
+                {/* OCR Progress Overlay */}
+                {isExtracting && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: '8px 12px',
+                        background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}>
+                        <div style={{
+                            width: '14px',
+                            height: '14px',
+                            border: '2px solid rgba(255,255,255,0.3)',
+                            borderTopColor: '#fff',
+                            borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite'
+                        }} />
+                        <span style={{ fontSize: '0.75rem', color: 'white' }}>Extracting text...</span>
+                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                    </div>
+                )}
             </div>
         );
     }

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [0.6.0] - 2026-01-19
 
 ### ✨ New Features
-- **Rich Clip Card Rendering**:
+- **Rich Clip Card Rendering**:![alt text](image.png)
   - **HTML Preview**: Safely renders sanitized HTML content with links, lists, and formatting.
   - **Markdown Preview**: Full GFM support (tables, checkboxes, code blocks, links).
   - **JSON Pretty Print**: Colorized, collapsible JSON with key/value highlighting.
@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
   - **Table Detection**: Auto-formats tab-separated or CSV data as tables.
   - **Contact Detection**: Clickable mailto: and tel: links for emails/phones.
   - **Image Color Palette**: Auto-extracts dominant colors from image clips (click to copy HEX).
+  - **OCR Progress Indicator**: Visual spinner overlay during text extraction from images.
+  - **Image Click-to-Zoom**: Fullscreen preview modal (click image or press Escape to close).
   - **Enhanced Code Preview**: 20+ languages, line numbers, copy button, language badge.
 - **Clip Content Editing**: Full-screen editor to modify clip content (via context menu).
 - **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.
