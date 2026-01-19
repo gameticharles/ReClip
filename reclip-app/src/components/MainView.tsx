@@ -14,7 +14,7 @@ import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
 import ImageZoomModal from "./ImageZoomModal";
-import { Settings, RefreshCw, Trash2, X, Plus, Search, Filter, History, Star, Play, Pause, ChevronRight, ChevronDown, Monitor, Smartphone, Code, Code2, Copy, FileText, Image as ImageIcon, Link, Search as SearchIcon, Eye, EyeOff, MoreVertical, Menu as MenuIcon, Check, Pin, Scan, Calendar, CalendarDays, Palette } from 'lucide-react';
+import { Palette } from 'lucide-react';
 
 
 interface MainViewProps {
