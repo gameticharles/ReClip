@@ -21,7 +21,6 @@ All notable changes to this project will be documented in this file.
 
 ### 🔧 Improvements
 - **File Clips**: Smart icons now distinguish files (📄) from folders (📁), with extension-specific icons (🐍 Python, 🦀 Rust, 📕 PDF, 🎵 audio, etc.). Missing paths show ❌ with red strikethrough.
-- **Snippet Library**: Added 
 
 
 
