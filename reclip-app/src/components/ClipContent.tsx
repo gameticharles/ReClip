@@ -499,6 +499,54 @@ const CodePreview: React.FC<{ content: string; isCompact: boolean; isDark: boole
 
 
 
+export const ImageMetadata: React.FC<{ filePath: string, isCompact: boolean }> = ({ filePath, isCompact }) => {
+    const [meta, setMeta] = useState<{ width: number, height: number, size: number } | null>(null);
+
+    useEffect(() => {
+        if (!filePath || isCompact) return;
+
+        const fetchMeta = async () => {
+            try {
+                // Get file size from backend
+                const size = await invoke<number>('get_file_size', { path: filePath });
+
+                // Get dimensions from Image
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.src = convertFileSrc(filePath);
+                img.onload = () => {
+                    setMeta({ width: img.naturalWidth, height: img.naturalHeight, size });
+                };
+            } catch (e) {
+                console.error('Failed to get image metadata:', e);
+            }
+        };
+        fetchMeta();
+    }, [filePath, isCompact]);
+
+    if (!meta || isCompact) return null;
+
+    const formatSize = (bytes: number) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    return (
+        <span style={{
+            fontSize: '0.85rem',
+            background: 'rgba(0,0,0,0.1)',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            color: 'var(--text-secondary, #888)',
+            fontFamily: 'monospace',
+            whiteSpace: 'nowrap'
+        }}>
+            {meta.width}×{meta.height} • {formatSize(meta.size)}
+        </span>
+    );
+};
+
 
 export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = ({ src, isCompact }) => {
     const [colors, setColors] = useState<[number, number, number][]>([]);

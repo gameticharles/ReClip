@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
   - **Image Color Palette**: Auto-extracts dominant colors from image clips (click to copy HEX).
   - **OCR Progress Indicator**: Visual spinner overlay during text extraction from images.
   - **Image Click-to-Zoom**: Fullscreen preview modal (click image or press Escape to close).
+  - **Image Dimensions + Size**: Displays resolution (WxH) and file size in clip header.
   - **Enhanced Code Preview**: 20+ languages, line numbers, copy button, language badge.
 - **Clip Content Editing**: Full-screen editor to modify clip content (via context menu).
 - **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.

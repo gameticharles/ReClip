@@ -7,7 +7,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
-import ClipContent, { ImageColorPalette } from "./ClipContent";
+import ClipContent, { ImageColorPalette, ImageMetadata } from "./ClipContent";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
@@ -945,7 +945,10 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                 + tag
                                                             </button>
                                                             {clip.type === 'image' && (
-                                                                <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
+                                                                <>
+                                                                    <ImageMetadata filePath={clip.content} isCompact={compactMode} />
+                                                                    <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
+                                                                </>
                                                             )}
                                                             {clip.type === 'text' && (
                                                                 <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
