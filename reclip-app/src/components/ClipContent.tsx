@@ -710,7 +710,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                     background: '#000',
                     cursor: onZoom ? 'zoom-in' : 'default'
                 }}
-                onClick={() => onZoom?.(src)}
+                onClick={(e) => { e.stopPropagation(); onZoom?.(src); }}
             >
                 <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
 

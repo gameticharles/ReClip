@@ -914,7 +914,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                     key={tag}
                                                                     className="clip-tag"
                                                                     style={{
-                                                                        fontSize: '0.7rem',
+                                                                        fontSize: '0.85rem',
                                                                         background: 'rgba(67, 56, 202, 0.1)',
                                                                         color: '#4338ca',
                                                                         padding: '2px 8px',
@@ -933,7 +933,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                 onClick={(e) => addTagToClip(e, clip.id, clip.tags || null)}
                                                                 title="Add tag"
                                                                 style={{
-                                                                    fontSize: '0.65rem',
+                                                                    fontSize: '0.85rem',
                                                                     padding: '2px 6px',
                                                                     borderRadius: '12px',
                                                                     border: '1px dashed #aaa',
@@ -945,10 +945,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                 + tag
                                                             </button>
                                                             {clip.type === 'image' && (
-                                                                <>
-                                                                    <ImageMetadata filePath={clip.content} isCompact={compactMode} />
-                                                                    <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
-                                                                </>
+                                                                <ImageMetadata filePath={clip.content} isCompact={compactMode} />
                                                             )}
                                                             {clip.type === 'text' && (
                                                                 <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
@@ -1079,6 +1076,12 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    {/* Image Color Palette Row */}
+                                                    {clip.type === 'image' && !compactMode && (
+                                                        <div style={{ padding: '4px 12px', borderTop: '1px solid var(--border-color, rgba(128,128,128,0.1))' }}>
+                                                            <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
+                                                        </div>
+                                                    )}
                                                     <div className="clip-content">
                                                         {clip.type === 'text' && isColorCode(clip.content) ? (
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
