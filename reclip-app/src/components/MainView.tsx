@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { save } from "@tauri-apps/plugin-dialog";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getVersion } from '@tauri-apps/api/app';
@@ -75,6 +76,13 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
     const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
     const theme = localStorage.getItem('theme') || 'dark';
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
+
+    // Pagination State
+    const [page, setPage] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const loaderRef = useRef<HTMLDivElement>(null);
+    const LIMIT = 30;
 
     const fetchShortcuts = async () => {
         try {
@@ -340,27 +348,64 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
         setActiveMenuId(null);
     };
 
-    async function fetchClips(search = "") {
+    async function fetchClips(search = "", reset = false) {
+        if (isLoading && !reset) return; // Allow reset even if loading
+        setIsLoading(true);
+
         try {
-            const recentClips = await invoke<Clip[]>("get_recent_clips", { limit: 200, offset: 0, search: search || null });
+            const currentOffset = reset ? 0 : page * LIMIT;
 
-            // Store all clips for timeline
-            setAllClips(recentClips);
+            // If searching, we might want to fetch more? No, consistency.
+            const newClips = await invoke<Clip[]>("get_recent_clips", {
+                limit: LIMIT,
+                offset: currentOffset,
+                search: search || null
+            });
 
-            setAllClips(recentClips);
-
-            // Apply timeline filtering if range is selected
-            let filteredClips = recentClips;
-            if (timelineFilter) {
-                filteredClips = recentClips.filter(clip => {
-                    const clipDate = new Date(clip.created_at).getTime();
-                    return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
-                });
+            if (newClips.length < LIMIT) {
+                setHasMore(false);
+            } else {
+                setHasMore(true);
             }
 
-            setClips(filteredClips);
+            if (reset) {
+                setAllClips(newClips);
+                setClips(newClips);
+                setPage(1); // Prepare for next page
+
+                // If timeline active, we only show filtered.
+                if (timelineFilter) {
+                    const filtered = newClips.filter(clip => {
+                        const clipDate = new Date(clip.created_at).getTime();
+                        return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
+                    });
+                    setClips(filtered);
+                }
+            } else {
+                setAllClips(prev => {
+                    const combined = [...prev, ...newClips];
+                    // Remove duplicates just in case
+                    return Array.from(new Map(combined.map(c => [c.id, c])).values());
+                });
+                setClips(prev => {
+                    const combined = [...prev, ...newClips];
+                    // Apply filter if needed
+                    let result = Array.from(new Map(combined.map(c => [c.id, c])).values());
+                    if (timelineFilter) {
+                        result = result.filter(clip => {
+                            const clipDate = new Date(clip.created_at).getTime();
+                            return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
+                        });
+                    }
+                    return result;
+                });
+                setPage(prev => prev + 1);
+            }
+
         } catch (error) {
             console.error("Failed to fetch clips:", error);
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -381,10 +426,27 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchClips(searchTerm);
+            setPage(0); // Reset page logic
+            fetchClips(searchTerm, true); // Trigger absolute reset
         }, 300);
         return () => clearTimeout(timer);
     }, [searchTerm]);
+
+    // Infinite Scroll Observer
+    useEffect(() => {
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                // If user scrolled to bottom, load next page
+                // Note: We don't pass 'reset=true' here.
+                // We assume fetchClips uses current page state or we need to pass it?
+                // fetchClips uses 'page' state.
+                fetchClips(searchTerm, false);
+            }
+        }, { threshold: 0.1 });
+
+        if (loaderRef.current) observer.observe(loaderRef.current);
+        return () => observer.disconnect();
+    }, [hasMore, isLoading, searchTerm, page]);
 
     const clipsRef = useRef(clips);
     useEffect(() => { clipsRef.current = clips; }, [clips]);
@@ -395,11 +457,19 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
         let unlistenPasteIndex: (() => void) | null = null;
 
         const setup = async () => {
-            fetchClips();
+            // Initial fetch handled by searchTerm effect or manual call?
+            // searchTerm defaults to "", so the effect above runs on mount.
+            // But we can call it here to be safe or if we removed initial call.
+            // Actually, useEffect [searchTerm] runs on mount. 
+            // Double calling is bad. Let's rely on searchTerm effect or check if called.
+            // If we remove the call here, we trust the effect.
+            // fetchClips(); // <-- Removing this to avoid double fetch on mount
+
 
             unlistenCreate = await listen("clip-created", (_event) => {
-                fetchClips(searchTerm);
+                fetchClips(searchTerm, true); // Reset on new clip
             });
+
 
             unlistenPasteNext = await listen("paste-next-trigger", (_event) => {
                 document.getElementById('hidden-paste-next-btn')?.click();
@@ -1022,12 +1092,33 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                                                         onClick={e => e.stopPropagation()}
                                                                     >
                                                                         {clip.type === 'image' && (
-                                                                            <button
-                                                                                onClick={(e) => handleExtractText(e, clip)}
-                                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                            >
-                                                                                👁️ Extract Text
-                                                                            </button>
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={(e) => handleExtractText(e, clip)}
+                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                                >
+                                                                                    👁️ Extract Text
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={async () => {
+                                                                                        try {
+                                                                                            const path = await save({
+                                                                                                defaultPath: 'image.png',
+                                                                                                filters: [{ name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+                                                                                            });
+                                                                                            if (path) {
+                                                                                                await invoke('export_image', { sourcePath: clip.content, targetPath: path });
+                                                                                                setActiveMenuId(null);
+                                                                                            }
+                                                                                        } catch (e) {
+                                                                                            console.error("Failed to save image", e);
+                                                                                        }
+                                                                                    }}
+                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                                >
+                                                                                    💾 Save As...
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                         {clip.type === 'text' && (
                                                                             <>
@@ -1116,6 +1207,11 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets }
                                     </Draggable>
                                 ))}
                                 {provided.placeholder}
+                                {hasMore && (
+                                    <div ref={loaderRef} style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, fontSize: '0.8rem' }}>
+                                        {isLoading ? 'Loading more clips...' : 'Scroll for more'}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </Droppable>

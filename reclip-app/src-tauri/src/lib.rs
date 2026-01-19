@@ -442,10 +442,9 @@ pub fn run() {
              get_system_accent_color, clear_clips, clear_snippets, reorder_clip, get_autostart, set_autostart,
              save_window_position, load_window_position,
              get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
-             get_regex_rules, add_regex_rule, update_regex_rule, delete_regex_rule,
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
              get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
-             run_ocr, get_file_size,
+             run_ocr, get_file_size, export_image,
              update::check_update, update::install_update
         ])
         .run(tauri::generate_context!())
@@ -977,4 +976,11 @@ async fn get_file_size(path: String) -> Result<u64, String> {
     std::fs::metadata(&path)
         .map(|m| m.len())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn export_image(source_path: String, target_path: String) -> Result<(), String> {
+    let img = image::open(&source_path).map_err(|e| e.to_string())?;
+    img.save(&target_path).map_err(|e| e.to_string())?;
+    Ok(())
 }

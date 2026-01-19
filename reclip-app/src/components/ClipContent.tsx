@@ -176,10 +176,21 @@ const detectContentType = (content: string, type: string): ContentType => {
 // ============= RENDER COMPONENTS =============
 
 const HTMLPreview: React.FC<{ content: string; isCompact: boolean }> = ({ content, isCompact }) => {
+    // Configure DOMPurify hooks once or on render (it's globally scoped usually, but benign here)
+    DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+        if (node.tagName === 'IMG') {
+            node.setAttribute('loading', 'lazy');
+        }
+        if (node.tagName === 'A') {
+            node.setAttribute('target', '_blank');
+            node.setAttribute('rel', 'noopener noreferrer');
+        }
+    });
+
     const sanitized = DOMPurify.sanitize(content, {
         ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'blockquote', 'code', 'pre', 'span', 'div', 'table', 'tr', 'td', 'th', 'thead', 'tbody'],
-        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+            'blockquote', 'code', 'pre', 'span', 'div', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'img'],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style', 'src', 'alt', 'width', 'height', 'loading'],
     });
 
     return (
@@ -207,7 +218,12 @@ const MarkdownPreview: React.FC<{ content: string; isCompact: boolean }> = ({ co
                 lineHeight: 1.6
             }}
         >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    img: (props) => <img {...props} loading="lazy" style={{ maxWidth: '100%' }} />
+                }}
+            >
                 {isCompact ? content.slice(0, 200) : content}
             </ReactMarkdown>
         </div>
@@ -737,7 +753,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                 }}
                 onClick={(e) => { e.stopPropagation(); onZoom?.(src); }}
             >
-                <img src={src} alt="Clip" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={src} alt="Clip" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
 
                 {/* OCR Progress Overlay */}
                 {isExtracting && (
