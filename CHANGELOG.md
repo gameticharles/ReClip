@@ -1,13 +1,16 @@
-## [0.6.0] - 2026-01-19
-
-Improved features and bug fixes
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
 
 ## [0.6.0] - 2026-01-19
 
+### 🚀 Performance
+- **Infinite Scrolling**: Clip list now uses pagination (20 items/page) and infinite scrolling for instant startup.
+- **Lazy Loading**: Images and rich previews are now lazy-loaded, improving scrolling performance and memory usage.
+
 ### ✨ New Features
+- **Save Image As**: Context menu option to save images as PNG, JPEG, or WebP.
+- **Enhanced Image Capture**: Improved logic to prioritize image content over HTML, fixing blank captures from web/WhatsApp.
 - **Rich Clip Card Rendering**:![alt text](image.png)
   - **HTML Preview**: Safely renders sanitized HTML content with links, lists, and formatting.
   - **Markdown Preview**: Full GFM support (tables, checkboxes, code blocks, links).
