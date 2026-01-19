@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file.
 - **Clip Content Editing**: Full-screen editor to modify clip content (via context menu).
 - **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.
 
+### 🐛 Bug Fixes
+- **Clipboard**:
+  - Fixed Files being pasted as string paths instead of actual files.
+
 ## [0.5.0] - 2026-01-19
 
 ### ✨ New Features

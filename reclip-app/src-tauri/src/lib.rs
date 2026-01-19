@@ -590,6 +590,21 @@ async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, cli
             bytes: std::borrow::Cow::Owned(rgba.into_raw()),
         };
         clipboard.set_image(image_data).map_err(|e| e.to_string())?;
+    } 
+    // HTML Handling (Windows)
+    else if clip_type == "html" {
+        #[cfg(target_os = "windows")]
+        {
+            use clipboard_rs::{Clipboard, ClipboardContext};
+            let ctx = ClipboardContext::new().map_err(|e| e.to_string())?;
+            // Ideally we should set BOTH text and HTML, but clipboard_rs might clear previous.
+            // For now, setting HTML is the priority.
+            ctx.set_html(content.clone()).map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            clipboard.set_text(content.clone()).map_err(|e| e.to_string())?;
+        }
     } else {
         clipboard.set_text(content.clone()).map_err(|e| e.to_string())?;
     }

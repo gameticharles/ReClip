@@ -177,10 +177,12 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                         Err(e) => error!("Failed to insert HTML clip: {}", e),
                                     }
                                 });
-                                
-                                thread::sleep(Duration::from_millis(500));
-                                continue;
                             }
+                            
+                            // Always continue if we found valid HTML (handled or not)
+                            // This prevents falling through to text capture for the same content
+                            thread::sleep(Duration::from_millis(500));
+                            continue;
                         }
                     }
                 }
