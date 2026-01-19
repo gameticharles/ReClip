@@ -605,7 +605,7 @@ export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = 
                         if (seen.has(key)) return false;
                         seen.add(key);
                         return true;
-                    }).slice(0, 20); // Limit to 20 unique colors
+                    }).slice(0, parseInt(localStorage.getItem('colorPaletteLimit') || '15')); // Configurable limit
                     setColors(unique);
                 }
             } catch (e) {

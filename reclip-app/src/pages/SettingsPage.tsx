@@ -551,6 +551,27 @@ export default function SettingsPage({
                                 </label>
                             </div>
 
+                            {/* Color Palette Limit */}
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Image Color Palette Limit</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Maximum colors to extract from images ({localStorage.getItem('colorPaletteLimit') || '15'}).</div>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="5"
+                                        max="30"
+                                        value={parseInt(localStorage.getItem('colorPaletteLimit') || '15')}
+                                        onChange={(e) => {
+                                            localStorage.setItem('colorPaletteLimit', e.target.value);
+                                            window.dispatchEvent(new Event('storage'));
+                                        }}
+                                        style={{ width: '100px', accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                            </div>
+
                             {/* Launch on Startup */}
                             <div className="setting-item">
                                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
