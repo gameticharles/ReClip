@@ -14,6 +14,7 @@ import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
 import ImageZoomModal from "./ImageZoomModal";
+import { Settings, RefreshCw, Trash2, X, Plus, Search, Filter, History, Star, Play, Pause, ChevronRight, ChevronDown, Monitor, Smartphone, Code, Code2, Copy, FileText, Image as ImageIcon, Link, Search as SearchIcon, Eye, EyeOff, MoreVertical, Menu as MenuIcon, Check, Pin, Scan, Calendar, CalendarDays, Palette } from 'lucide-react';
 
 
 interface MainViewProps {
@@ -487,10 +488,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
         const setup = async () => {
             // Initial fetch handled by searchTerm effect or manual call?
             // searchTerm defaults to "", so the effect above runs on mount.
-            // But we can call it here to be safe or if we removed initial call.
-            // Actually, useEffect [searchTerm] runs on mount. 
-            // Double calling is bad. Let's rely on searchTerm effect or check if called.
-            // If we remove the call here, we trust the effect.
+            // But we can call it here to be safe.
             // fetchClips(); // <-- Removing this to avoid double fetch on mount
 
 
@@ -817,6 +815,10 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
+                    </button>
+
+                    <button onClick={onOpenColors} className="title-btn" title="Color Tools">
+                        <Palette size={16} />
                     </button>
 
                     <button onClick={onOpenSnippets} className="title-btn" title="Code Snippets">
