@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-01-20
+
+### ✨ New Features
+- **Color Tool Overhaul**: A complete redesign with advanced features for designers and developers:
+  - **Analyze Tab**: Added support for **LAB, LCH, OKLCH, HWB** color spaces and **Pantone/RAL/NCS** industry matches.
+  - **Mixer Tab**: New **Perceptual (LAB)** and **Modern (OKLCH)** mixing modes, blend modes (Multiply, Overlay, etc.), and multi-stop support.
+  - **Harmonies Tab**: Added new harmony types (Monochromatic, Double Split Complementary) and an Angle Offset slider.
+  - **Gradient Tab**: Added **Conic Gradients**, multi-stop opacity/color support, and CSS/PNG export.
+  - **Accessibility Tab**:
+    - **APCA Contrast**: Advanced Perceptual Contrast Algorithm scoring.
+    - **Quick Fixes**: One-click suggestions to fix contrast issues.
+    - **Color Blindness**: Simulators for Protanopia, Deuteranopia, Tritanopia, and Achromatopsia.
+  - **Library**: Added Import/Export (JSON) and palette renaming/tagging.
+
+### 🎨 UI/UX Improvements
+- **Settings Page**:
+  - **Reactive UI**: Fixed "Image Color Palette Limit", "Tooltip Preview", and "Auto-Hide" settings to update immediately on change.
+  - **Visual Polish**: Standardized all sliders with a custom range component featuring dynamic fill and theme-aware styling.
+- **Theming**:
+  - **Light Mode Fixes**: Resolved specific issues with Window Opacity transparency in Light Mode.
+  - **Dynamic Accents**: UI elements now correctly use the user's custom accent color with proper transparency (using `color-mix`).
+- **Slider Polish**: Fixed fill calculation for sliders with non-zero starts (e.g., Opacity 20-100%, Harmony Offset -30 to +30) to ensure accurate visual representation.
+
 ## [0.7.0] - 2026-01-19
 
 ### 🐛 Bug Fixes
