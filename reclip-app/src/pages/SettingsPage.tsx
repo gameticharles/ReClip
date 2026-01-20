@@ -1329,7 +1329,13 @@ export default function SettingsPage({
                                                     setSnippetFontSize(v);
                                                     localStorage.setItem('snippetFontSize', v.toString());
                                                 }}
-                                                style={{ flex: 1, accentColor: 'var(--accent-color)' }}
+                                                className="custom-range"
+                                                style={{
+                                                    width: '100%', maxWidth: '300px',
+                                                    '--range-value': `${((snippetFontSize - 10) / 14) * 100}%`,
+                                                    '--range-fill': 'var(--accent-color)',               // filled side
+                                                    '--range-track': 'rgba(128,128,128,0.25)' // non-fill side
+                                                } as React.CSSProperties}
                                             />
                                         </div>
                                     </label>
