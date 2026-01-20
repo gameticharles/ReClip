@@ -9,6 +9,17 @@ interface ColorToolPageProps {
     onClose: () => void;
     onBack: () => void;
 }
+function getCenterFill(value: number, min: number, max: number) {
+    const range = max - min;
+    const center = Math.abs(min) / range * 100; // always 50% if symmetric
+
+    const valuePct = ((value - min) / range) * 100;
+
+    return value >= 0
+        ? { start: center, end: valuePct }
+        : { start: valuePct, end: center };
+}
+
 
 const TabButton = ({ id, icon: Icon, label, active, onClick }: any) => (
     <button
@@ -74,7 +85,6 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     // Gradient Tab
     const [gradientType, setGradientType] = useState<'linear' | 'radial' | 'conic'>('linear');
     const [gradientAngle, setGradientAngle] = useState(90);
-    const [gradientColor2, setGradientColor2] = useState('#6366f1');
     const [gradientStops, setGradientStops] = useState<{ color: string; position: number }[]>([
         { color: '#3b82f6', position: 0 },
         { color: '#6366f1', position: 100 }
@@ -225,12 +235,32 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
             <style>{`
                 .custom-range {
                     -webkit-appearance: none;
+                    appearance: none;
                     width: 100%;
                     height: 6px;
-                    background: rgba(128, 128, 128, 0.25);
                     border-radius: 3px;
                     outline: none;
+
+                    background: linear-gradient(
+                        to right,
+                        var(--track-color, var(--range-track)) 0%,
+
+                        var(--track-color, var(--range-track))
+                        var(--fill-start, 0%),
+
+                        var(--fill-color, var(--range-fill))
+                        var(--fill-start, 0%),
+
+                        var(--fill-color, var(--range-fill))
+                        var(--fill-end, var(--range-value)),
+
+                        var(--track-color, var(--range-track))
+                        var(--fill-end, var(--range-value)),
+
+                        var(--track-color, var(--range-track)) 100%
+                    );
                 }
+
                 .custom-range::-webkit-slider-thumb {
                     -webkit-appearance: none;
                     appearance: none;
@@ -241,6 +271,14 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     cursor: pointer;
                     border: 2px solid var(--bg-secondary);
                     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                }
+                .custom-range:focus-visible {
+                    outline: 2px solid var(--accent-color);
+                    outline-offset: 4px;
+                }
+                .custom-range::-moz-range-track {
+                    background: transparent;
+                    border: none;
                 }
                 .custom-select {
                     padding: 8px;
@@ -362,9 +400,9 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                         <motion.div key="analyze" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                             {/* Tailwind Match */}
                             {tailwindMatch && (
-                                <div style={{ marginBottom: 24, padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ marginBottom: 24, padding: '12px', background: 'color-mix(in srgb, var(--accent-color) 10%, transparent)', borderRadius: 8, border: '1px solid color-mix(in srgb, var(--accent-color) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-color)' }} />
                                         <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)' }}>Matches Tailwind <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{tailwindMatch}</span></span>
                                     </div>
                                     <Copy size={14} style={{ cursor: 'pointer', opacity: 0.7 }} onClick={() => navigator.clipboard.writeText(tailwindMatch)} />
@@ -616,7 +654,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 <div style={{ width: 48, height: 48, background: mixColor1, borderRadius: 8, border: '1px solid var(--border-color)' }} />
                                                 <input type="color" value={mixColor1} onChange={e => setMixColor1(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
                                             </div>
-                                            <button onClick={() => setMixColor1(hex)} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(128,128,128,0.1)', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'var(--accent-color)' }}>Use Current</button>
+                                            <button onClick={() => setMixColor1(hex)} style={{ fontSize: '0.65rem', padding: '4px 6px', background: 'rgba(128,128,128,0.2)', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'var(--text-color)' }}>Use Current</button>
                                         </div>
 
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -632,6 +670,11 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 value={mixRatio}
                                                 onChange={e => setMixRatio(parseFloat(e.target.value))}
                                                 className="custom-range"
+                                                style={{
+                                                    '--range-value': `${mixRatio * 100}%`,
+                                                    '--range-fill': mixColor1,
+                                                    '--range-track': mixColor2
+                                                } as React.CSSProperties}
                                             />
                                         </div>
 
@@ -640,7 +683,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 <div style={{ width: 48, height: 48, background: mixColor2, borderRadius: 8, border: '1px solid var(--border-color)' }} />
                                                 <input type="color" value={mixColor2} onChange={e => setMixColor2(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
                                             </div>
-                                            <button onClick={() => setMixColor2(hex)} style={{ fontSize: '0.65rem', padding: '2px 6px', background: 'rgba(128,128,128,0.1)', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'var(--accent-color)' }}>Use Current</button>
+                                            <button onClick={() => setMixColor2(hex)} style={{ fontSize: '0.65rem', padding: '4px 6px', background: 'rgba(128,128,128,0.1)', border: 'none', borderRadius: 4, cursor: 'pointer', color: 'var(--text-color)' }}>Use Current</button>
                                         </div>
                                     </div>
                                 </div>
@@ -687,7 +730,12 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 value={mixSteps}
                                                 onChange={e => setMixSteps(parseInt(e.target.value))}
                                                 className="custom-range"
-                                                style={{ width: 80 }}
+                                                style={{
+                                                    width: 80,
+                                                    '--range-value': `${((mixSteps - 3) / 27) * 100}%`,
+                                                    '--range-fill': 'var(--accent-color)',
+                                                    '--range-track': 'rgba(128,128,128,0.25)'
+                                                } as React.CSSProperties}
                                             />
                                         </div>
                                     </div>
@@ -765,6 +813,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: 12, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Angle Offset:</span>
+
                                         <input
                                             type="range"
                                             min="-30"
@@ -772,7 +821,18 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                             value={harmonyAngleOffset}
                                             onChange={e => setHarmonyAngleOffset(parseInt(e.target.value))}
                                             className="custom-range"
-                                            style={{ width: 100 }}
+                                            style={{
+                                                '--fill-start': `${harmonyAngleOffset >= 0
+                                                    ? 50
+                                                    : ((harmonyAngleOffset + 30) / 60) * 100
+                                                    }%`,
+                                                '--fill-end': `${harmonyAngleOffset >= 0
+                                                    ? ((harmonyAngleOffset + 30) / 60) * 100
+                                                    : 50
+                                                    }%`,
+                                                '--fill-color': 'var(--accent-color)',
+                                                '--track-color': 'rgba(128,128,128,0.25)',
+                                            } as React.CSSProperties}
                                         />
                                         <span style={{ fontSize: '0.8rem', fontFamily: 'monospace', minWidth: 40 }}>{harmonyAngleOffset > 0 ? '+' : ''}{harmonyAngleOffset}°</span>
                                     </div>
@@ -812,7 +872,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 <div
                                                     key={`${name}-${i}`}
                                                     onClick={() => !lockedHarmonyColor && setHex(c)}
-                                                    title={c}
+                                                    title={c.toUpperCase()}
                                                     style={{
                                                         flex: 1,
                                                         background: c,
@@ -824,7 +884,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                         paddingBottom: 4
                                                     }}
                                                 >
-                                                    <span style={{ fontSize: '0.6rem', color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.5)', fontWeight: 500 }}>{c}</span>
+                                                    <span style={{ fontSize: '0.85rem', color: 'white', textShadow: '2px 2px 2px rgba(0,0,0,1)', fontWeight: 600 }}>{c.toUpperCase()}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -841,94 +901,227 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                                 {/* Contrast Checker */}
                                 <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 12, border: '1px solid var(--border-color)' }}>
-                                    <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Contrast Checker</h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 20 }}>
-                                        {/* Preview Card */}
-                                        <div style={{ width: 200, height: 120, background: hex, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: '1px solid rgba(128,128,128,0.2)', color: contrastColor, gap: 4 }}>
-                                            <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>Aa</span>
-                                            <span style={{ fontSize: '1.1rem', fontWeight: 600 }}>Large Text</span>
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>Small Text</span>
-                                        </div>
-                                        {/* Controls + Score */}
-                                        <div>
-                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Compare with (Text Color)</label>
-                                            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-                                                <div style={{ position: 'relative' }}>
-                                                    <div style={{ width: 40, height: 40, background: contrastColor, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                    <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Advanced Contrast Checker</h3>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                                        {/* Controls */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8, opacity: 0.7 }}>Background Color</label>
+                                                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <div style={{ width: 40, height: 40, background: hex, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                                        <button
+                                                            onClick={onClose}
+                                                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'default' }}
+                                                        />
+                                                    </div>
+                                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hex}</div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8, opacity: 0.7 }}>Foreground/Text Color</label>
+                                                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <div style={{ width: 40, height: 40, background: contrastColor, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                                        <input
+                                                            type="color"
+                                                            value={contrastColor}
+                                                            onChange={e => setContrastColor(e.target.value)}
+                                                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                                        />
+                                                    </div>
                                                     <input
-                                                        type="color"
+                                                        type="text"
                                                         value={contrastColor}
                                                         onChange={e => setContrastColor(e.target.value)}
-                                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                                        className="custom-select"
+                                                        style={{ width: 100, cursor: 'text' }}
                                                     />
                                                 </div>
-                                                <input
-                                                    type="text"
-                                                    value={contrastColor}
-                                                    onChange={e => setContrastColor(e.target.value)}
-                                                    className="custom-select"
-                                                    style={{ width: 100, cursor: 'text' }}
-                                                />
                                             </div>
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                                <div style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1 }}>
-                                                    {Utils.getContrastRatio(hex, contrastColor).toFixed(2)}
-                                                </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                                    <div style={{ fontSize: '0.9rem', opacity: 0.7 }}>Contrast Ratio</div>
-                                                    <div style={{ display: 'flex', gap: 12 }}>
-                                                        {(() => {
-                                                            const ratio = Utils.getContrastRatio(hex, contrastColor);
-                                                            return (
-                                                                <>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 4.5 ? '#22c55e' : '#ef4444' }}>
-                                                                        {ratio >= 4.5 ? <Check size={14} /> : <X size={14} />}
-                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Normal</span>
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 3.0 ? '#22c55e' : '#ef4444' }}>
-                                                                        {ratio >= 3.0 ? <Check size={14} /> : <X size={14} />}
-                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AA Large</span>
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: ratio >= 7.0 ? '#22c55e' : '#ef4444' }}>
-                                                                        {ratio >= 7.0 ? <Check size={14} /> : <X size={14} />}
-                                                                        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>AAA</span>
-                                                                    </div>
-                                                                </>
-                                                            );
-                                                        })()}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                            {/* Auto-suggest accessible alternatives */}
+                                            {(() => {
+                                                const wcagRatio = Utils.getContrastRatio(hex, contrastColor);
+                                                const apcaScore = Math.abs(Utils.getApcaContrast(hex, contrastColor));
 
-                                    {/* Contrast Grid */}
-                                    <div style={{ marginTop: 24 }}>
-                                        <h3 style={{ fontSize: '1rem', marginBottom: 12 }}>Contrast Grid</h3>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
-                                            {Utils.STANDARD_BACKGROUNDS.map(bg => {
-                                                const ratio = Utils.getContrastRatio(hex, bg.hex);
-                                                const passAA = ratio >= 4.5;
-                                                return (
-                                                    <div key={bg.name} style={{ background: bg.hex, color: hex, padding: 10, borderRadius: 6, border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                                                        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>{bg.name}</div>
-                                                        <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{ratio.toFixed(2)}</div>
-                                                        <div style={{ fontSize: '0.7rem', marginTop: 4, display: 'flex', justifyContent: 'center', gap: 4 }}>
-                                                            {passAA ? <Check size={12} /> : null}
-                                                            <span>{passAA ? 'Pass' : 'Fail'}</span>
+                                                if (wcagRatio < 4.5) {
+                                                    const lighterSuggestion = Utils.suggestAccessibleColor(hex, contrastColor);
+                                                    const darkerSuggestion = Utils.suggestAccessibleColor(hex, contrastColor, 'darker');
+
+                                                    return (
+                                                        <div style={{ padding: 12, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ef4444', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <X size={14} /> Contrast Issue
+                                                            </div>
+                                                            <div style={{ fontSize: '0.75rem', opacity: 0.8, marginBottom: 12 }}>
+                                                                Current ratio: {wcagRatio.toFixed(2)}:1 (Need 4.5:1 for AA)
+                                                            </div>
+                                                            <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>Suggested Alternatives:</div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                                {lighterSuggestion && (
+                                                                    <button
+                                                                        onClick={() => setContrastColor(lighterSuggestion)}
+                                                                        style={{
+                                                                            fontSize: '0.75rem',
+                                                                            padding: '6px 10px',
+                                                                            borderRadius: 4,
+                                                                            background: lighterSuggestion,
+                                                                            color: Utils.getContrastRatio(lighterSuggestion, '#000000') > 4.5 ? '#000' : '#fff',
+                                                                            border: '1px solid rgba(0,0,0,0.1)',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 6,
+                                                                            justifyContent: 'space-between'
+                                                                        }}
+                                                                    >
+                                                                        <span>Lighter: {lighterSuggestion}</span>
+                                                                        <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+                                                                            {Utils.getContrastRatio(hex, lighterSuggestion).toFixed(2)}:1
+                                                                        </span>
+                                                                    </button>
+                                                                )}
+                                                                {darkerSuggestion && (
+                                                                    <button
+                                                                        onClick={() => setContrastColor(darkerSuggestion)}
+                                                                        style={{
+                                                                            fontSize: '0.75rem',
+                                                                            padding: '6px 10px',
+                                                                            borderRadius: 4,
+                                                                            background: darkerSuggestion,
+                                                                            color: Utils.getContrastRatio(darkerSuggestion, '#000000') > 4.5 ? '#000' : '#fff',
+                                                                            border: '1px solid rgba(0,0,0,0.1)',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: 6,
+                                                                            justifyContent: 'space-between'
+                                                                        }}
+                                                                    >
+                                                                        <span>Darker: {darkerSuggestion}</span>
+                                                                        <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+                                                                            {Utils.getContrastRatio(hex, darkerSuggestion).toFixed(2)}:1
+                                                                        </span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+
+                                        </div>
+
+
+                                        {/* Results */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                            {/* Results */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                                {/* Real UI Preview */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                    {/* Button Preview */}
+                                                    <div style={{
+                                                        padding: 12,
+                                                        background: hex,
+                                                        color: contrastColor,
+                                                        borderRadius: 8,
+                                                        border: '1px solid var(--border-color)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontWeight: 600,
+                                                        fontSize: '0.9rem'
+                                                    }}>
+                                                        Button Example
                                                     </div>
-                                                )
-                                            })}
+
+                                                    {/* Card Preview */}
+                                                    <div style={{
+                                                        padding: 12,
+                                                        background: hex,
+                                                        borderRadius: 8,
+                                                        border: '1px solid var(--border-color)'
+                                                    }}>
+                                                        <div style={{ color: contrastColor, fontWeight: 700, marginBottom: 4, fontSize: '0.9rem' }}>Card Title</div>
+                                                        <div style={{ color: contrastColor, fontSize: '0.8rem', opacity: 0.9 }}>This is body text in a card component.</div>
+                                                    </div>
+
+                                                    {/* Input Preview */}
+                                                    <div style={{
+                                                        padding: '8px 12px',
+                                                        background: hex,
+                                                        color: contrastColor,
+                                                        borderRadius: 6,
+                                                        border: '1px solid var(--border-color)',
+                                                        fontSize: '0.85rem'
+                                                    }}>
+                                                        Input placeholder text
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+
+                                            {/* Scores */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                                {/* WCAG 2.1 */}
+                                                <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8 }}>
+                                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>WCAG 2.1 Ratio</div>
+                                                    <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{Utils.getContrastRatio(hex, contrastColor).toFixed(2)}:1</div>
+                                                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                                        {Utils.getContrastRatio(hex, contrastColor) >= 4.5 ?
+                                                            <span style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}><Check size={10} /> AA Pass</span> :
+                                                            <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}><X size={10} /> AA Fail</span>
+                                                        }
+                                                        {Utils.getContrastRatio(hex, contrastColor) >= 7 ?
+                                                            <span style={{ fontSize: '0.7rem', color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}><Check size={10} /> AAA Pass</span> :
+                                                            <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}><X size={10} /> AAA Fail</span>
+                                                        }
+                                                    </div>
+                                                </div>
+
+                                                {/* APCA */}
+                                                <div style={{ background: 'var(--bg-secondary)', padding: 12, borderRadius: 8 }}>
+                                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>APCA Lc (Beta)</div>
+                                                    <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{Math.abs(Utils.getApcaContrast(hex, contrastColor)).toFixed(1)}</div>
+                                                    <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: 4 }}>
+                                                        Min Font: <span style={{ fontWeight: 600 }}>{Utils.calculateMinFontSize(Utils.getContrastRatio(hex, contrastColor))}px</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Color Blindness */}
+                                {/* Contrast Grid */}
+                                <div style={{ marginTop: 0 }}>
+                                    <h3 style={{ fontSize: '0.9rem', marginBottom: 12, opacity: 0.7 }}>Check Against Standard Backgrounds</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+                                        {Utils.STANDARD_BACKGROUNDS.map(bg => {
+                                            const ratio = Utils.getContrastRatio(hex, bg.hex);
+                                            const passAA = ratio >= 4.5;
+                                            return (
+                                                <div key={bg.name} style={{ background: bg.hex, color: hex, padding: 10, borderRadius: 6, border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>{bg.name}</div>
+                                                    <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{ratio.toFixed(2)}</div>
+                                                    <div style={{ fontSize: '0.7rem', marginTop: 4, display: 'flex', justifyContent: 'center', gap: 4 }}>
+                                                        {passAA ? <Check size={12} /> : null}
+                                                        <span>{passAA ? 'Pass' : 'Fail'}</span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Color Blindness Simulation */}
                                 <div>
                                     <h3 style={{ fontSize: '1rem', marginBottom: 12 }}>Color Blindness Simulation</h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
                                         {['protanopia', 'deuteranopia', 'tritanopia', 'achromatopsia'].map((type) => {
                                             const rgbVal = Utils.hexToRgb(hex) || { r: 0, g: 0, b: 0 };
                                             const sim = Utils.simulateColorBlindness(rgbVal.r, rgbVal.g, rgbVal.b, type as any);
@@ -952,25 +1145,74 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     {/* --- Gradient Tab --- */}
                     {activeTab === 'gradient' && (
                         <motion.div key="gradient" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                            <div style={{ height: 200, background: `${gradientType}-gradient(${gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, ${hex}, ${gradientColor2})`, borderRadius: 12, marginBottom: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                            {/* Preview */}
+                            <div
+                                style={{
+                                    height: 200,
+                                    background: Utils.generateGradient(gradientType, gradientAngle, gradientStops),
+                                    borderRadius: 12,
+                                    marginBottom: 24,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                    position: 'relative'
+                                }}
+                            >
+                                <button
+                                    onClick={() => {
+                                        // Simple canvas download implementation
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = 800;
+                                        canvas.height = 400;
+                                        const ctx = canvas.getContext('2d');
+                                        if (ctx) {
+                                            let grd;
+                                            if (gradientType === 'linear') {
+                                                const rad = (gradientAngle * Math.PI) / 180;
+                                                const x2 = 800 * Math.cos(rad);
+                                                const y2 = 400 * Math.sin(rad);
+                                                grd = ctx.createLinearGradient(0, 0, x2 || 800, y2 || 0); // Simplified linear
+                                            } else {
+                                                grd = ctx.createRadialGradient(400, 200, 0, 400, 200, 400);
+                                            }
+                                            // Conic is hard to draw on canvas without polyfill, skipping for simple download
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Gradient Type</label>
-                                    <select
-                                        value={gradientType}
-                                        onChange={e => setGradientType(e.target.value as any)}
-                                        className="custom-select"
-                                        style={{ width: '100%' }}
-                                    >
-                                        <option value="linear">Linear</option>
-                                        <option value="radial">Radial</option>
-                                    </select>
-                                </div>
-                                {gradientType === 'linear' && (
+                                            if (gradientType !== 'conic') {
+                                                gradientStops.forEach(stop => grd.addColorStop(stop.position / 100, stop.color));
+                                                ctx.fillStyle = grd;
+                                                ctx.fillRect(0, 0, 800, 400);
+                                                const link = document.createElement('a');
+                                                link.download = 'gradient.png';
+                                                link.href = canvas.toDataURL();
+                                                link.click();
+                                            } else {
+                                                alert('Image download not supported for Conic gradients yet.');
+                                            }
+                                        }
+                                    }}
+                                    style={{ position: 'absolute', bottom: 12, right: 12, padding: '8px 12px', background: 'white', color: 'black', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', fontWeight: 600, boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}
+                                >
+                                    <Download size={14} /> PNG
+                                </button>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                                {/* Controls */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Angle ({gradientAngle}°)</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Gradient Type</label>
+                                        <select
+                                            value={gradientType}
+                                            onChange={e => setGradientType(e.target.value as any)}
+                                            className="custom-select"
+                                            style={{ width: '100%' }}
+                                        >
+                                            <option value="linear">Linear</option>
+                                            <option value="radial">Radial</option>
+                                            <option value="conic">Conic</option>
+                                        </select>
+                                    </div>
+                                    {gradientType === 'linear' && (
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Angle ({gradientAngle}°)</label>
                                             <input
                                                 type="range"
                                                 min="0"
@@ -978,35 +1220,123 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 value={gradientAngle}
                                                 onChange={e => setGradientAngle(parseInt(e.target.value))}
                                                 className="custom-range"
+                                                style={{
+                                                    '--range-value': `${(gradientAngle / 360) * 100}%`,
+                                                    '--range-fill': 'var(--accent-color)',               // filled side
+                                                    '--range-track': 'rgba(128,128,128,0.25)' // non-fill side
+                                                } as React.CSSProperties}
                                             />
                                         </div>
-                                    </div>
-                                )}
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>Start Color</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{ position: 'relative', width: '100%' }}>
-                                            <div style={{ height: 36, background: hex, borderRadius: 6, border: '1px solid var(--border-color)' }} />
-                                            <input type="color" value={hex} onChange={e => setHex(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: 8 }}>End Color</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <div style={{ position: 'relative', width: '100%' }}>
-                                            <div style={{ height: 36, background: gradientColor2, borderRadius: 6, border: '1px solid var(--border-color)' }} />
-                                            <input type="color" value={gradientColor2} onChange={e => setGradientColor2(e.target.value)} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div style={{ marginTop: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                <div style={{ fontSize: '0.8rem', opacity: 0.6, marginBottom: 8 }}>CSS Code</div>
-                                <code style={{ fontSize: '0.85rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
-                                    background: {gradientType}-gradient({gradientType === 'linear' ? gradientAngle + 'deg' : 'circle'}, {hex}, {gradientColor2});
-                                </code>
+                                {/* Stops Editor */}
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                        <label style={{ display: 'block', fontSize: '0.8rem' }}>Gradient Stops</label>
+                                        <button
+                                            onClick={() => setGradientStops([...gradientStops, { color: '#ffffff', position: 50 }])}
+                                            style={{ fontSize: '0.75rem', padding: '4px 8px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                                        >
+                                            <Plus size={12} /> Add Stop
+                                        </button>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        {gradientStops.map((stop, index) => (
+                                            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <div style={{ width: 36, height: 36, background: stop.color, borderRadius: 6, border: '1px solid var(--border-color)' }} />
+                                                    <input
+                                                        type="color"
+                                                        value={stop.color}
+                                                        onChange={e => {
+                                                            const newStops = [...gradientStops];
+                                                            newStops[index].color = e.target.value;
+                                                            setGradientStops(newStops);
+                                                        }}
+                                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                                                    />
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={stop.position}
+                                                    onChange={e => {
+                                                        const newStops = [...gradientStops];
+                                                        newStops[index].position = parseInt(e.target.value);
+                                                        newStops.sort((a, b) => a.position - b.position); // Keep sorted
+                                                        setGradientStops(newStops);
+                                                    }}
+                                                    className="custom-range"
+                                                    style={{
+                                                        '--range-value': `${stop.position}%`,
+                                                        '--range-fill': 'var(--accent-color)',               // filled side
+                                                        '--range-track': 'rgba(128,128,128,0.25)' // non-fill side
+                                                    } as React.CSSProperties}
+                                                />
+                                                <span style={{ fontSize: '0.85rem', fontFamily: 'monospace', width: 30 }}>{stop.position}%</span>
+                                                <button
+                                                    onClick={() => {
+                                                        const newStops = gradientStops.filter((_, i) => i !== index);
+                                                        if (newStops.length >= 2) setGradientStops(newStops);
+                                                    }}
+                                                    disabled={gradientStops.length <= 2}
+                                                    style={{ background: 'none', color: 'var(--text-primary)', border: 'none', cursor: gradientStops.length <= 2 ? 'not-allowed' : 'pointer', opacity: gradientStops.length <= 2 ? 0.3 : 1 }}
+                                                >
+                                                    <Minus size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Presets */}
+                                <div>
+                                    <h3 style={{ fontSize: '0.9rem', marginBottom: 12, opacity: 0.7 }}>Presets</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                                        {Utils.GRADIENT_PRESETS.map(preset => (
+                                            <div
+                                                key={preset.name}
+                                                onClick={() => {
+                                                    setGradientStops(preset.colors.map((c, i) => ({
+                                                        color: c,
+                                                        position: Math.round((i / (preset.colors.length - 1)) * 100)
+                                                    })));
+                                                    setGradientAngle(preset.angle);
+                                                    setGradientType('linear');
+                                                }}
+                                                style={{
+                                                    height: 40,
+                                                    borderRadius: 6,
+                                                    background: `linear-gradient(${preset.angle}deg, ${preset.colors.join(', ')})`,
+                                                    cursor: 'pointer',
+                                                    border: '1px solid var(--border-color)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center'
+                                                }}
+                                                title={preset.name}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* CSS Output */}
+                                <div style={{ marginTop: 0, padding: 16, background: 'var(--bg-card)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>CSS Code</div>
+                                        <button
+                                            onClick={() => navigator.clipboard.writeText(`background: ${Utils.generateGradient(gradientType, gradientAngle, gradientStops)};`)}
+                                            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', opacity: 0.7 }}
+                                        >
+                                            <Copy size={12} /> Copy
+                                        </button>
+                                    </div>
+                                    <code style={{ fontSize: '0.8rem', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all', color: 'var(--accent-color)' }}>
+                                        background: {Utils.generateGradient(gradientType, gradientAngle, gradientStops)};
+                                    </code>
+                                </div>
                             </div>
                         </motion.div>
                     )}
@@ -1014,6 +1344,59 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     {/* --- Saved Palettes Tab --- */}
                     {activeTab === 'saved' && (
                         <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                            {/* Import Section */}
+                            <div style={{ marginBottom: 24, padding: 16, background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border-color)' }}>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: 12, opacity: 0.7 }}>Import Palette</h3>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <input
+                                        type="text"
+                                        value={importText}
+                                        onChange={e => setImportText(e.target.value)}
+                                        placeholder="Paste JSON or Hex codes..."
+                                        className="custom-select"
+                                        style={{ flex: 1, cursor: 'text' }}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (!importText.trim()) return;
+                                            try {
+                                                // Try JSON first
+                                                let colors: string[] = [];
+                                                if (importText.trim().startsWith('[')) {
+                                                    const parsed = JSON.parse(importText);
+                                                    if (Array.isArray(parsed)) {
+                                                        colors = parsed.filter(c => typeof c === 'string' && (c.startsWith('#') || c.startsWith('rgb')));
+                                                    }
+                                                } else {
+                                                    // Try finding hex codes
+                                                    const matches = importText.match(/#[0-9A-Fa-f]{6}/g);
+                                                    if (matches) colors = matches;
+                                                }
+
+                                                if (colors.length > 0) {
+                                                    const newPalette: Utils.SavedPalette = {
+                                                        id: Date.now().toString(),
+                                                        name: 'Imported Palette',
+                                                        colors: colors,
+                                                        createdAt: Date.now(),
+                                                        tags: []
+                                                    };
+                                                    setSavedPalettes([newPalette, ...savedPalettes]);
+                                                    setImportText('');
+                                                } else {
+                                                    alert('No valid colors found in text.');
+                                                }
+                                            } catch (e) {
+                                                alert('Invalid format.');
+                                            }
+                                        }}
+                                        style={{ padding: '8px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem' }}
+                                    >
+                                        Import
+                                    </button>
+                                </div>
+                            </div>
+
                             <button
                                 onClick={savePalette}
                                 style={{ width: '100%', padding: '12px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 24 }}
@@ -1021,7 +1404,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                 <Save size={18} /> Save Current Palette
                             </button>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                                 {savedPalettes.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>
                                         <Save size={32} style={{ marginBottom: 8 }} />
@@ -1029,18 +1412,81 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                     </div>
                                 ) : (
                                     savedPalettes.map(p => (
-                                        <div key={p.id} style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
-                                                <button onClick={() => deletePalette(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, padding: 4 }}><X size={14} /></button>
+                                        <div key={p.id} style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 12, border: '1px solid var(--border-color)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                                                <div style={{ flex: 1 }}>
+                                                    {editingPaletteId === p.id ? (
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            defaultValue={p.name}
+                                                            onBlur={(e) => {
+                                                                const newPalettes = savedPalettes.map(pal => pal.id === p.id ? { ...pal, name: e.target.value } : pal);
+                                                                setSavedPalettes(newPalettes);
+                                                                setEditingPaletteId(null);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const newPalettes = savedPalettes.map(pal => pal.id === p.id ? { ...pal, name: e.currentTarget.value } : pal);
+                                                                    setSavedPalettes(newPalettes);
+                                                                    setEditingPaletteId(null);
+                                                                }
+                                                            }}
+                                                            style={{ fontSize: '0.9rem', fontWeight: 600, background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: 4, padding: '4px 8px', width: '100%', color: 'var(--text-primary)' }}
+                                                        />
+                                                    ) : (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
+                                                            <button onClick={() => setEditingPaletteId(p.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.3, padding: 4 }} title="Rename">
+                                                                <Edit2 size={12} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <div style={{ fontSize: '0.7rem', opacity: 0.4, marginTop: 2 }}>
+                                                        {new Date(p.createdAt).toLocaleDateString()} • {p.colors.length} colors
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 4 }}>
+                                                    <button onClick={() => navigator.clipboard.writeText(Utils.exportPaletteAsJSON(p.colors))} style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5 }} title="Copy JSON"><Copy size={16} /></button>
+                                                    <button onClick={() => deletePalette(p.id)} style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, color: '#ef4444' }} title="Delete"><X size={16} /></button>
+                                                </div>
                                             </div>
-                                            <div style={{ display: 'flex', height: 32, borderRadius: 6, overflow: 'hidden' }}>
+
+                                            {/* Tags */}
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                                                {p.tags?.map(tag => (
+                                                    <span key={tag} style={{ fontSize: '0.7rem', background: 'var(--bg-secondary)', padding: '2px 8px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        {tag}
+                                                        <span
+                                                            onClick={() => {
+                                                                const newPalettes = savedPalettes.map(pal => pal.id === p.id ? { ...pal, tags: pal.tags?.filter(t => t !== tag) } : pal);
+                                                                setSavedPalettes(newPalettes);
+                                                            }}
+                                                            style={{ cursor: 'pointer', fontWeight: 700 }}
+                                                        >×</span>
+                                                    </span>
+                                                ))}
+                                                <input
+                                                    type="text"
+                                                    placeholder="+ Tag"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            const tag = e.currentTarget.value.trim();
+                                                            if (tag && !p.tags?.includes(tag)) {
+                                                                const newPalettes = savedPalettes.map(pal => pal.id === p.id ? { ...pal, tags: [...(pal.tags || []), tag] } : pal);
+                                                                setSavedPalettes(newPalettes);
+                                                                e.currentTarget.value = '';
+                                                            }
+                                                        }
+                                                    }}
+                                                    style={{ fontSize: '0.7rem', background: 'transparent', border: 'none', width: 50, color: 'var(--text-secondary)', outline: 'none' }}
+                                                />
+                                            </div>
+
+                                            <div style={{ display: 'flex', height: 48, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(128,128,128,0.1)' }}>
                                                 {p.colors.map((c, i) => (
                                                     <div key={i} onClick={() => setHex(c)} title={c} style={{ flex: 1, background: c, cursor: 'pointer' }} />
                                                 ))}
-                                            </div>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.4, marginTop: 8 }}>
-                                                {new Date(p.createdAt).toLocaleDateString()}
                                             </div>
                                         </div>
                                     ))
@@ -1048,9 +1494,9 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             </div>
                         </motion.div>
                     )}
-                </AnimatePresence>
-            </div>
-        </div>
+                </AnimatePresence >
+            </div >
+        </div >
     );
 };
 

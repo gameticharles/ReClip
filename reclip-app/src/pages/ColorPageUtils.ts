@@ -349,6 +349,11 @@ export const STANDARD_BACKGROUNDS = [
     { name: 'Slate-50', hex: '#f8fafc' },
     { name: 'Slate-100', hex: '#f1f5f9' },
     { name: 'Gray-200', hex: '#e5e7eb' },
+    { name: 'Gray-300', hex: '#d1d5db' },
+    { name: 'Gray-400', hex: '#9ca3af' },
+    { name: 'Gray-500', hex: '#6b7280' },
+    { name: 'Gray-600', hex: '#4b5563' },
+    { name: 'Gray-700', hex: '#374151' },
     { name: 'Gray-800', hex: '#1f2937' },
     { name: 'Slate-900', hex: '#0f172a' },
     { name: 'Black', hex: '#000000' }
@@ -933,25 +938,46 @@ export const getApcaLevel = (contrast: number): { level: string; minSize: number
     return { level: 'Fail', minSize: 0 };
 };
 
-export const suggestAccessibleColor = (color: string, background: string, targetRatio: number = 4.5): string => {
-    const rgb = hexToRgb(color);
-    if (!rgb) return color;
+// Suggest accessible color alternatives (Consolidated)
+export const suggestAccessibleColor = (bg: string, fg: string, preference: 'any' | 'lighter' | 'darker' = 'lighter', targetRatio: number = 4.5): string => {
 
-    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    const bgLum = getLuminance(...Object.values(hexToRgb(background) || { r: 255, g: 255, b: 255 }) as [number, number, number]);
+    const fgRgb = hexToRgb(fg);
+    if (!fgRgb) return fg;
 
-    // Try adjusting lightness
-    for (let l = 0; l <= 100; l++) {
+    // Use HSL for better quality lightness adjustment
+    const hsl = rgbToHsl(fgRgb.r, fgRgb.g, fgRgb.b);
+
+    const check = (l: number): string | null => {
         const testRgb = hslToRgb(hsl.h, hsl.s, l);
         const testHex = rgbToHex(testRgb.r, testRgb.g, testRgb.b);
-        if (getContrastRatio(testHex, background) >= targetRatio) {
-            return testHex;
+        return getContrastRatio(bg, testHex) >= targetRatio ? testHex : null;
+    };
+
+    if (check(hsl.l)) return fg;
+
+    for (let i = 1; i <= 100; i++) {
+        if (preference === 'any' || preference === 'lighter') {
+            const lUp = Math.min(100, Math.floor(hsl.l + i));
+            const res = check(lUp);
+            if (res) return res;
+        }
+        if (preference === 'any' || preference === 'darker') {
+            const lDown = Math.max(0, Math.ceil(hsl.l - i));
+            const res = check(lDown);
+            if (res) return res;
         }
     }
 
-    // If no match, return black or white based on background
-    return bgLum > 0.5 ? '#000000' : '#ffffff';
+    // Fallback
+    if (preference === 'lighter') return '#ffffff';
+    if (preference === 'darker') return '#000000';
+
+    const whiteContrast = getContrastRatio(bg, '#ffffff');
+    const blackContrast = getContrastRatio(bg, '#000000');
+    return whiteContrast >= blackContrast ? '#ffffff' : '#000000';
 };
+
+
 
 export const calculateMinFontSize = (contrast: number, isLarge: boolean = false): number => {
     if (contrast >= 7) return 12;
@@ -959,6 +985,7 @@ export const calculateMinFontSize = (contrast: number, isLarge: boolean = false)
     if (contrast >= 3) return 24;
     return 36; // Not recommended
 };
+
 
 // ============================================
 // Gradient Presets
@@ -1022,6 +1049,24 @@ export const generateHarmoniesAdvanced = (hex: string, angleOffset: number = 0):
 };
 
 // ============================================
+// Gradient Utilities
+// ============================================
+// (Removed duplicate GRADIENT_PRESETS)
+
+export const generateGradient = (type: 'linear' | 'radial' | 'conic', angle: number, stops: { color: string; position: number }[]): string => {
+    const sortedStops = [...stops].sort((a, b) => a.position - b.position);
+    const stopsString = sortedStops.map(s => `${s.color} ${s.position}%`).join(', ');
+
+    if (type === 'linear') {
+        return `linear-gradient(${angle}deg, ${stopsString})`;
+    } else if (type === 'conic') {
+        return `conic-gradient(from ${angle}deg, ${stopsString})`;
+    } else {
+        return `radial-gradient(circle, ${stopsString})`;
+    }
+};
+
+// ============================================
 // Export Helpers
 // ============================================
 export const exportPaletteAsCSS = (colors: string[], prefix: string = 'color'): string => {
@@ -1045,4 +1090,169 @@ export const exportPaletteAsTailwind = (colors: string[], name: string = 'custom
     return JSON.stringify({ [name]: shades }, null, 2);
 };
 
+
+function srgbToLinear(c: number): number {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }): number {
+    return (
+        0.2126 * srgbToLinear(r) +
+        0.7152 * srgbToLinear(g) +
+        0.0722 * srgbToLinear(b)
+    );
+}
+
+// export function getContrastRatio(bgHex: string, fgHex: string): number {
+//     const bg = hexToRgb(bgHex);
+//     const fg = hexToRgb(fgHex);
+//     if (!bg || !fg) return 1;
+
+//     const L1 = relativeLuminance(bg);
+//     const L2 = relativeLuminance(fg);
+
+//     const lighter = Math.max(L1, L2);
+//     const darker = Math.min(L1, L2);
+
+//     return (lighter + 0.05) / (darker + 0.05);
+// }
+
+const APCA = {
+    blkThrs: 0.022,
+    blkClmp: 1.414,
+    scale: 1.14,
+    normBG: 0.56,
+    normTXT: 0.57,
+    revTXT: 0.62,
+    revBG: 0.65,
+    loClip: 0.1,
+    loBooster: 0.027,
+};
+
+function apcaLuminance({ r, g, b }: { r: number; g: number; b: number }): number {
+    const R = Math.pow(r / 255, 2.4);
+    const G = Math.pow(g / 255, 2.4);
+    const B = Math.pow(b / 255, 2.4);
+
+    return 0.2126729 * R + 0.7151522 * G + 0.0721750 * B;
+}
+
+// export function getApcaContrast(bgHex: string, fgHex: string): number {
+//     const bg = hexToRgb(bgHex);
+//     const fg = hexToRgb(fgHex);
+//     if (!bg || !fg) return 0;
+
+//     let Ybg = apcaLuminance(bg);
+//     let Ytxt = apcaLuminance(fg);
+
+//     // Black clamp
+//     if (Ybg < APCA.blkThrs) Ybg += Math.pow(APCA.blkThrs - Ybg, APCA.blkClmp);
+//     if (Ytxt < APCA.blkThrs) Ytxt += Math.pow(APCA.blkThrs - Ytxt, APCA.blkClmp);
+
+//     const polarity = Ybg > Ytxt ? 'darkText' : 'lightText';
+
+//     let contrast: number;
+
+//     if (polarity === 'darkText') {
+//         contrast =
+//             (Math.pow(Ybg, APCA.normBG) - Math.pow(Ytxt, APCA.normTXT)) *
+//             APCA.scale * 100;
+//     } else {
+//         contrast =
+//             (Math.pow(Ybg, APCA.revBG) - Math.pow(Ytxt, APCA.revTXT)) *
+//             APCA.scale * 100;
+//     }
+
+//     // Low contrast smoothing
+//     if (Math.abs(contrast) < APCA.loClip) {
+//         contrast *= Math.abs(contrast) / APCA.loClip;
+//     }
+
+//     return contrast;
+// }
+
+export const APCA_THRESHOLDS = {
+    bodyText: 60,      // 16px–20px
+    largeText: 45,     // ≥24px or ≥18px bold
+    uiText: 75,        // buttons, inputs, labels
+    decorative: 30,    // icons, disabled
+};
+
+export function apcaPass(
+    contrast: number,
+    usage: keyof typeof APCA_THRESHOLDS
+): boolean {
+    return Math.abs(contrast) >= APCA_THRESHOLDS[usage];
+}
+
+export function calculateMinFontSizeFromApca(Lc: number): number {
+    const absLc = Math.abs(Lc);
+
+    if (absLc >= 90) return 12;
+    if (absLc >= 75) return 14;
+    if (absLc >= 60) return 16;
+    if (absLc >= 45) return 24;
+    if (absLc >= 30) return 32;
+
+    return Infinity; // Not readable text
+}
+
+function adjustLightness(hex: string, delta: number): string {
+    const { h, s, l } = hexToHsl(hex);
+    const nextL = Math.max(0, Math.min(100, l + delta));
+    return hslToHex(h, s, nextL);
+}
+
+export function suggestAccessibleVariants(
+    bgHex: string,
+    fgHex: string
+): { hex: string; reason: string }[] {
+    const results = new Set<string>();
+    const suggestions = [];
+
+    for (let step = 5; step <= 60; step += 5) {
+        for (const delta of [step, -step]) {
+            const candidate = adjustLightness(fgHex, delta);
+
+            if (results.has(candidate)) continue;
+
+            const wcag = getContrastRatio(bgHex, candidate);
+            const apca = getApcaContrast(bgHex, candidate);
+
+            if (wcag >= 4.5 && Math.abs(apca) >= 60) {
+                results.add(candidate);
+                suggestions.push({
+                    hex: candidate,
+                    reason: 'WCAG AA + APCA Body Text',
+                });
+            }
+
+            if (suggestions.length >= 6) return suggestions;
+        }
+    }
+
+    return suggestions;
+}
+
+export function compareForegrounds(
+    bgHex: string,
+    foregrounds: string[]
+) {
+    return foregrounds.slice(0, 4).map(fg => ({
+        fg,
+        wcag: getContrastRatio(bgHex, fg),
+        apca: getApcaContrast(bgHex, fg),
+    }));
+}
+function hexToHsl(hex: string): { h: number; s: number; l: number; } {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return { h: 0, s: 0, l: 0 };
+    return rgbToHsl(rgb.r, rgb.g, rgb.b);
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+    const rgb = hslToRgb(h, s, l);
+    return rgbToHex(rgb.r, rgb.g, rgb.b);
+}
 

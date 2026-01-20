@@ -79,6 +79,9 @@ export default function SettingsPage({
     const [updateError, setUpdateError] = useState("");
     const [appVersion, setAppVersion] = useState("...");
     const [downloadProgress, setDownloadProgress] = useState<{ downloaded: number, total: number } | null>(null);
+    const [colorPaletteLimit, setColorPaletteLimit] = useState(() => parseInt(localStorage.getItem('colorPaletteLimit') || '15'));
+    const [showTooltipPreview, setShowTooltipPreview] = useState(() => localStorage.getItem('showTooltipPreview') === 'true');
+    const [autoHideDuration, setAutoHideDuration] = useState(() => parseInt(localStorage.getItem('autoHideDuration') || '0'));
 
     // Custom Colors - load from localStorage on mount
     const [customColors, setCustomColors] = useState(() => {
@@ -541,8 +544,9 @@ export default function SettingsPage({
                                     </div>
                                     <input
                                         type="checkbox"
-                                        checked={localStorage.getItem('showTooltipPreview') === 'true'}
+                                        checked={showTooltipPreview}
                                         onChange={(e) => {
+                                            setShowTooltipPreview(e.target.checked);
                                             localStorage.setItem('showTooltipPreview', String(e.target.checked));
                                             window.dispatchEvent(new Event('storage')); // Notify other components
                                         }}
@@ -556,14 +560,16 @@ export default function SettingsPage({
                                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                                     <div>
                                         <div style={{ fontWeight: 600 }}>Image Color Palette Limit</div>
-                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Maximum colors to extract from images ({localStorage.getItem('colorPaletteLimit') || '15'}).</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Maximum colors to extract from images ({colorPaletteLimit}).</div>
                                     </div>
                                     <input
                                         type="range"
                                         min="5"
                                         max="30"
-                                        value={parseInt(localStorage.getItem('colorPaletteLimit') || '15')}
+                                        value={colorPaletteLimit}
                                         onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setColorPaletteLimit(val);
                                             localStorage.setItem('colorPaletteLimit', e.target.value);
                                             window.dispatchEvent(new Event('storage'));
                                         }}
@@ -728,8 +734,12 @@ export default function SettingsPage({
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Auto-Hide Window</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <input
-                                        type="number" min="0" max="600" defaultValue={localStorage.getItem('autoHideDuration') || "0"}
-                                        onChange={(e) => { localStorage.setItem('autoHideDuration', e.target.value); }}
+                                        type="number" min="0" max="600" value={autoHideDuration}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setAutoHideDuration(val);
+                                            localStorage.setItem('autoHideDuration', e.target.value);
+                                        }}
                                         style={{ width: '60px', padding: '4px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.3)', background: 'var(--bg-card)', color: 'var(--text-primary, inherit)' }}
                                     />
                                     <span>seconds (0 to disable)</span>
