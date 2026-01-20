@@ -340,6 +340,7 @@ export interface SavedPalette {
     name: string;
     colors: string[];
     createdAt: number;
+    tags?: string[];
 }
 
 // Standard Backgrounds for Contrast Grid
@@ -358,24 +359,690 @@ export const formatCode = (hex: string, format: string): string => {
     const rgb = hexToRgb(hex);
     if (!rgb) return hex;
 
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const hwb = rgbToHwb(rgb.r, rgb.g, rgb.b);
+    const lab = rgbToLab(rgb.r, rgb.g, rgb.b);
+    const lch = rgbToLch(rgb.r, rgb.g, rgb.b);
+    const oklch = rgbToOklch(rgb.r, rgb.g, rgb.b);
+
     switch (format) {
         case 'swift':
             return `UIColor(red: ${(rgb.r / 255).toFixed(3)}, green: ${(rgb.g / 255).toFixed(3)}, blue: ${(rgb.b / 255).toFixed(3)}, alpha: 1.0)`;
+        case 'swiftui':
+            return `Color(red: ${(rgb.r / 255).toFixed(3)}, green: ${(rgb.g / 255).toFixed(3)}, blue: ${(rgb.b / 255).toFixed(3)})`;
         case 'flutter':
             return `Color(0xFF${hex.substring(1).toUpperCase()})`;
         case 'kotlin':
             return `Color(0xFF${hex.substring(1).toUpperCase()})`;
         case 'css-rgb':
             return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-        case 'css-hsl': {
-            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-            return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
-        }
-        case 'argb-hex':
-            return `#FF${hex.substring(1).toUpperCase()}`;
         case 'css-rgba':
             return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1.0)`;
+        case 'css-hsl':
+            return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+        case 'css-hsla':
+            return `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, 1.0)`;
+        case 'css-hwb':
+            return `hwb(${hwb.h} ${hwb.w}% ${hwb.b}%)`;
+        case 'css-lab':
+            return `lab(${lab.l.toFixed(1)}% ${lab.a.toFixed(1)} ${lab.b.toFixed(1)})`;
+        case 'css-lch':
+            return `lch(${lch.l.toFixed(1)}% ${lch.c.toFixed(1)} ${lch.h.toFixed(1)})`;
+        case 'css-oklch':
+            return `oklch(${oklch.l.toFixed(3)} ${oklch.c.toFixed(3)} ${oklch.h.toFixed(1)})`;
+        case 'argb-hex':
+            return `#FF${hex.substring(1).toUpperCase()}`;
+        case 'android-xml':
+            return `<color name="color_${hex.substring(1).toLowerCase()}">#FF${hex.substring(1).toUpperCase()}</color>`;
+        case 'csharp':
+            return `Color.FromArgb(255, ${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        case 'java-awt':
+            return `new Color(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        case 'objective-c':
+            return `[UIColor colorWithRed:${(rgb.r / 255).toFixed(3)} green:${(rgb.g / 255).toFixed(3)} blue:${(rgb.b / 255).toFixed(3)} alpha:1.0]`;
+        case 'sass-variable':
+            return `$color-primary: ${hex};`;
+        case 'css-variable':
+            return `--color-primary: ${hex};`;
+        case 'integer':
+            return `${parseInt(hex.substring(1), 16)}`;
+        case 'hex-integer':
+            return `0x${hex.substring(1).toUpperCase()}`;
+        case 'tailwind':
+            return findNearestTailwind(hex) || hex;
+        case 'css-hex':
         default:
             return hex;
     }
 };
+
+// ============================================
+// HWB (Hue, Whiteness, Blackness) Conversion
+// ============================================
+export const rgbToHwb = (r: number, g: number, b: number): { h: number; w: number; b: number } => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const hsl = rgbToHsl(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+
+    return {
+        h: hsl.h,
+        w: Math.round(min * 100),
+        b: Math.round((1 - max) * 100)
+    };
+};
+
+export const hwbToRgb = (h: number, w: number, b: number): { r: number; g: number; b: number } => {
+    w /= 100; b /= 100;
+    if (w + b >= 1) {
+        const gray = Math.round(w / (w + b) * 255);
+        return { r: gray, g: gray, b: gray };
+    }
+    const rgb = hslToRgb(h, 100, 50);
+    const factor = 1 - w - b;
+    return {
+        r: Math.round((rgb.r / 255 * factor + w) * 255),
+        g: Math.round((rgb.g / 255 * factor + w) * 255),
+        b: Math.round((rgb.b / 255 * factor + w) * 255)
+    };
+};
+
+// ============================================
+// LAB (CIE L*a*b*) Conversion
+// ============================================
+export const rgbToXyz = (r: number, g: number, b: number): { x: number; y: number; z: number } => {
+    // Convert to 0-1 range and apply gamma correction
+    let rLinear = r / 255;
+    let gLinear = g / 255;
+    let bLinear = b / 255;
+
+    rLinear = rLinear > 0.04045 ? Math.pow((rLinear + 0.055) / 1.055, 2.4) : rLinear / 12.92;
+    gLinear = gLinear > 0.04045 ? Math.pow((gLinear + 0.055) / 1.055, 2.4) : gLinear / 12.92;
+    bLinear = bLinear > 0.04045 ? Math.pow((bLinear + 0.055) / 1.055, 2.4) : bLinear / 12.92;
+
+    // sRGB to XYZ (D65 illuminant)
+    return {
+        x: rLinear * 0.4124564 + gLinear * 0.3575761 + bLinear * 0.1804375,
+        y: rLinear * 0.2126729 + gLinear * 0.7151522 + bLinear * 0.0721750,
+        z: rLinear * 0.0193339 + gLinear * 0.1191920 + bLinear * 0.9503041
+    };
+};
+
+export const xyzToRgb = (x: number, y: number, z: number): { r: number; g: number; b: number } => {
+    // XYZ to linear RGB
+    let r = x * 3.2404542 + y * -1.5371385 + z * -0.4985314;
+    let g = x * -0.9692660 + y * 1.8760108 + z * 0.0415560;
+    let b = x * 0.0556434 + y * -0.2040259 + z * 1.0572252;
+
+    // Apply gamma correction
+    r = r > 0.0031308 ? 1.055 * Math.pow(r, 1 / 2.4) - 0.055 : 12.92 * r;
+    g = g > 0.0031308 ? 1.055 * Math.pow(g, 1 / 2.4) - 0.055 : 12.92 * g;
+    b = b > 0.0031308 ? 1.055 * Math.pow(b, 1 / 2.4) - 0.055 : 12.92 * b;
+
+    return {
+        r: Math.round(Math.max(0, Math.min(255, r * 255))),
+        g: Math.round(Math.max(0, Math.min(255, g * 255))),
+        b: Math.round(Math.max(0, Math.min(255, b * 255)))
+    };
+};
+
+export const rgbToLab = (r: number, g: number, b: number): { l: number; a: number; b: number } => {
+    const xyz = rgbToXyz(r, g, b);
+
+    // D65 reference white
+    const refX = 0.95047;
+    const refY = 1.0;
+    const refZ = 1.08883;
+
+    let x = xyz.x / refX;
+    let y = xyz.y / refY;
+    let z = xyz.z / refZ;
+
+    const epsilon = 0.008856;
+    const kappa = 903.3;
+
+    x = x > epsilon ? Math.pow(x, 1 / 3) : (kappa * x + 16) / 116;
+    y = y > epsilon ? Math.pow(y, 1 / 3) : (kappa * y + 16) / 116;
+    z = z > epsilon ? Math.pow(z, 1 / 3) : (kappa * z + 16) / 116;
+
+    return {
+        l: 116 * y - 16,
+        a: 500 * (x - y),
+        b: 200 * (y - z)
+    };
+};
+
+export const labToRgb = (l: number, a: number, labB: number): { r: number; g: number; b: number } => {
+    const refX = 0.95047;
+    const refY = 1.0;
+    const refZ = 1.08883;
+
+    let y = (l + 16) / 116;
+    let x = a / 500 + y;
+    let z = y - labB / 200;
+
+    const epsilon = 0.008856;
+    const kappa = 903.3;
+
+    const x3 = Math.pow(x, 3);
+    const y3 = Math.pow(y, 3);
+    const z3 = Math.pow(z, 3);
+
+    x = x3 > epsilon ? x3 : (116 * x - 16) / kappa;
+    y = l > kappa * epsilon ? y3 : l / kappa;
+    z = z3 > epsilon ? z3 : (116 * z - 16) / kappa;
+
+    return xyzToRgb(x * refX, y * refY, z * refZ);
+};
+
+// ============================================
+// LCH (CIE LCH) Conversion
+// ============================================
+export const rgbToLch = (r: number, g: number, b: number): { l: number; c: number; h: number } => {
+    const lab = rgbToLab(r, g, b);
+    const c = Math.sqrt(lab.a * lab.a + lab.b * lab.b);
+    let h = Math.atan2(lab.b, lab.a) * 180 / Math.PI;
+    if (h < 0) h += 360;
+
+    return { l: lab.l, c, h };
+};
+
+export const lchToRgb = (l: number, c: number, h: number): { r: number; g: number; b: number } => {
+    const hRad = h * Math.PI / 180;
+    const a = c * Math.cos(hRad);
+    const b = c * Math.sin(hRad);
+    return labToRgb(l, a, b);
+};
+
+// ============================================
+// OKLCH (Oklab LCH) Conversion
+// ============================================
+export const rgbToOklab = (r: number, g: number, b: number): { l: number; a: number; b: number } => {
+    // Linearize sRGB
+    let lr = r / 255;
+    let lg = g / 255;
+    let lb = b / 255;
+
+    lr = lr <= 0.04045 ? lr / 12.92 : Math.pow((lr + 0.055) / 1.055, 2.4);
+    lg = lg <= 0.04045 ? lg / 12.92 : Math.pow((lg + 0.055) / 1.055, 2.4);
+    lb = lb <= 0.04045 ? lb / 12.92 : Math.pow((lb + 0.055) / 1.055, 2.4);
+
+    const l_ = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+    const m_ = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+    const s_ = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+
+    return {
+        l: 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        a: 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        b: 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    };
+};
+
+export const oklabToRgb = (l: number, a: number, b: number): { r: number; g: number; b: number } => {
+    const l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+
+    const lr = Math.pow(l_, 3);
+    const mr = Math.pow(m_, 3);
+    const sr = Math.pow(s_, 3);
+
+    let r = 4.0767416621 * lr - 3.3077115913 * mr + 0.2309699292 * sr;
+    let g = -1.2684380046 * lr + 2.6097574011 * mr - 0.3413193965 * sr;
+    let bVal = -0.0041960863 * lr - 0.7034186147 * mr + 1.7076147010 * sr;
+
+    // Gamma correction
+    r = r <= 0.0031308 ? 12.92 * r : 1.055 * Math.pow(r, 1 / 2.4) - 0.055;
+    g = g <= 0.0031308 ? 12.92 * g : 1.055 * Math.pow(g, 1 / 2.4) - 0.055;
+    bVal = bVal <= 0.0031308 ? 12.92 * bVal : 1.055 * Math.pow(bVal, 1 / 2.4) - 0.055;
+
+    return {
+        r: Math.round(Math.max(0, Math.min(255, r * 255))),
+        g: Math.round(Math.max(0, Math.min(255, g * 255))),
+        b: Math.round(Math.max(0, Math.min(255, bVal * 255)))
+    };
+};
+
+export const rgbToOklch = (r: number, g: number, b: number): { l: number; c: number; h: number } => {
+    const oklab = rgbToOklab(r, g, b);
+    const c = Math.sqrt(oklab.a * oklab.a + oklab.b * oklab.b);
+    let h = Math.atan2(oklab.b, oklab.a) * 180 / Math.PI;
+    if (h < 0) h += 360;
+
+    return { l: oklab.l, c, h };
+};
+
+export const oklchToRgb = (l: number, c: number, h: number): { r: number; g: number; b: number } => {
+    const hRad = h * Math.PI / 180;
+    const a = c * Math.cos(hRad);
+    const b = c * Math.sin(hRad);
+    return oklabToRgb(l, a, b);
+};
+
+// ============================================
+// Industry Color Matching (Pantone, RAL, NCS)
+// ============================================
+export const PANTONE_COLORS: Record<string, string> = {
+    'PMS 186 C': '#c8102e', 'PMS 185 C': '#e4002b', 'PMS 199 C': '#d50032',
+    'PMS 032 C': '#f4364c', 'PMS 021 C': '#fe5000', 'PMS 151 C': '#ff8200',
+    'PMS 123 C': '#ffc72c', 'PMS 116 C': '#ffcd00', 'PMS 109 C': '#ffd100',
+    'PMS 382 C': '#c4d600', 'PMS 375 C': '#97d700', 'PMS 361 C': '#43b02a',
+    'PMS 347 C': '#009a44', 'PMS 3268 C': '#00ab84', 'PMS 320 C': '#009ca6',
+    'PMS 3005 C': '#0077c8', 'PMS 300 C': '#005eb8', 'PMS 286 C': '#0032a0',
+    'PMS 2728 C': '#001489', 'PMS 2685 C': '#56368a', 'PMS 2607 C': '#500778',
+    'PMS 254 C': '#84329b', 'PMS 232 C': '#f74d8b', 'PMS 219 C': '#e31c79',
+    'PMS 485 C': '#da291c', 'PMS 711 C': '#aa8066', 'PMS 476 C': '#4e3524',
+    'PMS Black C': '#2d2926', 'PMS Cool Gray 11 C': '#53565a', 'PMS Cool Gray 5 C': '#b1b3b3',
+    'PMS White': '#ffffff', 'PMS 7421 C': '#612141', 'PMS 7462 C': '#00558c',
+    'PMS 7741 C': '#44883e', 'PMS 7548 C': '#ffc600', 'PMS 7579 C': '#dc4405'
+};
+
+export const RAL_COLORS: Record<string, string> = {
+    'RAL 1000': '#bebd7f', 'RAL 1001': '#c2b078', 'RAL 1002': '#c6a664',
+    'RAL 1003': '#e5be01', 'RAL 1004': '#cda434', 'RAL 1005': '#a98307',
+    'RAL 2000': '#ed760e', 'RAL 2001': '#c93c20', 'RAL 2002': '#cb2821',
+    'RAL 3000': '#af2b1e', 'RAL 3001': '#a52019', 'RAL 3002': '#a2231d',
+    'RAL 3003': '#9b111e', 'RAL 4001': '#6d3f5b', 'RAL 4002': '#922b3e',
+    'RAL 5000': '#354d73', 'RAL 5002': '#20214f', 'RAL 5003': '#1d1e33',
+    'RAL 5005': '#1e2460', 'RAL 5010': '#0e294b', 'RAL 5015': '#2271b3',
+    'RAL 6000': '#316650', 'RAL 6001': '#287233', 'RAL 6002': '#2d572c',
+    'RAL 7000': '#78858b', 'RAL 7001': '#8a9597', 'RAL 7035': '#d7d7d7',
+    'RAL 8000': '#826c34', 'RAL 8001': '#955f20', 'RAL 9001': '#fdf4e3',
+    'RAL 9002': '#e7ebda', 'RAL 9003': '#f4f4f4', 'RAL 9005': '#0a0a0a',
+    'RAL 9010': '#ffffff', 'RAL 9016': '#f6f6f6', 'RAL 9017': '#1e1e1e'
+};
+
+export const NCS_COLORS: Record<string, string> = {
+    'S 0500-N': '#f5f2e7', 'S 0502-Y': '#f4f1e0', 'S 0505-Y10R': '#f7efe0',
+    'S 1000-N': '#e8e4d8', 'S 1002-Y': '#e5e1d0', 'S 1005-Y20R': '#e8dfd0',
+    'S 1500-N': '#d8d4c8', 'S 2000-N': '#c8c4b8', 'S 2002-Y': '#cac6b5',
+    'S 2005-Y30R': '#d4c8b5', 'S 2010-Y30R': '#d8c4a8', 'S 2020-Y30R': '#d8bc98',
+    'S 3000-N': '#aca8a0', 'S 4000-N': '#908c85', 'S 4502-B': '#7e8890',
+    'S 5000-N': '#787470', 'S 6000-N': '#605c58', 'S 7000-N': '#4a4644',
+    'S 8000-N': '#353230', 'S 9000-N': '#201f1e', 'S 0520-Y10R': '#f7e8c8',
+    'S 0540-Y10R': '#f7dca8', 'S 0560-Y10R': '#f7d088', 'S 1070-Y10R': '#e8b450',
+    'S 2060-Y10R': '#d4a040', 'S 3060-Y10R': '#b88c30', 'S 2060-B': '#0078c8'
+};
+
+export const findNearestPantone = (hex: string): string | null => {
+    return findNearestFromPalette(hex, PANTONE_COLORS);
+};
+
+export const findNearestRal = (hex: string): string | null => {
+    return findNearestFromPalette(hex, RAL_COLORS);
+};
+
+export const findNearestNcs = (hex: string): string | null => {
+    return findNearestFromPalette(hex, NCS_COLORS);
+};
+
+const findNearestFromPalette = (hex: string, palette: Record<string, string>): string | null => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return null;
+
+    let minDist = Infinity;
+    let match = '';
+
+    Object.entries(palette).forEach(([name, colorHex]) => {
+        const cRgb = hexToRgb(colorHex);
+        if (cRgb) {
+            const dist = Math.sqrt(
+                Math.pow(rgb.r - cRgb.r, 2) +
+                Math.pow(rgb.g - cRgb.g, 2) +
+                Math.pow(rgb.b - cRgb.b, 2)
+            );
+            if (dist < minDist) {
+                minDist = dist;
+                match = name;
+            }
+        }
+    });
+    return minDist < 100 ? match : null; // Only return if reasonably close
+};
+
+// ============================================
+// Color Temperature & Properties
+// ============================================
+export const getColorTemperature = (hex: string): { type: 'warm' | 'cool' | 'neutral'; kelvin: number } => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return { type: 'neutral', kelvin: 6500 };
+
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+    // Warm colors: red, orange, yellow (0-60, 300-360)
+    // Cool colors: green, blue, purple (120-270)
+    const h = hsl.h;
+    let type: 'warm' | 'cool' | 'neutral' = 'neutral';
+    let kelvin = 6500;
+
+    if ((h >= 0 && h <= 60) || (h >= 300 && h <= 360)) {
+        type = 'warm';
+        kelvin = 2700 + ((60 - Math.min(h, 60)) / 60) * 2000;
+    } else if (h >= 180 && h <= 270) {
+        type = 'cool';
+        kelvin = 8000 + ((h - 180) / 90) * 4000;
+    } else if (h > 60 && h < 180) {
+        type = hsl.s < 30 ? 'neutral' : (h < 120 ? 'warm' : 'cool');
+        kelvin = 5500 + ((h - 60) / 120) * 2000;
+    }
+
+    // Neutral if saturation is very low
+    if (hsl.s < 10) {
+        type = 'neutral';
+        kelvin = 6500;
+    }
+
+    return { type, kelvin: Math.round(kelvin) };
+};
+
+export const getWebsafeColor = (hex: string): string => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return hex;
+
+    const websafe = (c: number) => Math.round(c / 51) * 51;
+    return rgbToHex(websafe(rgb.r), websafe(rgb.g), websafe(rgb.b));
+};
+
+export const getHexShorthand = (hex: string): string | null => {
+    if (!hex.startsWith('#') || hex.length !== 7) return null;
+
+    const r1 = hex[1], r2 = hex[2];
+    const g1 = hex[3], g2 = hex[4];
+    const b1 = hex[5], b2 = hex[6];
+
+    if (r1 === r2 && g1 === g2 && b1 === b2) {
+        return `#${r1}${g1}${b1}`;
+    }
+    return null;
+};
+
+// ============================================
+// Blend Modes
+// ============================================
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light' | 'hard-light' | 'difference' | 'exclusion';
+
+export const blendColors = (base: string, blend: string, mode: BlendMode = 'normal'): string => {
+    const baseRgb = hexToRgb(base);
+    const blendRgb = hexToRgb(blend);
+    if (!baseRgb || !blendRgb) return base;
+
+    const blendChannel = (a: number, b: number, mode: BlendMode): number => {
+        a /= 255; b /= 255;
+        let result: number;
+
+        switch (mode) {
+            case 'multiply':
+                result = a * b;
+                break;
+            case 'screen':
+                result = 1 - (1 - a) * (1 - b);
+                break;
+            case 'overlay':
+                result = a < 0.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b);
+                break;
+            case 'soft-light':
+                result = b < 0.5
+                    ? a - (1 - 2 * b) * a * (1 - a)
+                    : a + (2 * b - 1) * (a < 0.25 ? ((16 * a - 12) * a + 4) * a : Math.sqrt(a) - a);
+                break;
+            case 'hard-light':
+                result = b < 0.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b);
+                break;
+            case 'difference':
+                result = Math.abs(a - b);
+                break;
+            case 'exclusion':
+                result = a + b - 2 * a * b;
+                break;
+            case 'normal':
+            default:
+                result = b;
+        }
+
+        return Math.round(result * 255);
+    };
+
+    return rgbToHex(
+        blendChannel(baseRgb.r, blendRgb.r, mode),
+        blendChannel(baseRgb.g, blendRgb.g, mode),
+        blendChannel(baseRgb.b, blendRgb.b, mode)
+    );
+};
+
+// ============================================
+// Perceptual Color Mixing (LAB-based)
+// ============================================
+export const mixColorsLab = (color1: string, color2: string, ratio: number = 0.5): string => {
+    const rgb1 = hexToRgb(color1);
+    const rgb2 = hexToRgb(color2);
+    if (!rgb1 || !rgb2) return color1;
+
+    const lab1 = rgbToLab(rgb1.r, rgb1.g, rgb1.b);
+    const lab2 = rgbToLab(rgb2.r, rgb2.g, rgb2.b);
+
+    const l = lab1.l * (1 - ratio) + lab2.l * ratio;
+    const a = lab1.a * (1 - ratio) + lab2.a * ratio;
+    const b = lab1.b * (1 - ratio) + lab2.b * ratio;
+
+    const rgb = labToRgb(l, a, b);
+    return rgbToHex(rgb.r, rgb.g, rgb.b);
+};
+
+export const mixColorsOklch = (color1: string, color2: string, ratio: number = 0.5): string => {
+    const rgb1 = hexToRgb(color1);
+    const rgb2 = hexToRgb(color2);
+    if (!rgb1 || !rgb2) return color1;
+
+    const oklch1 = rgbToOklch(rgb1.r, rgb1.g, rgb1.b);
+    const oklch2 = rgbToOklch(rgb2.r, rgb2.g, rgb2.b);
+
+    // Handle hue interpolation
+    let h1 = oklch1.h, h2 = oklch2.h;
+    if (Math.abs(h2 - h1) > 180) {
+        if (h2 > h1) h1 += 360;
+        else h2 += 360;
+    }
+
+    const l = oklch1.l * (1 - ratio) + oklch2.l * ratio;
+    const c = oklch1.c * (1 - ratio) + oklch2.c * ratio;
+    let h = h1 * (1 - ratio) + h2 * ratio;
+    if (h >= 360) h -= 360;
+
+    const rgb = oklchToRgb(l, c, h);
+    return rgbToHex(rgb.r, rgb.g, rgb.b);
+};
+
+export const generateScaleLab = (color1: string, color2: string, steps: number = 5): string[] => {
+    const scale = [];
+    for (let i = 0; i < steps; i++) {
+        scale.push(mixColorsLab(color1, color2, i / (steps - 1)));
+    }
+    return scale;
+};
+
+export const generateScaleOklch = (color1: string, color2: string, steps: number = 5): string[] => {
+    const scale = [];
+    for (let i = 0; i < steps; i++) {
+        scale.push(mixColorsOklch(color1, color2, i / (steps - 1)));
+    }
+    return scale;
+};
+
+// ============================================
+// APCA Contrast (Advanced Perceptual Contrast Algorithm)
+// ============================================
+export const getApcaContrast = (textHex: string, bgHex: string): number => {
+    const text = hexToRgb(textHex);
+    const bg = hexToRgb(bgHex);
+    if (!text || !bg) return 0;
+
+    // Soft clamp and linearize
+    const sRGBtoY = (rgb: { r: number; g: number; b: number }): number => {
+        const mainTRC = 2.4;
+        const Rco = 0.2126729, Gco = 0.7151522, Bco = 0.0721750;
+
+        const simpleExp = (c: number) => Math.pow(c / 255, mainTRC);
+
+        return Rco * simpleExp(rgb.r) + Gco * simpleExp(rgb.g) + Bco * simpleExp(rgb.b);
+    };
+
+    const Ytext = sRGBtoY(text);
+    const Ybg = sRGBtoY(bg);
+
+    // APCA contrast calculation
+    const normBG = 0.56, normTXT = 0.57;
+    const revTXT = 0.62, revBG = 0.65;
+    const blkThrs = 0.022, blkClmp = 1.414;
+    const scaleBoW = 1.14, scaleWoB = 1.14;
+    const loClip = 0.1, deltaYmin = 0.0005;
+
+    let outputContrast = 0;
+    let SAPC = 0;
+
+    // Soft clamp black levels
+    const Ytxt = Ytext > blkThrs ? Ytext : Ytext + Math.pow(blkThrs - Ytext, blkClmp);
+    const Ybgc = Ybg > blkThrs ? Ybg : Ybg + Math.pow(blkThrs - Ybg, blkClmp);
+
+    if (Math.abs(Ybgc - Ytxt) < deltaYmin) {
+        return 0;
+    }
+
+    // Calculate SAPC
+    if (Ybgc > Ytxt) {
+        // Dark text on light background
+        SAPC = (Math.pow(Ybgc, normBG) - Math.pow(Ytxt, normTXT)) * scaleBoW;
+        outputContrast = SAPC < loClip ? 0 : SAPC * 100;
+    } else {
+        // Light text on dark background
+        SAPC = (Math.pow(Ybgc, revBG) - Math.pow(Ytxt, revTXT)) * scaleWoB;
+        outputContrast = SAPC > -loClip ? 0 : SAPC * 100;
+    }
+
+    return Math.round(outputContrast * 10) / 10;
+};
+
+export const getApcaLevel = (contrast: number): { level: string; minSize: number } => {
+    const absContrast = Math.abs(contrast);
+
+    if (absContrast >= 90) return { level: 'Preferred (Fluent)', minSize: 12 };
+    if (absContrast >= 75) return { level: 'Preferred', minSize: 14 };
+    if (absContrast >= 60) return { level: 'Minimum (Body)', minSize: 16 };
+    if (absContrast >= 45) return { level: 'Minimum (Large)', minSize: 24 };
+    if (absContrast >= 30) return { level: 'Non-text Only', minSize: 42 };
+    if (absContrast >= 15) return { level: 'Invisible (UI Only)', minSize: 0 };
+    return { level: 'Fail', minSize: 0 };
+};
+
+export const suggestAccessibleColor = (color: string, background: string, targetRatio: number = 4.5): string => {
+    const rgb = hexToRgb(color);
+    if (!rgb) return color;
+
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    const bgLum = getLuminance(...Object.values(hexToRgb(background) || { r: 255, g: 255, b: 255 }) as [number, number, number]);
+
+    // Try adjusting lightness
+    for (let l = 0; l <= 100; l++) {
+        const testRgb = hslToRgb(hsl.h, hsl.s, l);
+        const testHex = rgbToHex(testRgb.r, testRgb.g, testRgb.b);
+        if (getContrastRatio(testHex, background) >= targetRatio) {
+            return testHex;
+        }
+    }
+
+    // If no match, return black or white based on background
+    return bgLum > 0.5 ? '#000000' : '#ffffff';
+};
+
+export const calculateMinFontSize = (contrast: number, isLarge: boolean = false): number => {
+    if (contrast >= 7) return 12;
+    if (contrast >= 4.5) return isLarge ? 14 : 18;
+    if (contrast >= 3) return 24;
+    return 36; // Not recommended
+};
+
+// ============================================
+// Gradient Presets
+// ============================================
+export interface GradientPreset {
+    name: string;
+    colors: string[];
+    angle: number;
+}
+
+export const GRADIENT_PRESETS: GradientPreset[] = [
+    { name: 'Sunset', colors: ['#ff6b6b', '#ffd93d', '#ff8e3c'], angle: 135 },
+    { name: 'Ocean', colors: ['#667eea', '#764ba2', '#66a6ff'], angle: 135 },
+    { name: 'Forest', colors: ['#134e5e', '#71b280'], angle: 135 },
+    { name: 'Aurora', colors: ['#00d2ff', '#3a7bd5', '#00d2ff'], angle: 90 },
+    { name: 'Midnight', colors: ['#232526', '#414345'], angle: 180 },
+    { name: 'Candy', colors: ['#d53369', '#daae51'], angle: 135 },
+    { name: 'Peach', colors: ['#ed6ea0', '#ec8c69'], angle: 135 },
+    { name: 'Mojito', colors: ['#1d976c', '#93f9b9'], angle: 135 },
+    { name: 'Frost', colors: ['#000428', '#004e92'], angle: 180 },
+    { name: 'Stripe', colors: ['#1fa2ff', '#12d8fa', '#a6ffcb'], angle: 90 },
+    { name: 'Lavender', colors: ['#e0c3fc', '#8ec5fc'], angle: 135 },
+    { name: 'Fire', colors: ['#f12711', '#f5af19'], angle: 135 },
+    { name: 'Emerald', colors: ['#348f50', '#56b4d3'], angle: 135 },
+    { name: 'Royal', colors: ['#141e30', '#243b55'], angle: 135 },
+    { name: 'Rose', colors: ['#ff0844', '#ffb199'], angle: 135 },
+    { name: 'Grape', colors: ['#5b247a', '#1bcedf'], angle: 135 },
+    { name: 'Noir', colors: ['#000000', '#434343'], angle: 180 },
+    { name: 'Sky', colors: ['#56ccf2', '#2f80ed'], angle: 180 }
+];
+
+// ============================================
+// Enhanced Harmony Generation
+// ============================================
+export const generateHarmoniesAdvanced = (hex: string, angleOffset: number = 0): Record<string, string[]> => {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return {};
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+    const createColor = (hueOffset: number) => {
+        const h = (hsl.h + hueOffset + angleOffset + 360) % 360;
+        const newRgb = hslToRgb(h, hsl.s, hsl.l);
+        return rgbToHex(newRgb.r, newRgb.g, newRgb.b);
+    };
+
+    return {
+        complementary: [hex, createColor(180)],
+        analogous: [createColor(-30), hex, createColor(30)],
+        triadic: [hex, createColor(120), createColor(240)],
+        split: [hex, createColor(150), createColor(210)],
+        tetradic: [hex, createColor(90), createColor(180), createColor(270)],
+        monochromatic: [
+            rgbToHex(...Object.values(hslToRgb(hsl.h, hsl.s, Math.max(0, hsl.l - 30))) as [number, number, number]),
+            rgbToHex(...Object.values(hslToRgb(hsl.h, hsl.s, Math.max(0, hsl.l - 15))) as [number, number, number]),
+            hex,
+            rgbToHex(...Object.values(hslToRgb(hsl.h, hsl.s, Math.min(100, hsl.l + 15))) as [number, number, number]),
+            rgbToHex(...Object.values(hslToRgb(hsl.h, hsl.s, Math.min(100, hsl.l + 30))) as [number, number, number])
+        ],
+        doubleSplit: [hex, createColor(60), createColor(180), createColor(240)]
+    };
+};
+
+// ============================================
+// Export Helpers
+// ============================================
+export const exportPaletteAsCSS = (colors: string[], prefix: string = 'color'): string => {
+    return colors.map((c, i) => `--${prefix}-${i + 1}: ${c};`).join('\n');
+};
+
+export const exportPaletteAsSCSS = (colors: string[], prefix: string = 'color'): string => {
+    return colors.map((c, i) => `$${prefix}-${i + 1}: ${c};`).join('\n');
+};
+
+export const exportPaletteAsJSON = (colors: string[]): string => {
+    return JSON.stringify(colors, null, 2);
+};
+
+export const exportPaletteAsTailwind = (colors: string[], name: string = 'custom'): string => {
+    const shades: Record<string, string> = {};
+    colors.forEach((c, i) => {
+        const shade = Math.round(((i + 1) / colors.length) * 900 / 100) * 100 || 50;
+        shades[shade.toString()] = c;
+    });
+    return JSON.stringify({ [name]: shades }, null, 2);
+};
+
+
