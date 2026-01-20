@@ -56,7 +56,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     // Analyze Tab
     const [dragActive, setDragActive] = useState(false);
     const [extractedPalette, setExtractedPalette] = useState<string[]>([]);
-    const [colorHistory, setColorHistory] = useState<string[]>([]);
+    //const [colorHistory, setColorHistory] = useState<string[]>([]);
     const [showDevFormats, setShowDevFormats] = useState(false);
 
     // Mixer Tab
@@ -66,7 +66,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     const [mixSteps, setMixSteps] = useState(5);
     const [mixMode, setMixMode] = useState<'rgb' | 'lab' | 'oklch'>('rgb');
     const [blendMode, setBlendMode] = useState<Utils.BlendMode>('normal');
-    const [mixColors, setMixColors] = useState<string[]>(['#ff0000', '#0000ff']);
+    //const [mixColors, setMixColors] = useState<string[]>(['#ff0000', '#0000ff']);
 
     // A11y Tab
     const [contrastColor, setContrastColor] = useState('#ffffff');
@@ -863,7 +863,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                             {/* Auto-suggest accessible alternatives */}
                                             {(() => {
                                                 const wcagRatio = Utils.getContrastRatio(hex, contrastColor);
-                                                const apcaScore = Math.abs(Utils.getApcaContrast(hex, contrastColor));
+                                                //const apcaScore = Math.abs(Utils.getApcaContrast(hex, contrastColor));
 
                                                 if (wcagRatio < 4.5) {
                                                     const lighterSuggestion = Utils.suggestAccessibleColor(hex, contrastColor);
