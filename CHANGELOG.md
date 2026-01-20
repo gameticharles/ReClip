@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
   - **Light Mode Fixes**: Resolved specific issues with Window Opacity transparency in Light Mode.
   - **Dynamic Accents**: UI elements now correctly use the user's custom accent color with proper transparency (using `color-mix`).
 - **Slider Polish**: Fixed fill calculation for sliders with non-zero starts (e.g., Opacity 20-100%, Harmony Offset -30 to +30) to ensure accurate visual representation.
+- **General**: Added consistent hover effects to Context Menus and Dropdowns throughout the app.
 
 ## [0.7.0] - 2026-01-19
 

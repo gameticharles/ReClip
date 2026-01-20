@@ -232,35 +232,6 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
 
     return (
         <div className="color-tool-page" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-            <style>{`
-                .custom-select {
-                    padding: 8px;
-                    border-radius: 6px;
-                    border: 1px solid var(--border-color);
-                    background-color: var(--bg-input);
-                    color: var(--text-primary);
-                    outline: none;
-                    cursor: pointer;
-                    font-size: 0.9rem;
-                    color-scheme: light dark;
-                }
-                .custom-select:focus {
-                    border-color: var(--accent-color);
-                }
-                .custom-select option {
-                    background-color: var(--bg-secondary);
-                    color: var(--text-primary);
-                }
-                @media (prefers-color-scheme: dark) {
-                    .custom-select {
-                        color-scheme: dark;
-                    }
-                    .custom-select option {
-                        background-color: #1f1f1f;
-                        color: #ffffff;
-                    }
-                }
-            `}</style>
 
             {/* Header */}
             <div className="titlebar" data-tauri-drag-region style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>
@@ -274,7 +245,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                 </div>
                 <div className="title-right" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <select
-                        className="custom-select"
+                        className="settings-select"
                         style={{ height: 26, fontSize: '0.8rem', padding: '0 8px', width: 120 }}
                         onChange={(e) => {
                             if (e.target.value) {
@@ -588,8 +559,8 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                         <select
                                             value={blendMode}
                                             onChange={e => setBlendMode(e.target.value as Utils.BlendMode)}
-                                            className="custom-select"
-                                            style={{ height: 28, fontSize: '0.8rem', padding: '0 8px' }}
+                                            className="settings-select"
+                                        // style={{ height: 28, fontSize: '0.8rem', padding: '0 8px' }}
                                         >
                                             <option value="normal">Normal</option>
                                             <option value="multiply">Multiply</option>
@@ -889,7 +860,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                         type="text"
                                                         value={contrastColor}
                                                         onChange={e => setContrastColor(e.target.value)}
-                                                        className="custom-select"
+                                                        className="settings-select"
                                                         style={{ width: 100, cursor: 'text' }}
                                                     />
                                                 </div>
@@ -1155,8 +1126,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                         <select
                                             value={gradientType}
                                             onChange={e => setGradientType(e.target.value as any)}
-                                            className="custom-select"
-                                            style={{ width: '100%' }}
+                                            className="settings-select"
                                         >
                                             <option value="linear">Linear</option>
                                             <option value="radial">Radial</option>

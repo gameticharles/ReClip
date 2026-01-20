@@ -364,7 +364,7 @@ body.dark .clip-card.multi-selected {
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
-  transition: background 0.2s;
+  transition: background 0.1s;
 }
 
 .bulk-buttons button:hover {
@@ -418,7 +418,7 @@ body.dark .clip-card.multi-selected {
 
 .menu-btn {
   opacity: 0;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity 0.1s ease-in-out;
 }
 
 .clip-card:hover .menu-btn,
@@ -427,7 +427,7 @@ body.dark .clip-card.multi-selected {
 }
 
 .menu-item-btn {
-  transition: background-color 0.2s;
+  transition: background-color 0.1s;
 }
 
 .menu-item-btn:hover {
@@ -805,4 +805,8 @@ body.dark .snippet-card:hover {
 .custom-range::-moz-range-track {
   background: transparent;
   border: none;
+}
+
+.color-tool-page {
+  color-scheme: light dark;
 }
