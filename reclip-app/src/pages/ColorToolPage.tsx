@@ -9,17 +9,6 @@ interface ColorToolPageProps {
     onClose: () => void;
     onBack: () => void;
 }
-function getCenterFill(value: number, min: number, max: number) {
-    const range = max - min;
-    const center = Math.abs(min) / range * 100; // always 50% if symmetric
-
-    const valuePct = ((value - min) / range) * 100;
-
-    return value >= 0
-        ? { start: center, end: valuePct }
-        : { start: valuePct, end: center };
-}
-
 
 const TabButton = ({ id, icon: Icon, label, active, onClick }: any) => (
     <button
@@ -618,7 +607,12 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                     {(() => {
                                         let mixed: string;
                                         if (blendMode !== 'normal') {
-                                            mixed = Utils.blendColors(mixColor1, mixColor2, blendMode);
+                                            mixed = Utils.blendWithStrength(
+                                                mixColor1,
+                                                mixColor2,
+                                                blendMode,
+                                                mixRatio
+                                            );
                                         } else if (mixMode === 'lab') {
                                             mixed = Utils.mixColorsLab(mixColor1, mixColor2, mixRatio);
                                         } else if (mixMode === 'oklch') {

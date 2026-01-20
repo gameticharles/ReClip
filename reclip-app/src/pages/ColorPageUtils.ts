@@ -766,6 +766,17 @@ export const getHexShorthand = (hex: string): string | null => {
 // ============================================
 export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'soft-light' | 'hard-light' | 'difference' | 'exclusion';
 
+const BLEND_NEUTRAL: Record<BlendMode, string> = {
+    normal: '#000000',        // unused
+    multiply: '#ffffff',
+    screen: '#000000',
+    overlay: '#808080',
+    'soft-light': '#808080',
+    'hard-light': '#808080',
+    difference: '#000000',
+    exclusion: '#000000',
+};
+
 export const blendColors = (base: string, blend: string, mode: BlendMode = 'normal'): string => {
     const baseRgb = hexToRgb(base);
     const blendRgb = hexToRgb(blend);
@@ -855,6 +866,22 @@ export const mixColorsOklch = (color1: string, color2: string, ratio: number = 0
 
     const rgb = oklchToRgb(l, c, h);
     return rgbToHex(rgb.r, rgb.g, rgb.b);
+};
+
+export const blendWithStrength = (
+    base: string,
+    blend: string,
+    mode: BlendMode,
+    strength: number
+): string => {
+    if (mode === 'normal') {
+        return mixColors(base, blend, strength);
+    }
+
+    const neutral = BLEND_NEUTRAL[mode];
+    const adjustedBlend = mixColors(neutral, blend, strength);
+
+    return blendColors(base, adjustedBlend, mode);
 };
 
 export const generateScaleLab = (color1: string, color2: string, steps: number = 5): string[] => {
@@ -1090,53 +1117,6 @@ export const exportPaletteAsTailwind = (colors: string[], name: string = 'custom
     return JSON.stringify({ [name]: shades }, null, 2);
 };
 
-
-function srgbToLinear(c: number): number {
-    const v = c / 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-}
-
-function relativeLuminance({ r, g, b }: { r: number; g: number; b: number }): number {
-    return (
-        0.2126 * srgbToLinear(r) +
-        0.7152 * srgbToLinear(g) +
-        0.0722 * srgbToLinear(b)
-    );
-}
-
-// export function getContrastRatio(bgHex: string, fgHex: string): number {
-//     const bg = hexToRgb(bgHex);
-//     const fg = hexToRgb(fgHex);
-//     if (!bg || !fg) return 1;
-
-//     const L1 = relativeLuminance(bg);
-//     const L2 = relativeLuminance(fg);
-
-//     const lighter = Math.max(L1, L2);
-//     const darker = Math.min(L1, L2);
-
-//     return (lighter + 0.05) / (darker + 0.05);
-// }
-
-const APCA = {
-    blkThrs: 0.022,
-    blkClmp: 1.414,
-    scale: 1.14,
-    normBG: 0.56,
-    normTXT: 0.57,
-    revTXT: 0.62,
-    revBG: 0.65,
-    loClip: 0.1,
-    loBooster: 0.027,
-};
-
-function apcaLuminance({ r, g, b }: { r: number; g: number; b: number }): number {
-    const R = Math.pow(r / 255, 2.4);
-    const G = Math.pow(g / 255, 2.4);
-    const B = Math.pow(b / 255, 2.4);
-
-    return 0.2126729 * R + 0.7151522 * G + 0.0721750 * B;
-}
 
 // export function getApcaContrast(bgHex: string, fgHex: string): number {
 //     const bg = hexToRgb(bgHex);
