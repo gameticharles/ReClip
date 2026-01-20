@@ -426,6 +426,18 @@ body.dark .clip-card.multi-selected {
   opacity: 1 !important;
 }
 
+.menu-item-btn {
+  transition: background-color 0.2s;
+}
+
+.menu-item-btn:hover {
+  background-color: rgba(128, 128, 128, 0.1) !important;
+}
+
+.menu-item-btn.delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
 .clip-type {
   text-transform: uppercase;
   font-weight: 800;

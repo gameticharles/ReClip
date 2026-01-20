@@ -1137,12 +1137,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                                                                         {clip.type === 'image' && (
                                                                             <>
                                                                                 <button
+                                                                                    className="menu-item-btn"
                                                                                     onClick={(e) => handleExtractText(e, clip)}
                                                                                     style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
                                                                                 >
                                                                                     👁️ Extract Text
                                                                                 </button>
                                                                                 <button
+                                                                                    className="menu-item-btn"
                                                                                     onClick={async () => {
                                                                                         try {
                                                                                             const path = await save({
@@ -1170,6 +1172,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                                                                         {clip.type === 'text' && (
                                                                             <>
                                                                                 <button
+                                                                                    className="menu-item-btn"
                                                                                     onClick={() => {
                                                                                         setRawViewClipIds(prev => {
                                                                                             const next = new Set(prev);
@@ -1187,6 +1190,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                                                                                     {rawViewClipIds.has(clip.id) ? '✨ Formatted View' : '📝 Raw View'}
                                                                                 </button>
                                                                                 <button
+                                                                                    className="menu-item-btn"
                                                                                     onClick={() => {
                                                                                         setEditingClip(clip);
                                                                                         setActiveMenuId(null);
@@ -1198,12 +1202,14 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                                                                             </>
                                                                         )}
                                                                         <button
+                                                                            className="menu-item-btn"
                                                                             onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
                                                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
                                                                         >
                                                                             📱 QR Code
                                                                         </button>
                                                                         <button
+                                                                            className="menu-item-btn delete-btn"
                                                                             onClick={(e) => { deleteClip(e, clip.id); setActiveMenuId(null); }}
                                                                             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem' }}
                                                                         >
