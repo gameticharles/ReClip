@@ -220,6 +220,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
             padding: '12px 16px',
             background: 'var(--bg-card)',
             borderRadius: '12px',
+            border: '1px solid var(--border-color)',
             marginBottom: '12px',
             boxShadow: 'var(--shadow-sm)',
         }}>
@@ -236,7 +237,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.8 }}>
                         📅 Timeline
                     </span>
-                    <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>
                         {totalCount ?? clips.length} clips {totalCount && totalCount > clips.length ? `(${clips.length} loaded)` : ''}
                     </span>
                 </div>
@@ -543,7 +544,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                fontSize: '0.7rem',
+                fontSize: '0.8rem',
                 opacity: 0.6,
                 paddingTop: '4px',
             }}>
@@ -563,7 +564,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                                 background: 'var(--accent-color)',
                                 color: 'white',
                                 cursor: 'pointer',
-                                fontSize: '0.65rem',
+                                fontSize: '0.7rem',
                             }}
                         >
                             Export
@@ -577,14 +578,14 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                                 background: 'rgba(239, 68, 68, 0.1)',
                                 color: '#ef4444',
                                 cursor: 'pointer',
-                                fontSize: '0.65rem',
+                                fontSize: '0.7rem',
                             }}
                         >
                             Clear
                         </button>
                     </div>
                 ) : (
-                    <span style={{ opacity: 0.5 }}>
+                    <span style={{ opacity: 0.8, fontSize: '0.8rem' }}>
                         Drag to select range
                     </span>
                 )}

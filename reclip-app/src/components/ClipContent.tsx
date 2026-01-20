@@ -737,7 +737,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
             <div className="clip-files" onMouseEnter={handleMouseEnter} style={{ fontSize: '0.9rem', color: '#e5e5e5' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '1.2rem' }}>📁</span>
-                    <span style={{ fontWeight: 600 }}>{files.length} Item{files.length !== 1 ? 's' : ''}</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{files.length} Item{files.length !== 1 ? 's' : ''}</span>
                     {validity.checked && !validity.valid && (
                         <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
                             ⚠️ {validity.invalidPaths.length} Missing
@@ -757,7 +757,7 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
-                                        color: isMissing ? '#ef4444' : 'inherit',
+                                        color: isMissing ? '#ef4444' : 'var(--text-primary)',
                                         textDecoration: isMissing ? 'line-through' : 'none',
                                         opacity: isMissing ? 0.9 : 0.8,
                                         display: 'flex',
