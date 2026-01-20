@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, ArrowLeft, GitMerge, ArrowDown, Image as ImageIcon } from 'lucide-react';
+import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, ArrowLeft, GitMerge, ArrowDown, Upload } from 'lucide-react';
 import * as Utils from './ColorPageUtils';
 import ColorThief from 'colorthief';
 
@@ -61,6 +61,9 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     // Saved Palettes
     const [savedPalettes, setSavedPalettes] = useState<Utils.SavedPalette[]>([]);
 
+    // File input ref for click-to-upload
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     useEffect(() => {
         const parsed = Utils.parseColor(colorInput);
         if (parsed) {
@@ -108,6 +111,42 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
         setHex(Utils.rgbToHex(r, g, b));
     };
 
+    // Process image file (shared between drag-and-drop and file input)
+    const processImageFile = useCallback((file: File) => {
+        console.log("Processing file:", file.name, file.type);
+
+        if (!file.type.startsWith('image/')) {
+            console.warn("File is not an image");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            if (event.target?.result) {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.src = event.target.result as string;
+                img.onload = () => {
+                    console.log("Image loaded for analysis", img.width, img.height);
+                    try {
+                        const thief = new ColorThief();
+                        const palette = thief.getPalette(img, 10);
+                        console.log("Palette extracted:", palette);
+                        if (palette) {
+                            setExtractedPalette(palette.map((c: number[]) => Utils.rgbToHex(c[0], c[1], c[2])));
+                        }
+                    } catch (err) {
+                        console.error("ColorThief failed", err);
+                    }
+                };
+                img.onerror = (err) => {
+                    console.error("Failed to load image", err);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
+    }, []);
+
     const handleDrop = useCallback(async (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -116,40 +155,20 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
         console.log("Drop event detected");
 
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            const file = e.dataTransfer.files[0];
-            console.log("File dropped:", file.name, file.type);
-
-            if (!file.type.startsWith('image/')) {
-                console.warn("Dropped file is not an image");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                if (event.target?.result) {
-                    const img = new Image();
-                    img.crossOrigin = 'Anonymous';
-                    img.src = event.target.result as string;
-                    img.onload = () => {
-                        console.log("Image loaded for analysis", img.width, img.height);
-                        try {
-                            const thief = new ColorThief();
-                            const palette = thief.getPalette(img, 10);
-                            console.log("Palette extracted:", palette);
-                            if (palette) {
-                                setExtractedPalette(palette.map((c: number[]) => Utils.rgbToHex(c[0], c[1], c[2])));
-                            }
-                        } catch (err) {
-                            console.error("ColorThief failed", err);
-                        }
-                    };
-                    img.onerror = (err) => {
-                        console.error("Failed to load image", err);
-                    }
-                }
-            };
-            reader.readAsDataURL(file);
+            processImageFile(e.dataTransfer.files[0]);
         }
+    }, [processImageFile]);
+
+    const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            processImageFile(e.target.files[0]);
+        }
+        // Reset input so the same file can be selected again
+        e.target.value = '';
+    }, [processImageFile]);
+
+    const handleDropZoneClick = useCallback(() => {
+        fileInputRef.current?.click();
     }, []);
 
     const rgb = Utils.hexToRgb(hex) || { r: 0, g: 0, b: 0 };
@@ -185,18 +204,28 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     padding: 8px;
                     border-radius: 6px;
                     border: 1px solid var(--border-color);
-                    background: var(--bg-input);
+                    background-color: var(--bg-input);
                     color: var(--text-primary);
                     outline: none;
                     cursor: pointer;
                     font-size: 0.9rem;
+                    color-scheme: light dark;
                 }
                 .custom-select:focus {
                     border-color: var(--accent-color);
                 }
                 .custom-select option {
-                    background: var(--bg-primary);
+                    background-color: var(--bg-secondary);
                     color: var(--text-primary);
+                }
+                @media (prefers-color-scheme: dark) {
+                    .custom-select {
+                        color-scheme: dark;
+                    }
+                    .custom-select option {
+                        background-color: #1f1f1f;
+                        color: #ffffff;
+                    }
                 }
             `}</style>
 
@@ -217,15 +246,12 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                         onChange={(e) => {
                             if (e.target.value) {
                                 navigator.clipboard.writeText(Utils.formatCode(hex, e.target.value));
+                                e.target.value = '';
                             }
                         }}
                         defaultValue=""
                     >
                         <option value="" disabled>Copy as...</option>
-                        <option value="css-hex">CSS Hex</option>
-                        <option value="css-rgb">CSS RGB</option>
-                        <option value="css-hsl">CSS HSL</option>
-                        <option value="argb-hex">ARGB Hex</option>
                         <option value="tailwind">Tailwind Name</option>
                         <option value="swift">Swift UIColor</option>
                         <option value="flutter">Flutter Color</option>
@@ -308,21 +334,39 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
                                 <div
                                     className="info-card"
-                                    onClick={() => navigator.clipboard.writeText(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)}
-                                    title="Click to copy RGB"
+                                    onClick={() => navigator.clipboard.writeText(hex)}
+                                    title="Click to copy CSS Hex"
                                     style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
                                 >
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>RGB <Copy size={12} style={{ opacity: 0.5 }} /></div>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>CSS Hex <Copy size={12} style={{ opacity: 0.5 }} /></div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hex}</div>
+                                </div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)}
+                                    title="Click to copy CSS RGB"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>CSS RGB <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{rgb.r}, {rgb.g}, {rgb.b}</div>
                                 </div>
                                 <div
                                     className="info-card"
                                     onClick={() => navigator.clipboard.writeText(`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`)}
-                                    title="Click to copy HSL"
+                                    title="Click to copy CSS HSL"
                                     style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
                                 >
-                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>HSL <Copy size={12} style={{ opacity: 0.5 }} /></div>
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>CSS HSL <Copy size={12} style={{ opacity: 0.5 }} /></div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hsl.h}°, {hsl.s}%, {hsl.l}%</div>
+                                </div>
+                                <div
+                                    className="info-card"
+                                    onClick={() => navigator.clipboard.writeText(`#FF${hex.substring(1).toUpperCase()}`)}
+                                    title="Click to copy ARGB Hex"
+                                    style={{ background: 'var(--bg-card)', padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s' }}
+                                >
+                                    <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>ARGB Hex <Copy size={12} style={{ opacity: 0.5 }} /></div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>#FF{hex.substring(1).toUpperCase()}</div>
                                 </div>
                                 <div
                                     className="info-card"
@@ -365,7 +409,15 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                             </div>
 
                             {/* Drag & Drop Zone */}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileInputChange}
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                            />
                             <div
+                                onClick={handleDropZoneClick}
                                 onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
                                 onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
                                 onDragOver={(e) => e.preventDefault()}
@@ -381,11 +433,12 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: 8
+                                    gap: 8,
+                                    cursor: 'pointer'
                                 }}
                             >
                                 <div style={{ pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                    <ImageIcon size={24} style={{ opacity: 0.5 }} />
+                                    <Upload size={24} style={{ opacity: 0.5 }} />
                                     {extractedPalette.length > 0 ? (
                                         <div style={{ width: '100%' }}>
                                             <div style={{ fontSize: '0.8rem', marginBottom: 12, opacity: 0.7 }}>Extracted Palette (Click to set)</div>
@@ -393,7 +446,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 {extractedPalette.map(c => (
                                                     <div
                                                         key={c}
-                                                        onClick={() => setHex(c)}
+                                                        onClick={(e) => { e.stopPropagation(); setHex(c); }}
                                                         title={c}
                                                         style={{ width: 36, height: 36, background: c, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(128,128,128,0.2)', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
                                                     />
@@ -402,7 +455,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                         </div>
                                     ) : (
                                         <div>
-                                            <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drop an image here</div>
+                                            <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Drop an image here or click to select</div>
                                             <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>to extract its dominant colors</div>
                                         </div>
                                     )}
