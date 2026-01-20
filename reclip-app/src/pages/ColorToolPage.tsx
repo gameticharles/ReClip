@@ -233,53 +233,6 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     return (
         <div className="color-tool-page" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
             <style>{`
-                .custom-range {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    width: 100%;
-                    height: 6px;
-                    border-radius: 3px;
-                    outline: none;
-
-                    background: linear-gradient(
-                        to right,
-                        var(--track-color, var(--range-track)) 0%,
-
-                        var(--track-color, var(--range-track))
-                        var(--fill-start, 0%),
-
-                        var(--fill-color, var(--range-fill))
-                        var(--fill-start, 0%),
-
-                        var(--fill-color, var(--range-fill))
-                        var(--fill-end, var(--range-value)),
-
-                        var(--track-color, var(--range-track))
-                        var(--fill-end, var(--range-value)),
-
-                        var(--track-color, var(--range-track)) 100%
-                    );
-                }
-
-                .custom-range::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    width: 16px;
-                    height: 16px;
-                    border-radius: 50%;
-                    background: var(--accent-color);
-                    cursor: pointer;
-                    border: 2px solid var(--bg-secondary);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }
-                .custom-range:focus-visible {
-                    outline: 2px solid var(--accent-color);
-                    outline-offset: 4px;
-                }
-                .custom-range::-moz-range-track {
-                    background: transparent;
-                    border: none;
-                }
                 .custom-select {
                     padding: 8px;
                     border-radius: 6px;

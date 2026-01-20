@@ -573,7 +573,13 @@ export default function SettingsPage({
                                             localStorage.setItem('colorPaletteLimit', e.target.value);
                                             window.dispatchEvent(new Event('storage'));
                                         }}
-                                        style={{ width: '100px', accentColor: 'var(--accent-color)' }}
+                                        className="custom-range"
+                                        style={{
+                                            width: '100%', maxWidth: '300px',
+                                            '--range-value': `${((colorPaletteLimit - 5) / 25) * 100}%`,
+                                            '--range-fill': 'var(--accent-color)',               // filled side
+                                            '--range-track': 'rgba(128,128,128,0.25)' // non-fill side
+                                        } as React.CSSProperties}
                                     />
                                 </label>
                             </div>
@@ -704,7 +710,13 @@ export default function SettingsPage({
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Window Opacity ({opacity}%)</label>
                                 <input
                                     type="range" min="20" max="100" value={opacity} onChange={handleOpacityChange}
-                                    style={{ width: '100%', maxWidth: '300px', accentColor: 'var(--accent-color)' }}
+                                    className="custom-range"
+                                    style={{
+                                        width: '100%', maxWidth: '300px',
+                                        '--range-value': `${((opacity - 20) / 80) * 100}%`,
+                                        '--range-fill': 'var(--accent-color)',               // filled side
+                                        '--range-track': 'rgba(128,128,128,0.25)' // non-fill side
+                                    } as React.CSSProperties}
                                 />
                             </div>
 
