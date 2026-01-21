@@ -550,15 +550,16 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                             onChange={e => setBlendMode(e.target.value as Utils.BlendMode)}
                                             className="settings-select"
                                         // style={{ height: 28, fontSize: '0.8rem', padding: '0 8px' }}
+
                                         >
-                                            <option value="normal">Normal</option>
-                                            <option value="multiply">Multiply</option>
-                                            <option value="screen">Screen</option>
-                                            <option value="overlay">Overlay</option>
-                                            <option value="soft-light">Soft Light</option>
-                                            <option value="hard-light">Hard Light</option>
-                                            <option value="difference">Difference</option>
-                                            <option value="exclusion">Exclusion</option>
+                                            <option value="normal" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Normal</option>
+                                            <option value="multiply" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Multiply</option>
+                                            <option value="screen" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Screen</option>
+                                            <option value="overlay" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Overlay</option>
+                                            <option value="soft-light" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Soft Light</option>
+                                            <option value="hard-light" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Hard Light</option>
+                                            <option value="difference" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Difference</option>
+                                            <option value="exclusion" style={{ background: 'var(--bg-card)', color: 'inherit' }}>Exclusion</option>
                                         </select>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

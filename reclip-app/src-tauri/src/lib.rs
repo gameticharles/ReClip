@@ -4,6 +4,7 @@ mod tray;
 #[cfg(target_os = "windows")]
 mod ocr;
 mod update;
+mod drive;
 
 use db::{DbState, init_db, Clip, Snippet};
 use tauri::{State, Manager, Emitter};
@@ -268,7 +269,9 @@ pub fn run() {
             
             // Manage States
             app.manage(DbState { pool: pool.clone() });
+
             app.manage(ShortcutStateMap(Mutex::new(HashMap::new())));
+            app.manage(drive::DriveState::new());
             
             // Start Clipboard Listener
             clipboard::start_clipboard_listener(app.handle(), pool.clone());
@@ -459,7 +462,9 @@ pub fn run() {
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
              get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
              run_ocr, get_file_size, export_image,
-             update::check_update, update::install_update
+             run_ocr, get_file_size, export_image,
+             update::check_update, update::install_update,
+             drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

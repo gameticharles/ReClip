@@ -83,6 +83,16 @@ export default function SettingsPage({
     const [showTooltipPreview, setShowTooltipPreview] = useState(() => localStorage.getItem('showTooltipPreview') === 'true');
     const [autoHideDuration, setAutoHideDuration] = useState(() => parseInt(localStorage.getItem('autoHideDuration') || '0'));
 
+    // Google Drive
+    const [driveConnected, setDriveConnected] = useState(false);
+    const [driveUser, setDriveUser] = useState<string | null>(null);
+    const [driveEmail, setDriveEmail] = useState<string | null>(null);
+    const [driveClientId, setDriveClientId] = useState(() => localStorage.getItem('driveClientId') || '');
+    const [driveClientSecret, setDriveClientSecret] = useState(() => localStorage.getItem('driveClientSecret') || '');
+
+    const [driveStatusMsg, setDriveStatusMsg] = useState("");
+    const [syncing, setSyncing] = useState(false);
+
     // Custom Colors - load from localStorage on mount
     const [customColors, setCustomColors] = useState(() => {
         const saved = localStorage.getItem('customColors');
@@ -98,6 +108,19 @@ export default function SettingsPage({
             accentColor: accentColor // Use prop as default
         };
     });
+
+    const handleSyncNow = async () => {
+        setSyncing(true);
+        setDriveStatusMsg("Syncing...");
+        try {
+            const msg = await invoke<string>("sync_clips");
+            setDriveStatusMsg(msg);
+        } catch (e) {
+            setDriveStatusMsg("Sync Failed: " + e);
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const handleColorChange = (key: string, value: string) => {
         const newColors = { ...customColors, [key]: value };
@@ -261,7 +284,69 @@ export default function SettingsPage({
         if (activeTab === 'about') {
             getVersion().then(setAppVersion).catch(console.error);
         }
+        if (activeTab === 'backup') {
+            fetchDriveStatus();
+        }
     }, [activeTab]);
+
+    useEffect(() => {
+        // Listen for Google Auth Code
+        const unlisten = listen<string>("google-auth-code", async (event) => {
+            console.log("Received Auth Code", event.payload);
+            setDriveStatusMsg("Authenticating...");
+            try {
+                const info = await invoke<any>("finish_google_auth", { code: event.payload });
+                setDriveConnected(info.connected);
+                setDriveUser(info.user_name);
+                setDriveEmail(info.user_email);
+                setDriveStatusMsg("Connected successfully!");
+            } catch (e) {
+                console.error(e);
+                setDriveStatusMsg("Auth Failed: " + e);
+            }
+        });
+        return () => { unlisten.then(f => f()); };
+    }, []);
+
+    const fetchDriveStatus = async () => {
+        try {
+            // In a real app we might not want to expose sensitive info in plain text return, but for local it's okay
+            const info = await invoke<any>("get_drive_status");
+            setDriveConnected(info.connected);
+            setDriveUser(info.user_name);
+            setDriveEmail(info.user_email);
+        } catch (e) { console.error(e); }
+    };
+
+    const handleConnectDrive = async () => {
+        if (!driveClientId || !driveClientSecret) {
+            alert("Please enter Client ID and Secret");
+            return;
+        }
+        localStorage.setItem('driveClientId', driveClientId);
+        localStorage.setItem('driveClientSecret', driveClientSecret);
+
+        try {
+            setDriveStatusMsg("Starting Auth...");
+            await invoke("start_google_auth", { clientId: driveClientId, clientSecret: driveClientSecret });
+            // Backend opens URL
+            // Backend opens the URL now
+            setDriveStatusMsg("Please check your browser...");
+        } catch (e) {
+            setDriveStatusMsg("Error: " + e);
+        }
+    };
+
+    const handleDisconnectDrive = async () => {
+        if (!confirm("Disconnect Google Drive?")) return;
+        try {
+            await invoke("disconnect_google_drive");
+            setDriveConnected(false);
+            setDriveUser(null);
+            setDriveEmail(null);
+            setDriveStatusMsg("Disconnected");
+        } catch (e) { console.error(e); }
+    };
 
     const checkForUpdates = async () => {
         setUpdateStatus('checking');
@@ -424,6 +509,8 @@ export default function SettingsPage({
     };
 
 
+
+
     const tabs = [
         { id: 'interface', label: 'General', icon: '⚙️' },
         { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
@@ -431,7 +518,7 @@ export default function SettingsPage({
         { id: 'snippets', label: 'Snippets', icon: '📋' },
         { id: 'automations', label: 'Automations', icon: '🤖' },
         { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
-        { id: 'backup', label: 'Backup', icon: '💾' },
+        { id: 'backup', label: 'Backup & Cloud', icon: '☁️' },
         { id: 'about', label: 'About', icon: 'ℹ️' }
     ];
 
@@ -637,6 +724,7 @@ export default function SettingsPage({
                                         <button
                                             key={t}
                                             onClick={() => setTheme(t)}
+                                            className="primary-btn"
                                             style={{
                                                 flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid rgba(128,128,128,0.2)',
                                                 background: theme === t ? 'var(--accent-color, #4f46e5)' : 'transparent',
@@ -699,6 +787,7 @@ export default function SettingsPage({
                                             localStorage.removeItem('customColors');
                                             window.location.reload();
                                         }}
+                                        className="primary-btn"
                                         style={{ marginTop: '16px', background: 'transparent', border: '1px solid rgba(128,128,128,0.3)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', color: 'inherit' }}
                                     >
                                         Reset to Defaults
@@ -761,109 +850,7 @@ export default function SettingsPage({
                         </div>
                     )}
 
-                    {activeTab === 'about' && (
-                        <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>About ReClip</h2>
-                            <div style={{ textAlign: 'center', padding: '48px 32px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-                                <img src="/icon.png" alt="ReClip Icon" style={{ width: '100px', height: '100px', marginBottom: '16px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }} />
-                                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.8rem', fontWeight: 700 }}>ReClip</h3>
-                                <div style={{ opacity: 0.7, marginBottom: '32px' }}>Version {appVersion}</div>
 
-                                <div style={{ maxWidth: '420px', margin: '0 auto 32px auto', lineHeight: '1.6' }}>
-                                    <p style={{ marginBottom: '24px', fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
-                                        ReClip is your ultimate clipboard companion. Seamlessly manage your history, organize code snippets, and streamline your workflow with a beautiful, keyboard-centric interface.
-                                    </p>
-
-                                    <a
-                                        href="https://github.com/gameticharles"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, background 0.2s' }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'var(--bg-input)'; }}
-                                    >
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700 }}>CG</div>
-                                        <div style={{ textAlign: 'left' }}>
-                                            <div style={{ fontSize: '0.8rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Developed by</div>
-                                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Charles Gameti</div>
-                                        </div>
-                                    </a>
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                                    {updateStatus === 'idle' && (
-                                        <button onClick={checkForUpdates} className="primary-btn">Check for Updates</button>
-                                    )}
-                                    {updateStatus === 'checking' && (
-                                        <div style={{ opacity: 0.7 }}>Checking for updates...</div>
-                                    )}
-                                    {updateStatus === 'uptodate' && (
-                                        <div>
-                                            <div style={{ color: '#10b981', fontWeight: 600, marginBottom: '8px' }}>You're up to date!</div>
-                                            <button onClick={checkForUpdates} style={{ fontSize: '0.85rem', opacity: 0.7, background: 'transparent', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', color: 'inherit', transition: 'background 0.2s, opacity 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.opacity = '1'} onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}>Check Again</button>
-                                        </div>
-                                    )}
-                                    {updateStatus === 'available' && updateInfo && (
-                                        <div style={{ maxWidth: '400px', width: '100%' }}>
-                                            <div style={{ background: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '8px', padding: '16px', textAlign: 'left' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                                    <strong style={{ color: 'var(--accent-color)' }}>New Update Available</strong>
-                                                    <span style={{ background: 'var(--accent-color)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '0.8rem' }}>{updateInfo.version}</span>
-                                                </div>
-                                                <div style={{ maxHeight: '150px', overflowY: 'auto', fontSize: '0.9rem', opacity: 0.9, marginBottom: '16px', whiteSpace: 'pre-wrap' }}>
-                                                    {updateInfo.notes}
-                                                </div>
-                                                <button onClick={installUpdate} className="primary-btn" style={{ width: '100%' }}>
-                                                    Download & Install
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {updateStatus === 'downloading' && downloadProgress && (
-                                        <div style={{ maxWidth: '400px', width: '100%' }}>
-                                            <div style={{ background: 'rgba(79, 70, 229, 0.1)', border: '1px solid var(--accent-color)', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
-                                                <div style={{ marginBottom: '12px', fontWeight: 600 }}>Downloading Update...</div>
-                                                <div style={{
-                                                    height: '8px',
-                                                    background: 'rgba(128,128,128,0.2)',
-                                                    borderRadius: '4px',
-                                                    overflow: 'hidden',
-                                                    marginBottom: '8px'
-                                                }}>
-                                                    <div style={{
-                                                        height: '100%',
-                                                        background: 'var(--accent-color)',
-                                                        borderRadius: '4px',
-                                                        width: downloadProgress.total > 0
-                                                            ? `${(downloadProgress.downloaded / downloadProgress.total) * 100}%`
-                                                            : '0%',
-                                                        transition: 'width 0.3s ease'
-                                                    }} />
-                                                </div>
-                                                <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>
-                                                    {downloadProgress.total > 0
-                                                        ? `${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)} MB / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB`
-                                                        : 'Starting download...'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {updateStatus === 'error' && (
-                                        <div style={{ color: '#ef4444' }}>
-                                            <div style={{ marginBottom: '8px' }}>Failed to check for updates</div>
-                                            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{updateError}</div>
-                                            <button onClick={checkForUpdates} style={{ marginTop: '8px', background: 'transparent', border: '1px solid currentColor', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}>Try Again</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: '32px', textAlign: 'center', fontSize: '0.85rem', opacity: 0.5 }}>
-                                <p>ReClip is open source software.</p>
-                                <a href="https://github.com/gameticharles/ReClip" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>View on GitHub</a>
-                            </div>
-                        </div>
-                    )}
 
                     {activeTab === 'shortcuts' && (
                         <div className="setting-section">
@@ -1053,7 +1040,19 @@ export default function SettingsPage({
                                     />
                                     <button
                                         onClick={() => handleAddRule('APP_IGNORE', newIgnoreApp)}
-                                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--accent-color, #4f46e5)', color: 'white', cursor: 'pointer' }}
+                                        className="primary-btn"
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            background: 'var(--accent-color, #4f46e5)',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
                                     >
                                         Add
                                     </button>
@@ -1081,7 +1080,19 @@ export default function SettingsPage({
                                     />
                                     <button
                                         onClick={() => handleAddRule('REGEX_MASK', newRegex)}
-                                        style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--accent-color, #4f46e5)', color: 'white', cursor: 'pointer' }}
+                                        className="primary-btn"
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            background: 'var(--accent-color, #4f46e5)',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
                                     >
                                         Add
                                     </button>
@@ -1096,7 +1107,7 @@ export default function SettingsPage({
                                     {privacyRules.filter(r => r.rule_type === 'REGEX_MASK').map(r => (
                                         <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
                                             <span style={{ fontSize: '0.9rem', fontFamily: 'monospace' }}>{r.value}</span>
-                                            <button onClick={() => handleDeleteRule(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6 }}>🗑️</button>
+                                            <button onClick={() => handleDeleteRule(r.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.8 }}>🗑️</button>
                                         </div>
                                     ))}
                                 </div>
@@ -1216,15 +1227,18 @@ export default function SettingsPage({
                                                 }
                                             }
                                         }}
+                                        className="primary-btn"
                                         style={{
-                                            background: 'rgba(239,68,68,0.1)',
-                                            color: '#ef4444',
-                                            border: '1px solid #ef4444',
-                                            padding: '8px 16px',
-                                            borderRadius: '6px',
+                                            padding: '10px 20px',
+                                            borderRadius: '8px',
+                                            border: '1px solid var(--accent-color, #4f46e5)',
+                                            background: 'transparent',
+                                            color: 'var(--accent-color, #4f46e5)',
                                             cursor: 'pointer',
                                             fontWeight: 600,
-                                            transition: 'background 0.2s'
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
                                         }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
@@ -1243,15 +1257,18 @@ export default function SettingsPage({
                                                 }
                                             }
                                         }}
+                                        className="primary-btn"
                                         style={{
-                                            background: 'rgba(239,68,68,0.1)',
-                                            color: '#ef4444',
-                                            border: '1px solid #ef4444',
-                                            padding: '8px 16px',
-                                            borderRadius: '6px',
+                                            padding: '10px 20px',
+                                            borderRadius: '8px',
+                                            border: '1px solid var(--accent-color, #4f46e5)',
+                                            background: 'transparent',
+                                            color: 'var(--accent-color, #4f46e5)',
                                             cursor: 'pointer',
                                             fontWeight: 600,
-                                            transition: 'background 0.2s'
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
                                         }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
@@ -1260,52 +1277,6 @@ export default function SettingsPage({
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'backup' && (
-                        <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>Backup & Restore</h2>
-                            <p style={{ opacity: 0.7, marginBottom: '24px' }}>Export your clips to a ZIP archive or restore from a backup.</p>
-                            <div style={{ display: 'flex', gap: '16px' }}>
-                                <button
-                                    onClick={handleExport}
-                                    style={{
-                                        padding: '10px 20px',
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        background: 'var(--accent-color, #4f46e5)',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px'
-                                    }}
-                                >
-                                    📤 Export Clips
-                                </button>
-                                <button
-                                    onClick={handleImport}
-                                    style={{
-                                        padding: '10px 20px',
-                                        borderRadius: '8px',
-                                        border: '1px solid var(--accent-color, #4f46e5)',
-                                        background: 'transparent',
-                                        color: 'var(--accent-color, #4f46e5)',
-                                        cursor: 'pointer',
-                                        fontWeight: 600,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px'
-                                    }}
-                                >
-                                    📥 Import Backup
-                                </button>
-                            </div>
-                            {exportStatus && (
-                                <p style={{ marginTop: '16px', opacity: 0.8 }}>{exportStatus}</p>
-                            )}
                         </div>
                     )}
 
@@ -1461,7 +1432,21 @@ export default function SettingsPage({
                                         style={{ width: '100%', height: '100px', padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'var(--bg-input)', color: 'inherit', marginBottom: '10px', fontFamily: 'monospace' }}
                                     />
                                     <div style={{ display: 'flex', gap: '10px' }}>
-                                        <button onClick={saveTemplate} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+                                        <button onClick={saveTemplate}
+                                            className="primary-btn"
+                                            style={{
+                                                padding: '8px 16px',
+                                                borderRadius: '8px',
+                                                border: 'none',
+                                                background: 'var(--accent-color, #4f46e5)',
+                                                color: 'white',
+                                                cursor: 'pointer',
+                                                fontWeight: 600,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px'
+                                            }}
+                                        >
                                             {editingTemplate ? 'Update' : 'Add Template'}
                                         </button>
                                         {editingTemplate && (
@@ -1523,7 +1508,21 @@ export default function SettingsPage({
                                             style={{ flex: 1, minWidth: 0, padding: '8px', borderRadius: '4px', border: '1px solid rgba(128,128,128,0.2)', background: 'transparent', color: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                         />
                                     </div>
-                                    <button onClick={addRegexRule} style={{ padding: '8px 16px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', alignSelf: 'flex-start' }}>
+                                    <button onClick={addRegexRule}
+                                        className="primary-btn"
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            background: 'var(--accent-color, #4f46e5)',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                    >
                                         Add Rule
                                     </button>
                                 </div>
@@ -1546,8 +1545,198 @@ export default function SettingsPage({
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'backup' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>Backup & Cloud Sync</h2>
+
+                            <div style={{ marginBottom: '32px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>Local Backup</h3>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <button
+                                        onClick={handleExport}
+                                        className="primary-btn"
+                                        style={{
+                                            padding: '10px 20px',
+                                            borderRadius: '8px',
+                                            border: 'none',
+                                            background: 'var(--accent-color, #4f46e5)',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+
+                                    >
+                                        📤 Export Clips
+                                    </button>
+                                    <button
+                                        onClick={handleImport}
+                                        className="primary-btn"
+                                        style={{
+                                            padding: '10px 20px',
+                                            borderRadius: '8px',
+                                            border: '1px solid var(--accent-color, #4f46e5)',
+                                            background: 'transparent',
+                                            color: 'var(--accent-color, #4f46e5)',
+                                            cursor: 'pointer',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.2)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                                    >
+                                        📥 Import Backup
+                                    </button>
+                                </div>
+                                {exportStatus && <div style={{ marginTop: '8px', fontSize: '0.85rem', opacity: 0.8 }}>{exportStatus}</div>}
+                            </div>
+
+                            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
+                                <h3 style={{ marginBottom: '16px' }}>Google Drive Sync</h3>
+
+                                {!driveConnected ? (
+                                    <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                        <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', opacity: 0.8 }}>
+                                            Connect Google Drive to sync your clips across devices. You need to provide your own Google Cloud Project credentials.
+                                        </p>
+
+                                        <div style={{ marginBottom: '12px' }}>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Client ID</label>
+                                            <input
+                                                type="text"
+                                                value={driveClientId}
+                                                onChange={e => setDriveClientId(e.target.value)}
+                                                placeholder="xxx.apps.googleusercontent.com"
+                                                className="input-field"
+                                                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'inherit' }}
+                                            />
+                                        </div>
+
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Client Secret</label>
+                                            <input
+                                                type="password"
+                                                value={driveClientSecret}
+                                                onChange={e => setDriveClientSecret(e.target.value)}
+                                                placeholder="Client Secret"
+                                                className="input-field"
+                                                style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'inherit' }}
+                                            />
+                                        </div>
+
+                                        <button
+                                            onClick={handleConnectDrive}
+                                            className="primary-btn"
+                                            style={{ width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                                        >
+                                            <span style={{ fontSize: '1.2rem' }}>🌐</span> Connect to Google Drive
+                                        </button>
+
+                                        {driveStatusMsg && <div style={{ marginTop: '12px', fontSize: '0.85rem', textAlign: 'center', color: 'var(--accent-color)' }}>{driveStatusMsg}</div>}
+                                    </div>
+                                ) : (
+                                    <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+                                            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#e8f0fe', color: '#1a73e8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>G</div>
+                                            <div>
+                                                <div style={{ fontWeight: 700 }}>Connected</div>
+                                                <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>{driveUser}</div>
+                                                <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{driveEmail}</div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <button
+                                                onClick={handleSyncNow}
+                                                className="primary-btn"
+                                                style={{ flex: 1 }}
+                                                disabled={syncing}
+                                            >
+                                                {syncing ? 'Syncing...' : 'Sync Now'}
+                                            </button>
+                                            <button
+                                                onClick={handleDisconnectDrive}
+                                                style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                                            >
+                                                Disconnect
+                                            </button>
+                                        </div>
+                                        {driveStatusMsg && <div style={{ marginTop: '12px', fontSize: '0.85rem', textAlign: 'center', color: 'var(--accent-color)' }}>{driveStatusMsg}</div>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'about' && (
+                        <div className="setting-section">
+                            <h2 style={{ marginTop: 0 }}>About ReClip</h2>
+                            <div style={{ textAlign: 'center', padding: '48px 32px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+                                <img src="/icon.png" alt="ReClip Icon" style={{ width: '100px', height: '100px', marginBottom: '16px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }} />
+                                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.8rem', fontWeight: 700 }}>ReClip</h3>
+                                <div style={{ opacity: 0.7, marginBottom: '32px' }}>Version {appVersion}</div>
+
+                                <div style={{ maxWidth: '420px', margin: '0 auto 32px auto', lineHeight: '1.6' }}>
+                                    <p style={{ marginBottom: '24px', fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
+                                        ReClip is your ultimate clipboard companion. Seamlessly manage your history, organize code snippets, and streamline your workflow with a beautiful, keyboard-centric interface.
+                                    </p>
+
+                                    <a
+                                        href="https://github.com/gameticharles"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, background 0.2s' }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'var(--bg-input)'; }}
+                                    >
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700 }}>CG</div>
+                                        <div style={{ textAlign: 'left' }}>
+                                            <div style={{ fontSize: '0.8rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Developed by</div>
+                                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Charles Gameti</div>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                                    {updateStatus === 'idle' && (
+                                        <button onClick={checkForUpdates} className="primary-btn">Check for Updates</button>
+                                    )}
+                                    {updateStatus === 'checking' && (
+                                        <div style={{ opacity: 0.7 }}>Checking for updates...</div>
+                                    )}
+                                    {updateStatus === 'uptodate' && (
+                                        <div style={{ color: '#22c55e', fontWeight: 600 }}>All up to date!</div>
+                                    )}
+                                    {updateStatus === 'available' && updateInfo && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                                            <div style={{ color: 'var(--accent-color)', fontWeight: 700 }}>New Version Available: {updateInfo.version}</div>
+                                            <button onClick={installUpdate} className="primary-btn">Download & Install</button>
+                                        </div>
+                                    )}
+                                    {updateStatus === 'downloading' && (
+                                        <div style={{ width: '200px' }}>
+                                            <div style={{ marginBottom: '8px', fontSize: '0.9rem' }}>Downloading update...</div>
+                                            {downloadProgress && (
+                                                <div style={{ width: '100%', height: '4px', background: 'rgba(128,128,128,0.2)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', background: 'var(--accent-color)', width: `${(downloadProgress.downloaded / downloadProgress.total) * 100}%` }}></div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {updateStatus === 'error' && (
+                                        <div style={{ color: '#ef4444', fontSize: '0.9rem' }}>{updateError}</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            </div >
+            </div>
         </div >
     );
 }

@@ -36,13 +36,16 @@ enigo = "0.6.1"
 zip = "0.6"
 walkdir = "2.5"
 tauri-plugin-dialog = "2"
-reqwest = { version = "0.12", features = ["blocking", "json", "stream"] }
+reqwest = { version = "0.12", features = ["blocking", "json", "stream", "multipart"] }
 futures-util = "0.3"
 regex = "1"
 html-escape = "0.2"
 x-win = "5.4.0"
 tauri-plugin-autostart = "2"
 clap = { version = "4", features = ["derive"] }
+oauth2 = "4.4"
+url = "2.5"
+open = "5"
 
 
 [target.'cfg(windows)'.dependencies]
