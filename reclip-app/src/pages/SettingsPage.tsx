@@ -6,6 +6,8 @@ import { save, open } from "@tauri-apps/plugin-dialog";
 import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface SettingsPageProps {
     onBack: () => void;
@@ -1713,8 +1715,24 @@ export default function SettingsPage({
                                         <div style={{ color: '#22c55e', fontWeight: 600 }}>All up to date!</div>
                                     )}
                                     {updateStatus === 'available' && updateInfo && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
                                             <div style={{ color: 'var(--accent-color)', fontWeight: 700 }}>New Version Available: {updateInfo.version}</div>
+                                            {updateInfo.body && (
+                                                <div className="clip-markdown" style={{
+                                                    textAlign: 'left',
+                                                    width: '100%',
+                                                    maxHeight: '300px',
+                                                    overflowY: 'auto',
+                                                    background: 'rgba(0,0,0,0.05)',
+                                                    padding: '12px',
+                                                    borderRadius: '8px',
+                                                    fontSize: '0.9rem',
+                                                    marginBottom: '8px',
+                                                    border: '1px solid var(--border-color)'
+                                                }}>
+                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{updateInfo.body}</ReactMarkdown>
+                                                </div>
+                                            )}
                                             <button onClick={installUpdate} className="primary-btn">Download & Install</button>
                                         </div>
                                     )}
