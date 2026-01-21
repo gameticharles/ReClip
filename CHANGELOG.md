@@ -1,9 +1,3 @@
-## [0.8.0] - 2026-01-20
-
-Fix minor bugs and improved UI
-## [0.8.0] - 2026-01-20
-
-Fix minor bugs and improved UI
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
