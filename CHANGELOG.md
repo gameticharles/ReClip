@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-01-21
+
+### ✨ New Features
+- **Google Drive Synchronization**:
+  - **Cloud Backup**: Securely sync your clips to a dedicated "ReClip" folder on Google Drive.
+  - **Cross-Device Sync**: Bidirectional sync (Upload & Download) to keep your clipboard consistent across devices.
+  - **Seamless Auth**: Integrated Google OAuth 2.0 flow with PKCE for secure connection.
+
+### 🎨 UI/UX Improvements
+- **Settings Page**:
+  - **Backup & Cloud Sync**: New dedicated section for managing local backups and cloud connections.
+  - **Sync Status**: Real-time feedback on connection state, user info, and last sync timestamp.
+  - **Visual Polish**: Updated buttons to use consistent `primary-btn` styling across Rules, Templates, and Backup sections.
+  - **Layout**: Cleaned up the Backup section with clear "Export" and "Import" actions.
+
+### 🐛 Bug Fixes
+- **Settings**:
+  - Removed duplicate "About" and "Backup" sections that cluttered the interface.
+  - Fixed duplicate/conflicting code that caused build failures.
+  - Removed unused variables to ensure a clean production build.
+- **Backend**:
+  - Fixed database query macros to ensure stable compilation without needing a live database connection during build.
+  - Enabled `multipart` support for reliable file uploads to Google Drive.
+
 ## [0.8.0] - 2026-01-20
 
 ### ✨ New Features
