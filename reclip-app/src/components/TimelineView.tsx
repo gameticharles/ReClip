@@ -225,82 +225,27 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
             marginRight: '16px', // Restore layout after container padding removal
             boxShadow: 'var(--shadow-sm)',
         }}>
-            {/* Header with Zoom Controls */}
+            {/* Header with Two Rows */}
             <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '12px',
-                flexWrap: 'wrap',
+                flexDirection: 'column',
                 gap: '8px',
+                marginBottom: '12px',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.8 }}>
-                        📅 Timeline
-                    </span>
-                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-                        {totalCount ?? clips.length} clips {totalCount && totalCount > clips.length ? `(${clips.length} loaded)` : ''}
-                    </span>
-                </div>
-
-                {/* Zoom Level Buttons */}
-                <div style={{ display: 'flex', gap: '4px', fontSize: '0.7rem' }}>
-                    {(['hour', 'day', 'week', 'month', 'year'] as ZoomLevel[]).map(level => (
-                        <button
-                            key={level}
-                            onClick={() => setZoomLevel(level)}
-                            style={{
-                                padding: '3px 8px',
-                                borderRadius: '4px',
-                                border: 'none',
-                                background: zoomLevel === level ? 'var(--accent-color)' : 'rgba(128,128,128,0.2)',
-                                color: zoomLevel === level ? 'white' : 'inherit',
-                                cursor: 'pointer',
-                                fontWeight: zoomLevel === level ? 600 : 400,
-                                textTransform: 'capitalize',
-                            }}
-                        >
-                            {level}
-                        </button>
-                    ))}
-                    <button
-                        onClick={() => setShowCalendar(!showCalendar)}
-                        style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            background: showCalendar ? 'var(--accent-color)' : 'rgba(128,128,128,0.2)',
-                            color: showCalendar ? 'white' : 'inherit',
-                            cursor: 'pointer',
-                            marginLeft: '8px',
-                        }}
-                        title="Open calendar"
-                    >
-                        📆
-                    </button>
-                    <button
-                        onClick={() => {
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            const endOfDay = new Date(today);
-                            endOfDay.setHours(23, 59, 59, 999);
-                            onSelectDate(today);
-                        }}
-                        style={{
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            border: 'none',
-                            background: 'rgba(128,128,128,0.2)',
-                            color: 'inherit',
-                            cursor: 'pointer',
-                        }}
-                        title="Jump to today"
-                    >
-                        Today
-                    </button>
+                {/* Top Row: Title & Presets */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.8 }}>
+                            📅 Timeline
+                        </span>
+                        <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>
+                            {totalCount ?? clips.length} clips {totalCount && totalCount > clips.length ? `(${clips.length} loaded)` : ''}
+                        </span>
+                    </div>
 
                     {/* Quick Presets */}
-                    <div style={{ display: 'flex', gap: '4px', marginLeft: '8px', borderLeft: '1px solid rgba(128,128,128,0.3)', paddingLeft: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                             onClick={() => {
                                 const now = new Date();
@@ -375,6 +320,75 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                             title="Clear time filter"
                         >
                             ✕
+                        </button>
+                    </div>
+                </div>
+
+                {/* Bottom Row: Zoom Controls & Calendar/Today */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {/* Zoom Level Buttons */}
+                    <div style={{ display: 'flex', gap: '4px', fontSize: '0.7rem' }}>
+                        {(['hour', 'day', 'week', 'month', 'year'] as ZoomLevel[]).map(level => (
+                            <button
+                                key={level}
+                                onClick={() => setZoomLevel(level)}
+                                style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    border: 'none',
+                                    background: zoomLevel === level ? 'var(--accent-color)' : 'rgba(128,128,128,0.2)',
+                                    color: zoomLevel === level ? 'white' : 'inherit',
+                                    cursor: 'pointer',
+                                    fontWeight: zoomLevel === level ? 600 : 400,
+                                    textTransform: 'capitalize',
+                                }}
+                            >
+                                {level}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {/* Calendar & Today */}
+                        <button
+                            onClick={() => setShowCalendar(!showCalendar)}
+                            style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: showCalendar ? 'var(--accent-color)' : 'rgba(128,128,128,0.2)',
+                                color: showCalendar ? 'white' : 'inherit',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.75rem',
+                            }}
+                            title="Open calendar"
+                        >
+                            <span>📆</span>
+                            {showCalendar && <span style={{ fontWeight: 600 }}>Calendar</span>}
+                        </button>
+                        <button
+                            onClick={() => {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const endOfDay = new Date(today);
+                                endOfDay.setHours(23, 59, 59, 999);
+                                onSelectDate(today);
+                            }}
+                            style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                background: 'rgba(128,128,128,0.2)',
+                                color: 'inherit',
+                                cursor: 'pointer',
+                                fontSize: '0.7rem',
+                            }}
+                            title="Jump to today"
+                        >
+                            Today
                         </button>
                     </div>
                 </div>

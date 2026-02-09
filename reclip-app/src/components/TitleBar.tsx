@@ -38,10 +38,8 @@ const TitleBar: React.FC<TitleBarProps> = ({
         getVersion().then(setVersion);
     }, []);
 
-    const btnStyle = (active: boolean) => ({
-        color: active ? 'var(--accent-color)' : undefined,
-        background: active ? 'var(--bg-secondary)' : 'transparent',
-    });
+    // btnStyle removed, using CSS classes
+
 
     return (
         <div
@@ -74,7 +72,6 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     onClick={onOpenMain}
                     className={`title-btn ${currentView === 'main' ? 'active' : ''}`}
                     title="Home (Clipboard)"
-                    style={btnStyle(currentView === 'main')}
                 >
                     <Home size={16} />
                 </button>
@@ -82,7 +79,6 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     onClick={onOpenSnippets}
                     className={`title-btn ${currentView === 'snippets' ? 'active' : ''}`}
                     title="Code Snippets"
-                    style={btnStyle(currentView === 'snippets')}
                 >
                     <FileCode size={16} />
                 </button>
@@ -90,7 +86,6 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     onClick={onOpenColors}
                     className={`title-btn ${currentView === 'colors' ? 'active' : ''}`}
                     title="Color Tools"
-                    style={btnStyle(currentView === 'colors')}
                 >
                     <Palette size={16} />
                 </button>
@@ -98,7 +93,6 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     onClick={onOpenSettings}
                     className={`title-btn ${currentView === 'settings' ? 'active' : ''}`}
                     title="Settings"
-                    style={btnStyle(currentView === 'settings')}
                 >
                     <Settings size={16} />
                 </button>

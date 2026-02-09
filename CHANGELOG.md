@@ -188,6 +188,9 @@ All notable changes to this project will be documented in this file.
   - Greatly improved **Light Mode** readability with better borders and contrast.
   - Added **System Theme Detection** to automatically switch app theme.
   - Fixed Dark Mode issues with fav icons and dropdowns.
+- **Bug Fixes**:
+  - Refined Timeline layout with a two-row header to organize presets and controls.
+  - Improved error handling for "Check for Updates" (network errors, offline).
 - **Visual Polish**:
   - Added hover effects and animations to Snippet cards.
   - Improved Titlebar dragging experience.

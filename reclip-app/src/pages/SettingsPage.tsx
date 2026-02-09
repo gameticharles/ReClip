@@ -6,8 +6,7 @@ import { save, open } from "@tauri-apps/plugin-dialog";
 import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { ChangelogViewer } from '../components/ChangelogViewer';
 
 interface SettingsPageProps {
     compactMode: boolean;
@@ -43,7 +42,35 @@ export default function SettingsPage({
     const [privacyRules, setPrivacyRules] = useState<any[]>([]);
     const [shortcuts, setShortcuts] = useState<{ [key: string]: string }>({});
     const [recordingAction, setRecordingAction] = useState<string | null>(null);
-    // ... privacy states
+
+    // Sidebar State
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('settingsSidebarCollapsed') === 'true');
+
+    // Handle sidebar responsive collapse
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 800) { // Threshold for auto-collapse
+                setSidebarCollapsed(true);
+            }
+        };
+
+        // Initial check if not already set by user preference logic (optional, but good for first run)
+        // Actually, we trust localStorage first. But if no localStorage, maybe auto-collapse?
+        // Let's just listen for resize to auto-collapse on small screens.
+        if (window.innerWidth < 800 && localStorage.getItem('settingsSidebarCollapsed') === null) {
+            setSidebarCollapsed(true);
+        }
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Persist sidebar state
+    useEffect(() => {
+        localStorage.setItem('settingsSidebarCollapsed', sidebarCollapsed.toString());
+    }, [sidebarCollapsed]);
+
+    // Privacy states
     const [newIgnoreApp, setNewIgnoreApp] = useState("");
     const [newRegex, setNewRegex] = useState("");
 
@@ -527,32 +554,96 @@ export default function SettingsPage({
             {/* Settings Title Bar */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Sidebar */}
-                <div style={{ width: '200px', padding: '20px 0', borderRight: '1px solid rgba(128,128,128,0.1)', background: 'rgba(128,128,128,0.02)' }}>
-                    {tabs.map(tab => (
+                <div style={{
+                    width: sidebarCollapsed ? '64px' : '200px',
+                    padding: '16px 0',
+                    borderRight: '1px solid var(--border-color)',
+                    background: 'var(--bg-card)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    overflow: 'hidden',
+                    position: 'relative'
+                }}>
+                    <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                title={sidebarCollapsed ? tab.label : undefined}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                                    gap: sidebarCollapsed ? 0 : '12px',
+                                    width: sidebarCollapsed ? '48px' : 'calc(100% - 24px)',
+                                    margin: sidebarCollapsed ? '0 auto 4px auto' : '0 12px 4px 12px',
+                                    padding: sidebarCollapsed ? '0' : '10px 12px',
+                                    height: '40px',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    background: activeTab === tab.id ? 'var(--accent-color, #4f46e5)' : 'transparent',
+                                    color: activeTab === tab.id ? 'white' : 'var(--text-primary)',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    fontSize: '0.95rem',
+                                    fontWeight: activeTab === tab.id ? 600 : 500,
+                                    transition: 'all 0.2s',
+                                    opacity: activeTab === tab.id ? 1 : 0.8,
+                                    position: 'relative'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (activeTab !== tab.id) {
+                                        e.currentTarget.style.background = 'var(--bg-hover)';
+                                        e.currentTarget.style.opacity = '1';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (activeTab !== tab.id) {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.opacity = '0.8';
+                                    }
+                                }}
+                            >
+                                <span style={{ fontSize: '1.2rem', minWidth: '24px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{tab.icon}</span>
+                                <span style={{
+                                    whiteSpace: 'nowrap',
+                                    opacity: sidebarCollapsed ? 0 : 1,
+                                    width: sidebarCollapsed ? 0 : 'auto',
+                                    overflow: 'hidden',
+                                    transition: 'opacity 0.2s, width 0.2s',
+                                    pointerEvents: sidebarCollapsed ? 'none' : 'auto'
+                                }}>
+                                    {tab.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Collapse Toggle */}
+                    <div style={{ padding: '12px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center' }}>
                         <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                             style={{
+                                width: sidebarCollapsed ? '40px' : '100%',
+                                padding: '8px',
+                                background: 'transparent',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '12px',
-                                width: '100%',
-                                padding: '12px 24px',
-                                border: 'none',
-                                background: activeTab === tab.id ? 'var(--accent-color, #4f46e5)' : 'transparent',
-                                color: activeTab === tab.id ? 'white' : 'inherit',
-                                cursor: 'pointer',
-                                textAlign: 'left',
-                                fontSize: '0.95rem',
-                                fontWeight: activeTab === tab.id ? 600 : 400,
-                                transition: 'all 0.2s',
-                                opacity: activeTab === tab.id ? 1 : 0.7
+                                justifyContent: 'center',
+                                transition: 'all 0.2s'
                             }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                         >
-                            <span>{tab.icon}</span>
-                            {tab.label}
+                            {sidebarCollapsed ? '»' : '« Collapse Sidebar'}
                         </button>
-                    ))}
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -1651,78 +1742,102 @@ export default function SettingsPage({
 
                     {activeTab === 'about' && (
                         <div className="setting-section">
-                            <h2 style={{ marginTop: 0 }}>About ReClip</h2>
-                            <div style={{ textAlign: 'center', padding: '48px 32px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-                                <img src="/icon.png" alt="ReClip Icon" style={{ width: '100px', height: '100px', marginBottom: '16px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }} />
-                                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.8rem', fontWeight: 700 }}>ReClip</h3>
-                                <div style={{ opacity: 0.7, marginBottom: '32px' }}>Version {appVersion}</div>
+                            <h2 style={{ marginTop: 0, marginBottom: '32px' }}>About</h2>
 
-                                <div style={{ maxWidth: '420px', margin: '0 auto 32px auto', lineHeight: '1.6' }}>
-                                    <p style={{ marginBottom: '24px', fontSize: '1.05rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '8px' }}>
+                                        <img src="/icon.png" alt="ReClip" style={{ width: '80px', height: '80px', borderRadius: '20px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }} />
+                                        <div>
+                                            <h3 style={{ margin: '0', fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>ReClip</h3>
+                                            <a
+                                                href="https://github.com/gameticharles/ReClip/releases"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ fontSize: '1.1rem', opacity: 0.6, fontWeight: 500, marginTop: '4px', textDecoration: 'none', color: 'inherit', display: 'inline-block', transition: 'opacity 0.2s' }}
+                                                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                                onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
+                                                title="View Releases on GitHub"
+                                            >
+                                                Version {appVersion}
+                                            </a>
+                                            {/* Status Badge */}
+                                            <div style={{
+                                                marginTop: '8px',
+                                                display: 'inline-block',
+                                                padding: '4px 10px',
+                                                borderRadius: '12px',
+                                                background: updateStatus === 'uptodate' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(128,128,128,0.1)',
+                                                color: updateStatus === 'uptodate' ? '#22c55e' : 'inherit',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 600,
+                                                border: '1px solid transparent',
+                                                borderColor: updateStatus === 'uptodate' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(128,128,128,0.2)'
+                                            }}>
+                                                {updateStatus === 'uptodate' ? 'Stable Channel' : updateStatus === 'available' ? 'Update Available' : 'Stable Channel'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p style={{ fontSize: '1.05rem', lineHeight: '1.6', opacity: 0.8, maxWidth: '500px', marginBottom: '32px', marginTop: '24px' }}>
                                         ReClip is your ultimate clipboard companion. Seamlessly manage your history, organize code snippets, and streamline your workflow with a beautiful, keyboard-centric interface.
                                     </p>
 
-                                    <a
-                                        href="https://github.com/gameticharles"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: 'var(--bg-input)', borderRadius: '12px', border: '1px solid var(--border-color)', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, background 0.2s' }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.background = 'var(--bg-input)'; }}
-                                    >
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700 }}>CG</div>
-                                        <div style={{ textAlign: 'left' }}>
-                                            <div style={{ fontSize: '0.8rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Developed by</div>
-                                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Charles Gameti</div>
-                                        </div>
-                                    </a>
-                                </div>
+                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '40px' }}>
+                                        {updateStatus === 'available' && updateInfo ? (
+                                            <button
+                                                onClick={installUpdate}
+                                                className="primary-btn"
+                                                style={{ padding: '10px 24px', fontSize: '1rem' }}
+                                            >
+                                                🚀 Install Update {updateInfo.version}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={checkForUpdates}
+                                                disabled={updateStatus === 'checking'}
+                                                className="primary-btn"
+                                                style={{ padding: '10px 24px', opacity: updateStatus === 'checking' ? 0.7 : 1 }}
+                                            >
+                                                {updateStatus === 'checking' ? 'Checking...' : 'Check for Updates'}
+                                            </button>
+                                        )}
+                                    </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                                    {updateStatus === 'idle' && (
-                                        <button onClick={checkForUpdates} className="primary-btn">Check for Updates</button>
-                                    )}
-                                    {updateStatus === 'checking' && (
-                                        <div style={{ opacity: 0.7 }}>Checking for updates...</div>
-                                    )}
-                                    {updateStatus === 'uptodate' && (
-                                        <div style={{ color: '#22c55e', fontWeight: 600 }}>All up to date!</div>
-                                    )}
-                                    {updateStatus === 'available' && updateInfo && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%' }}>
-                                            <div style={{ color: 'var(--accent-color)', fontWeight: 700 }}>New Version Available: {updateInfo.version}</div>
-                                            {updateInfo.body && (
-                                                <div className="clip-markdown" style={{
-                                                    textAlign: 'left',
-                                                    width: '100%',
-                                                    maxHeight: '300px',
-                                                    overflowY: 'auto',
-                                                    background: 'rgba(0,0,0,0.05)',
-                                                    padding: '12px',
-                                                    borderRadius: '8px',
-                                                    fontSize: '0.9rem',
-                                                    marginBottom: '8px',
-                                                    border: '1px solid var(--border-color)'
-                                                }}>
-                                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{updateInfo.body}</ReactMarkdown>
+                                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '32px' }}>
+                                        <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.5, marginBottom: '12px', fontWeight: 700 }}>Developed By</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                            <a
+                                                href="https://github.com/gameticharles"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '16px' }}
+                                            >
+                                                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--accent-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700 }}>CG</div>
+                                                <div>
+                                                    <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>Charles Gameti</div>
+                                                    <div style={{ opacity: 0.6, fontSize: '0.9rem' }}>Full Stack Developer</div>
                                                 </div>
-                                            )}
-                                            <button onClick={installUpdate} className="primary-btn">Download & Install</button>
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    {/* Update Info / Error Display */}
+                                    {updateStatus === 'error' && (
+                                        <div style={{ marginTop: '24px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '8px', fontSize: '0.9rem' }}>
+                                            {updateError}
                                         </div>
                                     )}
                                     {updateStatus === 'downloading' && (
-                                        <div style={{ width: '200px' }}>
-                                            <div style={{ marginBottom: '8px', fontSize: '0.9rem' }}>Downloading update...</div>
-                                            {downloadProgress && (
-                                                <div style={{ width: '100%', height: '4px', background: 'rgba(128,128,128,0.2)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                    <div style={{ height: '100%', background: 'var(--accent-color)', width: `${(downloadProgress.downloaded / downloadProgress.total) * 100}%` }}></div>
-                                                </div>
-                                            )}
+                                        <div style={{ marginTop: '24px' }}>
+                                            <div style={{ marginBottom: '8px', fontSize: '0.9rem' }}>Downloading update... {downloadProgress ? Math.round((downloadProgress.downloaded / downloadProgress.total) * 100) : 0}%</div>
+                                            <div style={{ width: '100%', height: '4px', background: 'rgba(128,128,128,0.2)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                <div style={{ height: '100%', background: 'var(--accent-color)', width: `${downloadProgress ? (downloadProgress.downloaded / downloadProgress.total) * 100 : 0}%` }}></div>
+                                            </div>
                                         </div>
                                     )}
-                                    {updateStatus === 'error' && (
-                                        <div style={{ color: '#ef4444', fontSize: '0.9rem' }}>{updateError}</div>
-                                    )}
+
+                                    <ChangelogViewer />
                                 </div>
                             </div>
                         </div>

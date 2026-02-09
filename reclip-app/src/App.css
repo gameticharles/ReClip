@@ -99,6 +99,7 @@ body.dark .titlebar {
   gap: 4px;
 }
 
+
 .title-btn {
   background: transparent;
   border: none;
@@ -109,17 +110,44 @@ body.dark .titlebar {
   line-height: 1;
   color: inherit;
   opacity: 0.7;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .title-btn:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.08);
+  /* Slightly darker for better visibility */
   opacity: 1;
+  transform: translateY(-1px);
+  /* Subtle lift */
 }
 
 body.dark .title-btn:hover {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.12);
 }
+
+.title-btn:active {
+  transform: translateY(0);
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+body.dark .title-btn:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.title-btn.active {
+  opacity: 1;
+  background-color: rgba(var(--accent-rgb), 0.15) !important;
+  /* Force accent background */
+  color: var(--accent-color) !important;
+  font-weight: 600;
+}
+
+body.dark .title-btn.active {
+  background-color: rgba(var(--accent-rgb), 0.25) !important;
+}
+
 
 /* Settings Panel */
 .settings-panel {
