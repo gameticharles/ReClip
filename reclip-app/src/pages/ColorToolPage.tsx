@@ -219,7 +219,7 @@ const ColorToolPage = ({ initialColor = '#3b82f6' }: ColorToolPageProps) => {
 
 
     return (
-        <div className="color-tool-page" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+        <div className="color-tool-page" style={{ flex: 1, height: 'auto', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)', overflow: 'hidden' }}>
 
             {/* Header - Toolbar Style */}
             <div className="toolbar" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>

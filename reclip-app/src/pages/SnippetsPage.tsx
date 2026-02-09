@@ -266,7 +266,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme }) => {
     });
 
     return (
-        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, height: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header - Toolbar style */}
             <div className="toolbar" style={{ height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid var(--border-color)' }}>
                 <div className="title-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

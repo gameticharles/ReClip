@@ -550,7 +550,7 @@ export default function SettingsPage({
     ];
 
     return (
-        <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent' }}>
+        <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: 'auto', background: 'transparent', overflow: 'hidden' }}>
             {/* Settings Title Bar */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Sidebar */}
