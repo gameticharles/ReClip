@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Snippet } from '../types';
-import { ArrowLeft, Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown } from 'lucide-react';
+import { Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { getThemeById } from '../utils/themes';
 import { LANGUAGES, LANGUAGE_COLORS } from '../utils/languages';
 import { QRModal } from '../components/QRModal';
 
 interface SnippetsPageProps {
-    onBack: () => void;
-    compactMode: boolean;
     theme: string;
 }
 
@@ -26,7 +24,7 @@ const selectStyle: React.CSSProperties = {
     cursor: 'pointer',
 };
 
-const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
+const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme }) => {
     const [snippets, setSnippets] = useState<Snippet[]>([]);
     const [search, setSearch] = useState('');
     const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -269,13 +267,12 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ onBack, theme }) => {
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            {/* Header - All children need data-tauri-drag-region for full drag area */}
-            <div className="titlebar" data-tauri-drag-region style={{ background: 'transparent' }}>
-                <div className="title-left" data-tauri-drag-region>
-                    <button onClick={onBack} className="title-btn" title="Back"><ArrowLeft size={18} /></button>
-                    <Code2 size={16} style={{ color: 'var(--accent-color)', pointerEvents: 'none' }} data-tauri-drag-region />
-                    <span data-tauri-drag-region style={{ fontWeight: 600, pointerEvents: 'none' }}>Snippet Library</span>
-                    <span data-tauri-drag-region style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: 8, pointerEvents: 'none' }}>{snippets.length} snippets</span>
+            {/* Header - Toolbar style */}
+            <div className="toolbar" style={{ height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid var(--border-color)' }}>
+                <div className="title-left" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Code2 size={16} style={{ color: 'var(--accent-color)' }} />
+                    <span style={{ fontWeight: 600 }}>Snippet Library</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: 8 }}>{snippets.length} snippets</span>
                 </div>
                 <div className="title-right" style={{ display: 'flex', gap: 6 }}>
                     <button

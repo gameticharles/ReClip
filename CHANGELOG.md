@@ -1,9 +1,25 @@
-## [0.9.0] - 2026-01-21
-
-Fix UI issues and initialised Google sync
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
+
+## [0.9.5] - 2026-02-09
+
+### ✨ New Features
+- **Unified Title Bar**:
+  - **Global Navigation**: A new, persistent Title Bar with dedicated navigation buttons (Home, Snippets, Colors, Settings).
+  - **Active State Indicators**: Navigation icons now highlight to visually indicate the current active view.
+  - **Home Button**: Added a dedicated Home button and clickable App Logo to quickly return to the main clipboard view.
+
+### 🎨 UI/UX Improvements
+- **Main Clipboard View**:
+  - **Scrollbar Polish**: Moved the scrollbar to the extreme right edge of the window for a cleaner look.
+  - **Layout Spacing**: Added bottom padding to the clip list to prevent content cutoff and adjusted margins for Search Bar and Timeline View.
+- **Simplified Navigation**:
+  - **Settings Page**: Removed redundant internal title bar and "Back" button for a cleaner interface.
+  - **Color Tool & Snippets**: Removed duplicate "Close" and "Back" buttons from toolbars to reduce clutter given the new global navigation.
+
+### 🧹 Code Cleanup
+- **Component Optimization**: Removed unused props (`onBack`, `onClose`, `compactMode`) and simplified component interfaces across the application.
 
 ## [0.9.0] - 2026-01-21
 

@@ -185,7 +185,8 @@ body.dark .settings-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 16px 16px 16px;
+  padding: 0 0 0 16px;
+  /* Removed right/bottom padding from container to let scrollbar hit edges */
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -197,7 +198,10 @@ body.dark .settings-panel {
   flex-direction: column;
   gap: 8px;
   padding-top: 16px;
-  padding-right: 4px;
+  padding-right: 16px;
+  /* Moved right padding here so content doesn't touch scrollbar */
+  padding-bottom: 100px;
+  /* Added significant bottom padding so clips aren't cut off */
 }
 
 /* Scrollbar Styling */

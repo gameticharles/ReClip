@@ -10,7 +10,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 interface SettingsPageProps {
-    onBack: () => void;
     compactMode: boolean;
     setCompactMode: (enabled: boolean) => void;
     theme: string;
@@ -22,7 +21,6 @@ interface SettingsPageProps {
 }
 
 export default function SettingsPage({
-    onBack,
     compactMode,
     setCompactMode,
     theme,
@@ -527,30 +525,6 @@ export default function SettingsPage({
     return (
         <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'transparent' }}>
             {/* Settings Title Bar */}
-            <div
-                className="titlebar"
-                onMouseDown={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (!target.closest('button')) getCurrentWindow().startDragging();
-                }}
-                style={{ paddingLeft: '80px', position: 'relative' }} // Space for back button
-            >
-                <button
-                    onClick={onBack}
-                    className="title-btn"
-                    style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.9rem', fontWeight: 600 }}
-                    title="Back to Clips"
-                >
-                    <span>←</span> Back
-                </button>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700 }}>Settings</div>
-
-                {/* Window Controls */}
-                <div className="title-right">
-                    <button onClick={() => getCurrentWindow().hide()} className="title-btn" title="Hide">✕</button>
-                </div>
-            </div>
-
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Sidebar */}
                 <div style={{ width: '200px', padding: '20px 0', borderRight: '1px solid rgba(128,128,128,0.1)', background: 'rgba(128,128,128,0.02)' }}>

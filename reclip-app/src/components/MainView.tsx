@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Dispatch, SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { getVersion } from '@tauri-apps/api/app';
 import { motion } from "framer-motion";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
@@ -14,14 +13,13 @@ import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
 import ImageZoomModal from "./ImageZoomModal";
-import { Palette } from 'lucide-react';
-
 
 interface MainViewProps {
     compactMode: boolean;
-    onOpenSettings: () => void;
-    onOpenSnippets: () => void;
-    onOpenColors: () => void;
+    queueMode: boolean;
+    pasteQueue: Clip[];
+    setPasteQueue: Dispatch<SetStateAction<Clip[]>>;
+    showTimeline: boolean;
 }
 
 const isUrl = (text: string) => {
@@ -37,30 +35,29 @@ const isColorCode = (text: string) => {
     return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
 };
 
-export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, onOpenColors }: MainViewProps) {
+export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQueue, showTimeline }: MainViewProps) {
     const [clips, setClips] = useState<Clip[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
     const [focusOnDelete, setFocusOnDelete] = useState(false); // Left/Right toggle
-    const [incognitoMode, setIncognitoMode] = useState(() => localStorage.getItem('incognitoMode') === 'true');
+
+    // Lifted State: incognitoMode passed as prop
+
     const [selectedClipIds, setSelectedClipIds] = useState<Set<number>>(new Set());
     const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const clipListRef = useRef<HTMLDivElement>(null);
 
-    // Paste Queue
-    const [queueMode, setQueueMode] = useState(() => localStorage.getItem('queueMode') === 'true');
-    const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
+    // Paste Queue: queueMode, pasteQueue passed as props
 
     // Menu & QR
     const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
     const [qrContent, setQrContent] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Timeline View State
-    const [showTimeline, setShowTimeline] = useState(() => localStorage.getItem('showTimeline') === 'true');
+    // Timeline View State: showTimeline passed as prop
     const [timelineFilter, setTimelineFilter] = useState<{ start: number, end: number } | null>(null);
-    const [version, setVersion] = useState("...");
+    // version removed (handled in TitleBar)
     const [allClips, setAllClips] = useState<Clip[]>([]);
 
     // Advanced Settings States
@@ -131,18 +128,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
     }, []);
 
     // Persistence Effects
-    useEffect(() => {
-        localStorage.setItem('incognitoMode', incognitoMode.toString());
-        invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
-    }, [incognitoMode]);
-
-    useEffect(() => {
-        localStorage.setItem('showTimeline', showTimeline.toString());
-    }, [showTimeline]);
-
-    useEffect(() => {
-        localStorage.setItem('queueMode', queueMode.toString());
-    }, [queueMode]);
+    // Persistence Effects - Remvoed (Lifted to App.tsx)
 
     // Helper for time ago
     const formatTime = (dateStr: string) => {
@@ -202,31 +188,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
         });
     };
 
-    // ...
 
-    <button
-        onClick={() => setQueueMode(!queueMode)}
-        className={`title-btn ${queueMode ? 'active' : ''}`}
-        title="Toggle Paste Queue Mode"
-        style={{ color: queueMode ? '#10b981' : undefined, fontWeight: 'bold', position: 'relative' }}
-    >
-        Q
-        {queueMode && pasteQueue.length > 0 && (
-            <span style={{
-                position: 'absolute',
-                top: '0px',
-                right: '0px',
-                fontSize: '0.6rem',
-                background: '#10b981',
-                color: 'white',
-                padding: '1px 4px',
-                borderRadius: '10px',
-                lineHeight: 1
-            }}>
-                {pasteQueue.length}
-            </span>
-        )}
-    </button>
 
     const pasteNextInQueue = async () => {
         if (pasteQueue.length === 0) return;
@@ -494,6 +456,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
 
             unlistenCreate = await listen("clip-created", (_event) => {
                 fetchClips(searchTerm, true); // Reset on new clip
+                fetchClipStats(searchTerm);
             });
 
 
@@ -560,6 +523,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
         try {
             await invoke("delete_clip", { id });
             setClips(clips.filter(c => c.id !== id));
+            fetchClipStats(searchTerm);
         } catch (error) {
             console.error("Failed to delete clip:", error);
         }
@@ -636,13 +600,10 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                 console.error(`Failed to delete clip ${id}:`, e);
             }
         }
+        fetchClipStats(searchTerm);
     }
 
-    async function toggleIncognito() {
-        const newState = !incognitoMode;
-        setIncognitoMode(newState);
-        await invoke("set_incognito_mode", { enabled: newState });
-    }
+    // toggleIncognito removed (lifted)
 
     async function moveToTop(e: React.MouseEvent, id: number) {
         e.stopPropagation();
@@ -749,91 +710,10 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
     };
 
     // Load incognito state on mount
-    useEffect(() => {
-        invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
-        getVersion().then(setVersion);
-    }, []);
+    // Load incognito state on mount - removed (handled in App.tsx)
 
     return (
         <>
-            {/* Title Bar - Uses programmatic dragging */}
-            <div
-                className="titlebar"
-                onMouseDown={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (!target.closest('input') && !target.closest('button')) {
-                        getCurrentWindow().startDragging();
-                    }
-                }}
-            >
-                <div className="title-left">
-                    <img
-                        src="/icon.png"
-                        alt="ReClip"
-                        style={{ width: '40px', height: '40px', marginRight: '6px' }}
-                    />
-                    <span className="app-title">ReClip</span>
-                    <span style={{
-                        fontSize: '0.7rem',
-                        opacity: 0.5,
-                        marginLeft: '6px',
-                        fontFamily: 'monospace'
-                    }}>v{version}</span>
-                </div>
-
-                <div className="title-right">
-                    <button
-                        onClick={toggleIncognito}
-                        className={`title-btn ${incognitoMode ? 'active' : ''}`}
-                        title={incognitoMode ? "Resume Capture" : "Pause Capture (Incognito)"}
-                        style={{ color: incognitoMode ? '#f59e0b' : undefined }}
-                    >
-                        {incognitoMode ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                        ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                        )}
-                    </button>
-
-                    <button
-                        onClick={() => setQueueMode(!queueMode)}
-                        className={`title-btn ${queueMode ? 'active' : ''}`}
-                        title="Toggle Paste Queue Mode"
-                        style={{ color: queueMode ? '#10b981' : undefined, fontWeight: 'bold' }}
-                    >
-                        Q
-                    </button>
-
-                    <button onClick={() => setShowTimeline(!showTimeline)}
-                        className={`title-btn ${showTimeline ? 'active' : ''}`}
-                        title="Toggle Timeline View"
-                        style={{ color: showTimeline ? 'var(--accent-color)' : undefined }}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                    </button>
-
-                    <button onClick={onOpenColors} className="title-btn" title="Color Tools">
-                        <Palette size={16} />
-                    </button>
-
-                    <button onClick={onOpenSnippets} className="title-btn" title="Code Snippets">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="16 18 22 12 16 6"></polyline>
-                            <polyline points="8 6 2 12 8 18"></polyline>
-                        </svg>
-                    </button>
-
-                    <button onClick={onOpenSettings} className="title-btn" title="Settings">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    </button>
-                    <button onClick={() => getCurrentWindow().hide()} className="title-btn" title="Hide">✕</button>
-                </div>
-            </div>
 
             <main className="container">
                 {/* Search and Stats Bar */}
@@ -844,6 +724,7 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                     marginTop: '8px',
                     marginBottom: '12px',
                     padding: '10px 14px',
+                    marginRight: '16px', // Restore layout after container padding removal
                     background: 'var(--bg-card)',
                     borderRadius: '12px',
                     boxShadow: 'var(--shadow-sm)',
@@ -1325,6 +1206,8 @@ export default function MainView({ compactMode, onOpenSettings, onOpenSnippets, 
                     onClose={() => setZoomedImageSrc(null)}
                 />
             )}
+            {/* Hidden button for paste-next trigger */}
+            <button id="hidden-paste-next-btn" style={{ display: 'none' }} onClick={pasteNextInQueue} />
         </>
     );
 }

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, ArrowLeft, GitMerge, ArrowDown, Upload, Plus, Minus, Download, Thermometer, Lock, Unlock, Edit2 } from 'lucide-react';
+import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, GitMerge, ArrowDown, Upload, Plus, Minus, Download, Thermometer, Lock, Unlock, Edit2 } from 'lucide-react';
 import * as Utils from './ColorPageUtils';
 import ColorThief from 'colorthief';
 
 interface ColorToolPageProps {
     initialColor?: string;
-    onClose: () => void;
-    onBack: () => void;
 }
+
 
 const TabButton = ({ id, icon: Icon, label, active, onClick }: any) => (
     <button
@@ -48,7 +47,7 @@ const ColorCodeCard = ({ label, value, onClick }: { label: string; value: string
     </div>
 );
 
-const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolPageProps) => {
+const ColorToolPage = ({ initialColor = '#3b82f6' }: ColorToolPageProps) => {
     const [hex, setHex] = useState(initialColor);
     const [colorInput, setColorInput] = useState(initialColor);
     const [activeTab, setActiveTab] = useState<'analyze' | 'mixer' | 'harmonies' | 'a11y' | 'gradient' | 'saved'>('analyze');
@@ -222,10 +221,9 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
     return (
         <div className="color-tool-page" style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
 
-            {/* Header */}
-            <div className="titlebar" data-tauri-drag-region style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>
-                <div className="title-left" data-tauri-drag-region style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <button onClick={onBack} className="title-btn" title="Back"><ArrowLeft size={18} /></button>
+            {/* Header - Toolbar Style */}
+            <div className="toolbar" style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0 12px', height: 40, display: 'flex', alignItems: 'center' }}>
+                <div className="title-left" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 14, height: 14, background: hex, borderRadius: 4, border: '1px solid rgba(128,128,128,0.3)' }} />
                         <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Color Tool</span>
@@ -253,7 +251,6 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                     <button onClick={randomColor} style={{ background: 'rgba(128,128,128,0.1)', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: 'var(--text-primary)' }}>
                         <RefreshCw size={12} /> Random
                     </button>
-                    <button onClick={onClose} className="title-btn"><X size={18} /></button>
                 </div>
             </div>
 
@@ -830,10 +827,6 @@ const ColorToolPage = ({ initialColor = '#3b82f6', onClose, onBack }: ColorToolP
                                                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                                                     <div style={{ position: 'relative' }}>
                                                         <div style={{ width: 40, height: 40, background: hex, borderRadius: 6, border: '1px solid var(--border-color)' }} />
-                                                        <button
-                                                            onClick={onClose}
-                                                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'default' }}
-                                                        />
                                                     </div>
                                                     <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{hex}</div>
                                                 </div>

@@ -5,6 +5,8 @@ import MainView from "./components/MainView";
 import SettingsPage from "./pages/SettingsPage";
 import SnippetsPage from "./pages/SnippetsPage";
 import ColorToolPage from "./pages/ColorToolPage";
+import TitleBar from "./components/TitleBar";
+import { Clip } from "./types";
 
 function App() {
   const [view, setView] = useState<'main' | 'settings' | 'snippets' | 'colors'>('main');
@@ -12,6 +14,37 @@ function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
   const [useSystemAccent, setUseSystemAccent] = useState(() => localStorage.getItem('useSystemAccent') === 'true');
   const [accentColor, setAccentColor] = useState('#4f46e5');
+
+  // Lifted State
+  const [incognitoMode, setIncognitoMode] = useState(() => localStorage.getItem('incognitoMode') === 'true');
+  const [queueMode, setQueueMode] = useState(() => localStorage.getItem('queueMode') === 'true');
+  const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
+  const [showTimeline, setShowTimeline] = useState(() => localStorage.getItem('showTimeline') === 'true');
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('incognitoMode', incognitoMode.toString());
+    invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
+  }, [incognitoMode]);
+
+  useEffect(() => {
+    localStorage.setItem('showTimeline', showTimeline.toString());
+  }, [showTimeline]);
+
+  useEffect(() => {
+    localStorage.setItem('queueMode', queueMode.toString());
+  }, [queueMode]);
+
+  // Load incognito state on mount
+  useEffect(() => {
+    invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
+  }, []);
+
+  const toggleIncognito = async () => {
+    const newState = !incognitoMode;
+    setIncognitoMode(newState);
+    await invoke("set_incognito_mode", { enabled: newState });
+  };
 
   // Theme & Accent Effect
   useEffect(() => {
@@ -103,7 +136,6 @@ function App() {
         // Ideally we would pass a param to open maintenance tab directly
       });
       // Incognito toggle is handled by backend state but we might want to refresh UI
-
       // Store unlisteners to cleanup if needed, though App component usually doesn't unmount
     });
 
@@ -276,27 +308,36 @@ function App() {
 
   return (
     <div className="app-container">
+      <TitleBar
+        incognitoMode={incognitoMode}
+        toggleIncognito={toggleIncognito}
+        queueMode={queueMode}
+        toggleQueueMode={() => setQueueMode(!queueMode)}
+        pasteQueueLength={pasteQueue.length}
+        showTimeline={showTimeline}
+        toggleTimeline={() => setShowTimeline(!showTimeline)}
+        currentView={view}
+        onOpenMain={() => setView('main')}
+        onOpenSettings={() => setView('settings')}
+        onOpenSnippets={() => setView('snippets')}
+        onOpenColors={() => setView('colors')}
+      />
       {view === 'main' ? (
         <MainView
           compactMode={compactMode}
-          onOpenSettings={() => setView('settings')}
-          onOpenSnippets={() => setView('snippets')}
-          onOpenColors={() => setView('colors')}
+          queueMode={queueMode}
+          pasteQueue={pasteQueue}
+          setPasteQueue={setPasteQueue}
+          showTimeline={showTimeline}
         />
       ) : view === 'snippets' ? (
         <SnippetsPage
-          onBack={() => setView('main')}
-          compactMode={compactMode}
           theme={theme}
         />
       ) : view === 'colors' ? (
-        <ColorToolPage
-          onBack={() => setView('main')}
-          onClose={() => setView('main')}
-        />
+        <ColorToolPage />
       ) : (
         <SettingsPage
-          onBack={() => setView('main')}
           compactMode={compactMode}
           setCompactMode={setCompactMode}
           theme={theme}

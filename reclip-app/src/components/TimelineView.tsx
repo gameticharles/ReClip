@@ -222,6 +222,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
             borderRadius: '12px',
             border: '1px solid var(--border-color)',
             marginBottom: '12px',
+            marginRight: '16px', // Restore layout after container padding removal
             boxShadow: 'var(--shadow-sm)',
         }}>
             {/* Header with Zoom Controls */}
