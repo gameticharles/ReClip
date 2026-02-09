@@ -462,9 +462,10 @@ pub fn run() {
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
              get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
              run_ocr, get_file_size, export_image,
-             run_ocr, get_file_size, export_image,
              update::check_update, update::install_update,
-             drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips
+             drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips,
+             get_notes, add_note, update_note, delete_note,
+             get_reminders, add_reminder, toggle_reminder, delete_reminder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -802,6 +803,50 @@ async fn update_regex_rule(state: State<'_, DbState>, id: i64, pattern: String, 
 async fn delete_regex_rule(state: State<'_, DbState>, id: i64) -> Result<(), String> {
     db::delete_regex_rule(&state.pool, id).await.map_err(|e| e.to_string())
 }
+
+// Notes
+#[tauri::command]
+async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {
+    db::get_notes(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_note(state: State<'_, DbState>, content: String) -> Result<i64, String> {
+    db::add_note(&state.pool, content).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_note(state: State<'_, DbState>, id: i64, content: String) -> Result<(), String> {
+    db::update_note(&state.pool, id, content).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_note(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_note(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+// Reminders
+#[tauri::command]
+async fn get_reminders(state: State<'_, DbState>) -> Result<Vec<db::Reminder>, String> {
+    db::get_reminders(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_reminder(state: State<'_, DbState>, content: String, due_date: Option<String>) -> Result<i64, String> {
+    db::add_reminder(&state.pool, content, due_date).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn toggle_reminder(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
+    db::toggle_reminder(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_reminder(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_reminder(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+
 
 #[tauri::command]
 fn get_incognito_mode() -> bool {

@@ -21,7 +21,7 @@ interface ClipContentProps {
 
 // ============= CONTENT TYPE DETECTION =============
 
-type ContentType = 'html' | 'markdown' | 'json' | 'diff' | 'latex' | 'table' | 'email' | 'phone' | 'code' | 'text';
+type ContentType = 'html' | 'markdown' | 'json' | 'diff' | 'latex' | 'table' | 'email' | 'phone' | 'code' | 'text' | 'tracking' | 'address' | 'math' | 'unit';
 
 const isHTML = (content: string): boolean => {
     const trimmed = content.trim();
@@ -116,6 +116,81 @@ const isTableData = (content: string): boolean => {
     return false;
 };
 
+const isTrackingNumber = (content: string): { type: string, url: string } | null => {
+    const trimmed = content.trim();
+    // UPS: 1Z... (18 chars)
+    if (/^1Z[A-Z0-9]{16}$/i.test(trimmed)) return { type: 'UPS', url: `https://www.ups.com/track?tracknum=${trimmed}` };
+    // FedEx: 12-14 digits usually
+    if (/^[0-9]{12,14}$/.test(trimmed)) return { type: 'FedEx', url: `https://www.fedex.com/fedextrack/?trknbr=${trimmed}` };
+    // USPS: 20-22 digits
+    if (/^[0-9]{20,22}$/.test(trimmed)) return { type: 'USPS', url: `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trimmed}` };
+    // DHL: 10 digits
+    if (/^[0-9]{10}$/.test(trimmed)) return { type: 'DHL', url: `https://www.dhl.com/en/express/tracking.html?AWB=${trimmed}&brand=DHL` };
+    return null;
+};
+
+const isAddress = (content: string): boolean => {
+    const trimmed = content.trim();
+    // Very basic address detection: Number + Text + (St|Ave|Rd|Blvd|Ln|Dr|Way|Pkwy) + ...
+    // Avoids short strings
+    if (trimmed.length < 10 || trimmed.length > 100) return false;
+    const addressRegex = /^\d+\s+[a-zA-Z0-9\s.,-]+(Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Parkway|Pkwy|Plaza|Plz|Square|Sq)\b/i;
+    return addressRegex.test(trimmed);
+};
+
+const isMathExpression = (content: string): string | null => {
+    const trimmed = content.trim();
+    // Check if it looks like a simple math expression: numbers, operators, parens
+    // e.g. "128 * 45", "50 / 2 + 10"
+    if (!/^[\d\s.+\-*/()]+$/.test(trimmed)) return null;
+    // Must contain at least one operator
+    if (!/[+\-*/]/.test(trimmed)) return null;
+    // Must contain at least one digit
+    if (!/\d/.test(trimmed)) return null;
+
+    try {
+        // Safe-ish evaluation for simple math
+        // eslint-disable-next-line no-new-func
+        const result = new Function(`return (${trimmed})`)();
+        if (typeof result === 'number' && isFinite(result) && !isNaN(result)) {
+            // Retrieve only if it's not effectively the same as input
+            if (result.toString() === trimmed) return null;
+            return result.toLocaleString(undefined, { maximumFractionDigits: 4 });
+        }
+    } catch {
+        return null;
+    }
+    return null;
+};
+
+const isUnit = (content: string): string | null => {
+    const trimmed = content.trim();
+    const regex = /^([\d,.]+)\s*(kg|lbs|lb|g|oz|km|mi|miles|m|ft|c|f)$/i;
+    const match = trimmed.match(regex);
+    if (!match) return null;
+
+    const val = parseFloat(match[1].replace(/,/g, ''));
+    const unit = match[2].toLowerCase();
+
+    if (isNaN(val)) return null;
+
+    switch (unit) {
+        case 'kg': return `${(val * 2.20462).toFixed(2)} lbs`;
+        case 'lbs':
+        case 'lb': return `${(val / 2.20462).toFixed(2)} kg`;
+        case 'g': return `${(val * 0.035274).toFixed(2)} oz`;
+        case 'oz': return `${(val / 0.035274).toFixed(2)} g`;
+        case 'km': return `${(val * 0.621371).toFixed(2)} miles`;
+        case 'mi':
+        case 'miles': return `${(val / 0.621371).toFixed(2)} km`;
+        case 'm': return `${(val * 3.28084).toFixed(2)} ft`;
+        case 'ft': return `${(val / 3.28084).toFixed(2)} m`;
+        case 'c': return `${((val * 9 / 5) + 32).toFixed(1)} °F`;
+        case 'f': return `${((val - 32) * 5 / 9).toFixed(1)} °C`;
+    }
+    return null;
+};
+
 const isEmail = (content: string): boolean => {
     const trimmed = content.trim();
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(trimmed);
@@ -164,6 +239,10 @@ const detectContentType = (content: string, type: string): ContentType => {
     if (isDiff(content)) return 'diff';
     if (isJSON(content)) return 'json';
     if (isLaTeX(content)) return 'latex';
+    if (isTrackingNumber(content)) return 'tracking'; // NEW
+    if (isAddress(content)) return 'address'; // NEW
+    if (isMathExpression(content)) return 'math'; // NEW
+    if (isUnit(content)) return 'unit'; // NEW
     if (isMarkdown(content)) return 'markdown';
     if (isTableData(content)) return 'table';
     if (isEmail(content)) return 'email';
@@ -425,6 +504,107 @@ const TablePreview: React.FC<{ content: string; isCompact: boolean }> = ({ conte
                     + {rows.length - displayRows.length} more rows
                 </div>
             )}
+        </div>
+    );
+};
+
+const TrackingPreview: React.FC<{ content: string, isCompact: boolean }> = ({ content }) => {
+    const data = isTrackingNumber(content);
+    if (!data) return <span>{content}</span>;
+
+    return (
+        <div className="clip-smart-action" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>📦</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{data.type} Tracking</span>
+                <a
+                    href={data.url}
+                    onClick={(e) => e.stopPropagation()}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                        color: 'var(--accent-color)',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }}
+                >
+                    {content} <span style={{ fontSize: '0.7rem' }}>↗</span>
+                </a>
+            </div>
+        </div>
+    );
+};
+
+const MapPreview: React.FC<{ content: string, isCompact: boolean }> = ({ content }) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(content)}`;
+
+    return (
+        <div className="clip-smart-action" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>📍</span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Address Detected</span>
+                <a
+                    href={url}
+                    onClick={(e) => e.stopPropagation()}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                        color: 'var(--accent-color)',
+                        textDecoration: 'none',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }}
+                >
+                    Open in Maps <span style={{ fontSize: '0.7rem' }}>↗</span>
+                </a>
+            </div>
+        </div>
+    );
+};
+
+const MathPreview: React.FC<{ content: string, isCompact: boolean }> = ({ content }) => {
+    const result = isMathExpression(content);
+
+    return (
+        <div className="clip-smart-action" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ fontFamily: 'monospace', fontSize: '0.9rem', opacity: 0.8 }}>{content}</div>
+            <span style={{ color: 'var(--text-secondary, #888)' }}>=</span>
+            <div style={{
+                background: 'var(--accent-color)',
+                color: 'white',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontWeight: 'bold',
+                fontFamily: 'monospace'
+            }}>
+                {result}
+            </div>
+        </div>
+    );
+};
+
+const UnitPreview: React.FC<{ content: string, isCompact: boolean }> = ({ content }) => {
+    const result = isUnit(content);
+
+    return (
+        <div className="clip-smart-action" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{content}</div>
+            <span style={{ fontSize: '1.2rem' }}>➡️</span>
+            <div style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+            }}>
+                {result}
+            </div>
         </div>
     );
 };
@@ -798,45 +978,72 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
             <div
                 className="clip-image"
                 style={{
-                    maxHeight: isCompact ? '40px' : '200px',
-                    overflow: 'hidden',
-                    borderRadius: '4px',
                     position: 'relative',
-                    background: '#000',
-                    cursor: onZoom ? 'zoom-in' : 'default'
+                    cursor: 'zoom-in',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: isCompact ? 'row' : 'column',
+                    alignItems: isCompact ? 'center' : 'flex-start',
+                    gap: '8px'
                 }}
-                onClick={(e) => { e.stopPropagation(); onZoom?.(src); }}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (onZoom) onZoom(src);
+                }}
             >
-                <img src={src} alt="Clip" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img
+                    ref={useRef(null)} // Dummy ref to avoid error if reuse logic later
+                    src={src}
+                    style={{
+                        maxWidth: isCompact ? '120px' : '100%',
+                        maxHeight: isCompact ? '60px' : '300px',
+                        objectFit: 'contain',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(128,128,128,0.2)'
+                    }}
+                    alt="Clipboard Image"
+                />
+                {!isCompact && <ImageMetadata filePath={content} isCompact={isCompact} />}
+                {!isCompact && <ImageColorPalette src={src} isCompact={isCompact} />}
 
-                {/* OCR Progress Overlay */}
-                {isExtracting && (
+                {/* Extract Text Button Overlay */}
+                {!isCompact && (
                     <div style={{
                         position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        padding: '8px 12px',
-                        background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                        bottom: '8px',
+                        right: '8px',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        backdropFilter: 'blur(4px)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
-                    }}>
-                        <div style={{
-                            width: '14px',
-                            height: '14px',
-                            border: '2px solid rgba(255,255,255,0.3)',
-                            borderTopColor: '#fff',
-                            borderRadius: '50%',
-                            animation: 'spin 0.8s linear infinite'
-                        }} />
-                        <span style={{ fontSize: '0.75rem', color: 'white' }}>Extracting text...</span>
-                        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                        gap: '4px',
+                        opacity: isExtracting ? 1 : 0, // Only show if extracting or on hover (handled by CSS ideally but here for now)
+                        transition: 'opacity 0.2s'
+                    }}
+                        className="image-overlay"
+                    >
+                        {isExtracting ? (
+                            <>
+                                <span className="spinner" style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></span>
+                                Extracting...
+                            </>
+                        ) : (
+                            <>
+                                <span>🔍</span> Text
+                            </>
+                        )}
                     </div>
                 )}
             </div>
         );
     }
+
+
 
     // Detect content type for text
     const contentType = detectContentType(content, type);
@@ -888,6 +1095,14 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                 return <DiffPreview content={content} isCompact={isCompact} />;
             case 'latex':
                 return <LaTeXPreview content={content} isCompact={isCompact} />;
+            case 'tracking':
+                return <TrackingPreview content={content} isCompact={isCompact} />;
+            case 'address':
+                return <MapPreview content={content} isCompact={isCompact} />;
+            case 'math':
+                return <MathPreview content={content} isCompact={isCompact} />;
+            case 'unit':
+                return <UnitPreview content={content} isCompact={isCompact} />;
             case 'table':
                 return <TablePreview content={content} isCompact={isCompact} />;
             case 'email':

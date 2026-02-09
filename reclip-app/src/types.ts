@@ -25,3 +25,18 @@ export interface Snippet {
     created_at: string;
     updated_at: string;
 }
+
+export interface Note {
+    id: number;
+    content: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Reminder {
+    id: number;
+    content: string;
+    due_date?: string;
+    completed: boolean;
+    created_at: string;
+}

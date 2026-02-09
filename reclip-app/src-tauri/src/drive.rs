@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State, Emitter};
+use tauri::{AppHandle, State, Emitter};
 use serde::{Deserialize, Serialize};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl,
@@ -9,7 +9,7 @@ use oauth2::{
 use std::collections::HashMap;
 use crate::db::{DbState, set_setting, get_setting};
 use reqwest::Client;
-use std::path::PathBuf;
+
 
 // Constants
 const AUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -185,7 +185,7 @@ pub async fn start_google_auth(
 
 #[tauri::command]
 pub async fn finish_google_auth(
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, DriveState>,
     db_state: State<'_, DbState>,
     code: String
@@ -405,7 +405,7 @@ async fn get_file_content(token: &str, file_id: &str) -> Result<String, String> 
 
 #[tauri::command]
 pub async fn sync_clips(
-    app: AppHandle,
+    _app: AppHandle,
     state: State<'_, DriveState>,
     db_state: State<'_, DbState>
 ) -> Result<String, String> {

@@ -5,11 +5,12 @@ import MainView from "./components/MainView";
 import SettingsPage from "./pages/SettingsPage";
 import SnippetsPage from "./pages/SnippetsPage";
 import ColorToolPage from "./pages/ColorToolPage";
+import OrganizerPage from "./pages/OrganizerPage";
 import TitleBar from "./components/TitleBar";
 import { Clip } from "./types";
 
 function App() {
-  const [view, setView] = useState<'main' | 'settings' | 'snippets' | 'colors'>('main');
+  const [view, setView] = useState<'main' | 'settings' | 'snippets' | 'colors' | 'organizer'>('main');
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compactMode') === 'true');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
   const [useSystemAccent, setUseSystemAccent] = useState(() => localStorage.getItem('useSystemAccent') === 'true');
@@ -321,6 +322,7 @@ function App() {
         onOpenSettings={() => setView('settings')}
         onOpenSnippets={() => setView('snippets')}
         onOpenColors={() => setView('colors')}
+        onOpenOrganizer={() => setView('organizer')}
       />
       {view === 'main' ? (
         <MainView
@@ -336,6 +338,8 @@ function App() {
         />
       ) : view === 'colors' ? (
         <ColorToolPage />
+      ) : view === 'organizer' ? (
+        <OrganizerPage />
       ) : (
         <SettingsPage
           compactMode={compactMode}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
-import { Palette, Home, Settings, FileCode } from 'lucide-react';
+import { Palette, Home, Settings, FileCode, LayoutGrid } from 'lucide-react';
 
 interface TitleBarProps {
     incognitoMode: boolean;
@@ -11,11 +11,12 @@ interface TitleBarProps {
     pasteQueueLength: number;
     showTimeline: boolean;
     toggleTimeline: () => void;
-    currentView: 'main' | 'settings' | 'snippets' | 'colors';
+    currentView: 'main' | 'settings' | 'snippets' | 'colors' | 'organizer';
     onOpenMain: () => void;
     onOpenSettings: () => void;
     onOpenSnippets: () => void;
     onOpenColors: () => void;
+    onOpenOrganizer: () => void;
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({
@@ -30,7 +31,8 @@ const TitleBar: React.FC<TitleBarProps> = ({
     onOpenMain,
     onOpenSettings,
     onOpenSnippets,
-    onOpenColors
+    onOpenColors,
+    onOpenOrganizer
 }) => {
     const [version, setVersion] = useState("...");
 
@@ -74,6 +76,13 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     title="Home (Clipboard)"
                 >
                     <Home size={16} />
+                </button>
+                <button
+                    onClick={onOpenOrganizer}
+                    className={`title-btn ${currentView === 'organizer' ? 'active' : ''}`}
+                    title="Organizer"
+                >
+                    <LayoutGrid size={16} />
                 </button>
                 <button
                     onClick={onOpenSnippets}

@@ -1,4 +1,4 @@
-use image::GenericImageView;
+
 use std::io::Cursor;
 use windows::Graphics::Imaging::BitmapDecoder;
 use windows::Media::Ocr::OcrEngine;

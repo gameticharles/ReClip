@@ -66,7 +66,114 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )").execute(&pool).await?;
 
+    // Create notes table
+    sqlx::query("CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )").execute(&pool).await?;
+
+    // Create reminders table
+    sqlx::query("CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        content TEXT NOT NULL,
+        due_date DATETIME,
+        completed BOOLEAN NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )").execute(&pool).await?;
+
     Ok(pool)
+}
+
+// ... existing code ...
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct Note {
+    pub id: i64,
+    pub content: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+pub async fn get_notes(pool: &Pool<Sqlite>) -> Result<Vec<Note>, sqlx::Error> {
+    sqlx::query_as::<_, Note>("SELECT id, content, created_at, updated_at FROM notes ORDER BY updated_at DESC")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn add_note(pool: &Pool<Sqlite>, content: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO notes (content) VALUES (?) RETURNING id")
+        .bind(content)
+        .fetch_one(pool)
+        .await?
+        .get::<i64, _>(0);
+    Ok(id)
+}
+
+pub async fn update_note(pool: &Pool<Sqlite>, id: i64, content: String) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE notes SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(content)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn delete_note(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM notes WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct Reminder {
+    pub id: i64,
+    pub content: String,
+    pub due_date: Option<String>,
+    pub completed: bool,
+    pub created_at: String,
+}
+
+pub async fn get_reminders(pool: &Pool<Sqlite>) -> Result<Vec<Reminder>, sqlx::Error> {
+    // Sort by: uncompleted first, then by due date (nulls last), then created_at
+    sqlx::query_as::<_, Reminder>("SELECT id, content, due_date, completed, created_at FROM reminders ORDER BY completed ASC, CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC, created_at DESC")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn add_reminder(pool: &Pool<Sqlite>, content: String, due_date: Option<String>) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO reminders (content, due_date) VALUES (?, ?) RETURNING id")
+        .bind(content)
+        .bind(due_date)
+        .fetch_one(pool)
+        .await?
+        .get::<i64, _>(0);
+    Ok(id)
+}
+
+pub async fn toggle_reminder(pool: &Pool<Sqlite>, id: i64) -> Result<bool, sqlx::Error> {
+    sqlx::query("UPDATE reminders SET completed = NOT completed WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    
+    let is_completed: bool = sqlx::query_scalar("SELECT completed FROM reminders WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
+        
+    Ok(is_completed)
+}
+
+pub async fn delete_reminder(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM reminders WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>) -> Result<i64, sqlx::Error> {
