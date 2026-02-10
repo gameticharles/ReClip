@@ -33,6 +33,7 @@ export interface Note {
     is_pinned: boolean;
     color?: string;
     is_archived: boolean;
+    tags?: string; // Comma separated
     created_at: string;
     updated_at: string;
 }

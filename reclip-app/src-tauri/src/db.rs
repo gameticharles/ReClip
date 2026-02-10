@@ -93,6 +93,22 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )").execute(&pool).await?;
 
+    // Create alarms table
+    sqlx::query("CREATE TABLE IF NOT EXISTS alarms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        time TEXT NOT NULL,
+        label TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT 1,
+        days TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )").execute(&pool).await?;
+
+    // Migration: Add tags and position columns to notes/reminders/alarms if needed
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN tags TEXT DEFAULT ''").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN position INTEGER DEFAULT 0").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE reminders ADD COLUMN position INTEGER DEFAULT 0").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE alarms ADD COLUMN position INTEGER DEFAULT 0").execute(&pool).await;
+
     Ok(pool)
 }
 
@@ -106,34 +122,38 @@ pub struct Note {
     pub is_pinned: bool,
     pub color: Option<String>,
     pub is_archived: bool,
+    pub tags: Option<String>,
+    pub position: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }
 
 pub async fn get_notes(pool: &Pool<Sqlite>) -> Result<Vec<Note>, sqlx::Error> {
-    sqlx::query_as::<_, Note>("SELECT id, title, content, is_pinned, color, is_archived, created_at, updated_at FROM notes ORDER BY is_pinned DESC, updated_at DESC")
+    sqlx::query_as::<_, Note>("SELECT id, title, content, is_pinned, color, is_archived, tags, position, created_at, updated_at FROM notes ORDER BY is_pinned DESC, COALESCE(position, 0) DESC, updated_at DESC")
         .fetch_all(pool)
         .await
 }
 
-pub async fn add_note(pool: &Pool<Sqlite>, title: String, content: String, color: Option<String>) -> Result<i64, sqlx::Error> {
-    let id = sqlx::query("INSERT INTO notes (title, content, color) VALUES (?, ?, ?) RETURNING id")
+pub async fn add_note(pool: &Pool<Sqlite>, title: String, content: String, color: Option<String>, tags: Option<String>) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO notes (title, content, color, tags) VALUES (?, ?, ?, ?) RETURNING id")
         .bind(title)
         .bind(content)
         .bind(color)
+        .bind(tags)
         .fetch_one(pool)
         .await?
         .get::<i64, _>(0);
     Ok(id)
 }
 
-pub async fn update_note(pool: &Pool<Sqlite>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE notes SET title = ?, content = ?, color = ?, is_pinned = ?, is_archived = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+pub async fn update_note(pool: &Pool<Sqlite>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool, tags: Option<String>) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE notes SET title = ?, content = ?, color = ?, is_pinned = ?, is_archived = ?, tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .bind(title)
         .bind(content)
         .bind(color)
         .bind(is_pinned)
         .bind(is_archived)
+        .bind(tags)
         .bind(id)
         .execute(pool)
         .await?;
@@ -154,12 +174,13 @@ pub struct Reminder {
     pub content: String,
     pub due_date: Option<String>,
     pub completed: bool,
+    pub position: Option<i64>,
     pub created_at: String,
 }
 
 pub async fn get_reminders(pool: &Pool<Sqlite>) -> Result<Vec<Reminder>, sqlx::Error> {
     // Sort by: uncompleted first, then by due date (nulls last), then created_at
-    sqlx::query_as::<_, Reminder>("SELECT id, content, due_date, completed, created_at FROM reminders ORDER BY completed ASC, CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC, created_at DESC")
+    sqlx::query_as::<_, Reminder>("SELECT id, content, due_date, completed, position, created_at FROM reminders ORDER BY completed ASC, CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC, COALESCE(position, 0) DESC, created_at DESC")
         .fetch_all(pool)
         .await
 }
@@ -172,6 +193,16 @@ pub async fn add_reminder(pool: &Pool<Sqlite>, content: String, due_date: Option
         .await?
         .get::<i64, _>(0);
     Ok(id)
+}
+
+pub async fn update_reminder_content(pool: &Pool<Sqlite>, id: i64, content: String, due_date: Option<String>) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE reminders SET content = ?, due_date = ? WHERE id = ?")
+        .bind(content)
+        .bind(due_date)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 pub async fn toggle_reminder(pool: &Pool<Sqlite>, id: i64) -> Result<bool, sqlx::Error> {
@@ -194,6 +225,95 @@ pub async fn delete_reminder(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::E
         .execute(pool)
         .await?;
     Ok(())
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct Alarm {
+    pub id: i64,
+    pub time: String,
+    pub label: String,
+    pub active: bool,
+    pub days: String,
+    pub position: Option<i64>,
+    pub created_at: String,
+}
+
+pub async fn get_alarms(pool: &Pool<Sqlite>) -> Result<Vec<Alarm>, sqlx::Error> {
+    sqlx::query_as::<_, Alarm>("SELECT id, time, label, active, days, position, created_at FROM alarms ORDER BY COALESCE(position, 0) DESC, time ASC")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn add_alarm(pool: &Pool<Sqlite>, time: String, label: String, days: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO alarms (time, label, days) VALUES (?, ?, ?) RETURNING id")
+        .bind(time)
+        .bind(label)
+        .bind(days)
+        .fetch_one(pool)
+        .await?
+        .get::<i64, _>(0);
+    Ok(id)
+}
+
+pub async fn update_alarm(pool: &Pool<Sqlite>, id: i64, time: String, label: String, days: String, active: bool) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE alarms SET time = ?, label = ?, days = ?, active = ? WHERE id = ?")
+        .bind(time)
+        .bind(label)
+        .bind(days)
+        .bind(active)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn toggle_alarm(pool: &Pool<Sqlite>, id: i64) -> Result<bool, sqlx::Error> {
+    sqlx::query("UPDATE alarms SET active = NOT active WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    
+    let is_active: bool = sqlx::query_scalar("SELECT active FROM alarms WHERE id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await?;
+        
+    Ok(is_active)
+}
+
+pub async fn delete_alarm(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM alarms WHERE id = ?")
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn update_item_position(pool: &Pool<Sqlite>, table: &str, id: i64, position: i64) -> Result<(), sqlx::Error> {
+    // Basic SQL injection protection: check table name whitelist
+    if !["notes", "reminders", "alarms"].contains(&table) {
+        return Err(sqlx::Error::RowNotFound); // Invalid table
+    }
+    
+    let query = format!("UPDATE {} SET position = ? WHERE id = ?", table);
+    sqlx::query(&query)
+        .bind(position)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn get_due_reminders(pool: &Pool<Sqlite>) -> Result<Vec<Reminder>, sqlx::Error> {
+    sqlx::query_as::<_, Reminder>("SELECT id, content, due_date, completed, position, created_at FROM reminders WHERE completed = 0 AND due_date IS NOT NULL AND due_date <= datetime('now')")
+        .fetch_all(pool)
+        .await
+}
+
+pub async fn get_active_alarms(pool: &Pool<Sqlite>) -> Result<Vec<Alarm>, sqlx::Error> {
+    sqlx::query_as::<_, Alarm>("SELECT id, time, label, active, days, created_at FROM alarms WHERE active = 1")
+        .fetch_all(pool)
+        .await
 }
 
 pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>) -> Result<i64, sqlx::Error> {

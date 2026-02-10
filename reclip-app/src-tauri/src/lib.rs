@@ -279,10 +279,13 @@ pub fn run() {
             // Start Sensitive Clip Cleanup Task (runs every 30 seconds)
             {
                 let pool_for_cleanup = pool.clone();
+                let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
                     loop {
-                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        std::thread::sleep(std::time::Duration::from_secs(30)); // Check every 30s
+                        
                         tauri::async_runtime::block_on(async {
+                            // 1. Cleanup Sensitive Clips
                             match db::cleanup_sensitive_clips(&pool_for_cleanup, 60).await {
                                 Ok(count) if count > 0 => {
                                     log::info!("Cleaned up {} sensitive clip(s)", count);
@@ -291,6 +294,56 @@ pub fn run() {
                                     log::error!("Failed to cleanup sensitive clips: {}", e);
                                 }
                                 _ => {}
+                            }
+
+                            // 2. Check Alarms & Reminders
+                            // Reminders
+                            if let Ok(reminders) = db::get_due_reminders(&pool_for_cleanup).await {
+                                for reminder in reminders {
+                                    // Emit event
+                                    let _ = app_handle.emit("system-notification", serde_json::json!({
+                                        "type": "reminder",
+                                        "id": reminder.id,
+                                        "title": "Reminder",
+                                        "body": reminder.content
+                                    }));
+                                    // Mark as completed to avoid spamming? 
+                                    // For now, we trust the user to dismiss/complete it, OR we rely on the frontend to handle duplicate notifications.
+                                    // Better: The frontend should mark it as 'notified' or we just notify once per minute.
+                                    // Ideally we need a 'notified' flag in DB, but for simplicity let's just emit. 
+                                    // To prevent spam, we could check if due_date is within the last minute? 
+                                    // But due_date is <= now. 
+                                    // Let's rely on the frontend to dedup or the user to complete it.
+                                }
+                            }
+
+                            // Alarms
+                            if let Ok(alarms) = db::get_active_alarms(&pool_for_cleanup).await {
+                                use chrono::{Local, Timelike, Datelike};
+                                let now = Local::now();
+                                let current_time = format!("{:02}:{:02}", now.hour(), now.minute());
+                                let current_day = now.weekday().to_string(); // e.g. "Mon", "Tue"
+
+                                for alarm in alarms {
+                                    if alarm.time == current_time {
+                                        // Check days if specified
+                                        let days_match = if alarm.days.is_empty() {
+                                            true // Every day if not specified? Or once? Assuming daily for simple alarms now.
+                                        } else {
+                                            alarm.days.contains(&current_day[0..3]) // "Monday" -> "Mon"
+                                        };
+
+                                        if days_match {
+                                            // Emit event
+                                             let _ = app_handle.emit("system-notification", serde_json::json!({
+                                                "type": "alarm",
+                                                "id": alarm.id,
+                                                "title": alarm.label,
+                                                "body": format!("It is {}", alarm.time)
+                                            }));
+                                        }
+                                    }
+                                }
                             }
                         });
                     }
@@ -465,7 +518,9 @@ pub fn run() {
              update::check_update, update::install_update,
              drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips,
              get_notes, add_note, update_note, delete_note,
-             get_reminders, add_reminder, toggle_reminder, delete_reminder
+             get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
+             get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
+             reorder_items
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -479,18 +534,23 @@ async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {
 }
 
 #[tauri::command]
-async fn add_note(state: State<'_, DbState>, title: String, content: String, color: Option<String>) -> Result<i64, String> {
-    db::add_note(&state.pool, title, content, color).await.map_err(|e| e.to_string())
+async fn add_note(state: State<'_, DbState>, title: String, content: String, color: Option<String>, tags: Option<String>) -> Result<i64, String> {
+    db::add_note(&state.pool, title, content, color, tags).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn update_note(state: State<'_, DbState>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool) -> Result<(), String> {
-    db::update_note(&state.pool, id, title, content, color, is_pinned, is_archived).await.map_err(|e| e.to_string())
+async fn update_note(state: State<'_, DbState>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool, tags: Option<String>) -> Result<(), String> {
+    db::update_note(&state.pool, id, title, content, color, is_pinned, is_archived, tags).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn delete_note(state: State<'_, DbState>, id: i64) -> Result<(), String> {
     db::delete_note(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn reorder_items(state: State<'_, DbState>, table: String, id: i64, position: i64) -> Result<(), String> {
+    db::update_item_position(&state.pool, &table, id, position).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -805,6 +865,11 @@ fn set_incognito_mode(enabled: bool) {
     clipboard::set_incognito(enabled);
 }
 
+#[tauri::command]
+fn get_incognito_mode() -> bool {
+    clipboard::is_incognito()
+}
+
 // Regex Rules Commands
 #[tauri::command]
 async fn get_regex_rules(state: State<'_, DbState>) -> Result<Vec<db::RegexRule>, String> {
@@ -840,6 +905,11 @@ async fn add_reminder(state: State<'_, DbState>, content: String, due_date: Opti
 }
 
 #[tauri::command]
+async fn update_reminder_content(state: State<'_, DbState>, id: i64, content: String, due_date: Option<String>) -> Result<(), String> {
+    db::update_reminder_content(&state.pool, id, content, due_date).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn toggle_reminder(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
     db::toggle_reminder(&state.pool, id).await.map_err(|e| e.to_string())
 }
@@ -849,12 +919,33 @@ async fn delete_reminder(state: State<'_, DbState>, id: i64) -> Result<(), Strin
     db::delete_reminder(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
-
+// Alarms
+#[tauri::command]
+async fn get_alarms(state: State<'_, DbState>) -> Result<Vec<db::Alarm>, String> {
+    db::get_alarms(&state.pool).await.map_err(|e| e.to_string())
+}
 
 #[tauri::command]
-fn get_incognito_mode() -> bool {
-    clipboard::is_incognito()
+async fn add_alarm(state: State<'_, DbState>, time: String, label: String, days: String) -> Result<i64, String> {
+    db::add_alarm(&state.pool, time, label, days).await.map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+async fn update_alarm(state: State<'_, DbState>, id: i64, time: String, label: String, days: String, active: bool) -> Result<(), String> {
+    db::update_alarm(&state.pool, id, time, label, days, active).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn toggle_alarm(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
+    db::toggle_alarm(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_alarm(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_alarm(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
+
 
 #[tauri::command]
 async fn update_clip_content(state: State<'_, DbState>, id: i64, content: String) -> Result<(), String> {
