@@ -1008,3 +1008,85 @@ body.dark .snippet-card:hover {
 .color-tool-page {
   color-scheme: light dark;
 }
+
+/* ============= EDITOR STYLES ============= */
+.w-md-editor {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+}
+
+.w-md-editor-toolbar {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: 8px 8px 0 0 !important;
+  color: var(--text-primary) !important;
+}
+
+body.dark .w-md-editor-toolbar {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.w-md-editor-toolbar li>button {
+  color: var(--text-secondary) !important;
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 14px !important;
+}
+
+.w-md-editor-toolbar li>button:hover,
+.w-md-editor-toolbar li>button.active {
+  color: var(--text-primary) !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+body.dark .w-md-editor-toolbar li>button:hover,
+body.dark .w-md-editor-toolbar li>button.active {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* SVG icons in toolbar */
+.w-md-editor-toolbar li>button>svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.w-md-editor-content {
+  background-color: transparent !important;
+}
+
+.w-md-editor-preview {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  padding: 16px !important;
+}
+
+.w-md-editor-text-pre {
+  color: var(--text-primary) !important;
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  font-size: 0.95rem !important;
+  padding: 16px !important;
+}
+
+.w-md-editor-text-input {
+  color: var(--text-primary) !important;
+  caret-color: var(--accent-color) !important;
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Adjust toolbar padding */
+.w-md-editor-toolbar ul {
+  padding: 4px 8px !important;
+  gap: 2px !important;
+  height: auto !important;
+}
+
+/* Hide dragging bar at bottom if present */
+.w-md-editor-bar {
+  display: none !important;
+}
