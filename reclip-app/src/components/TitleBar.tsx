@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
-import { Palette, Home, Settings, FileCode, LayoutGrid } from 'lucide-react';
+import { Palette, Home, Settings, FileCode, Calendar } from 'lucide-react';
 
 interface TitleBarProps {
     incognitoMode: boolean;
@@ -82,7 +82,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
                     className={`title-btn ${currentView === 'organizer' ? 'active' : ''}`}
                     title="Organizer"
                 >
-                    <LayoutGrid size={16} />
+                    <Calendar size={16} />
                 </button>
                 <button
                     onClick={onOpenSnippets}

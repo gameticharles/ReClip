@@ -811,13 +811,13 @@ async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {
 }
 
 #[tauri::command]
-async fn add_note(state: State<'_, DbState>, content: String) -> Result<i64, String> {
-    db::add_note(&state.pool, content).await.map_err(|e| e.to_string())
+async fn add_note(state: State<'_, DbState>, title: String, content: String) -> Result<i64, String> {
+    db::add_note(&state.pool, title, content).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn update_note(state: State<'_, DbState>, id: i64, content: String) -> Result<(), String> {
-    db::update_note(&state.pool, id, content).await.map_err(|e| e.to_string())
+async fn update_note(state: State<'_, DbState>, id: i64, title: String, content: String) -> Result<(), String> {
+    db::update_note(&state.pool, id, title, content).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]

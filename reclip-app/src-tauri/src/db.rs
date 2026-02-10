@@ -69,10 +69,15 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
     // Create notes table
     sqlx::query("CREATE TABLE IF NOT EXISTS notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT DEFAULT '',
         content TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )").execute(&pool).await?;
+
+    // Migration: Add title column if it doesn't exist (for existing users)
+    // We ignore the error if column already exists
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN title TEXT DEFAULT ''").execute(&pool).await;
 
     // Create reminders table
     sqlx::query("CREATE TABLE IF NOT EXISTS reminders (
@@ -91,19 +96,21 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
 #[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
 pub struct Note {
     pub id: i64,
+    pub title: Option<String>,
     pub content: String,
     pub created_at: String,
     pub updated_at: String,
 }
 
 pub async fn get_notes(pool: &Pool<Sqlite>) -> Result<Vec<Note>, sqlx::Error> {
-    sqlx::query_as::<_, Note>("SELECT id, content, created_at, updated_at FROM notes ORDER BY updated_at DESC")
+    sqlx::query_as::<_, Note>("SELECT id, title, content, created_at, updated_at FROM notes ORDER BY updated_at DESC")
         .fetch_all(pool)
         .await
 }
 
-pub async fn add_note(pool: &Pool<Sqlite>, content: String) -> Result<i64, sqlx::Error> {
-    let id = sqlx::query("INSERT INTO notes (content) VALUES (?) RETURNING id")
+pub async fn add_note(pool: &Pool<Sqlite>, title: String, content: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO notes (title, content) VALUES (?, ?) RETURNING id")
+        .bind(title)
         .bind(content)
         .fetch_one(pool)
         .await?
@@ -111,8 +118,9 @@ pub async fn add_note(pool: &Pool<Sqlite>, content: String) -> Result<i64, sqlx:
     Ok(id)
 }
 
-pub async fn update_note(pool: &Pool<Sqlite>, id: i64, content: String) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE notes SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+pub async fn update_note(pool: &Pool<Sqlite>, id: i64, title: String, content: String) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(title)
         .bind(content)
         .bind(id)
         .execute(pool)

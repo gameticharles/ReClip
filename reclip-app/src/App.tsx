@@ -339,7 +339,7 @@ function App() {
       ) : view === 'colors' ? (
         <ColorToolPage />
       ) : view === 'organizer' ? (
-        <OrganizerPage />
+        <OrganizerPage theme={theme} />
       ) : (
         <SettingsPage
           compactMode={compactMode}

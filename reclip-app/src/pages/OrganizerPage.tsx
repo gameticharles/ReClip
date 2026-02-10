@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Note, Reminder } from '../types';
 import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import MDEditor from '@uiw/react-md-editor';
 
 type ItemType = 'all' | 'note' | 'reminder' | 'alarm';
 
@@ -14,7 +13,11 @@ interface Alarm {
     active: boolean;
 }
 
-export default function OrganizerPage() {
+interface OrganizerPageProps {
+    theme?: string;
+}
+
+export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) {
     // Data State
     const [notes, setNotes] = useState<Note[]>([]);
     const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -23,13 +26,42 @@ export default function OrganizerPage() {
     // UI State
     const [filter, setFilter] = useState<ItemType>('all');
     const [newItemContent, setNewItemContent] = useState('');
+    const [newItemTitle, setNewItemTitle] = useState('');
     const [selectedType, setSelectedType] = useState<Exclude<ItemType, 'all'>>('note');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Editing State
     const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+    const [editingNoteTitle, setEditingNoteTitle] = useState('');
+    const [editingNoteContent, setEditingNoteContent] = useState('');
 
     // Auxiliary Input State
     const [reminderDate, setReminderDate] = useState('');
     const [alarmTime, setAlarmTime] = useState('');
+
+    // Theme Logic
+    const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>('light');
+
+    useEffect(() => {
+        const updateTheme = () => {
+            if (theme === 'dark') {
+                setEditorTheme('dark');
+            } else if (theme === 'light') {
+                setEditorTheme('light');
+            } else {
+                setEditorTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            }
+        };
+
+        updateTheme();
+
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = () => {
+            if (theme === 'system') updateTheme();
+        };
+        mediaQuery.addEventListener('change', handler);
+        return () => mediaQuery.removeEventListener('change', handler);
+    }, [theme]);
 
     useEffect(() => {
         loadData();
@@ -48,9 +80,10 @@ export default function OrganizerPage() {
 
     const handleAddItem = async () => {
         if (selectedType === 'note') {
-            if (!newItemContent.trim()) return;
-            await invoke('add_note', { content: newItemContent });
+            if (!newItemContent.trim() && !newItemTitle.trim()) return;
+            await invoke('add_note', { title: newItemTitle, content: newItemContent });
             setNewItemContent('');
+            setNewItemTitle('');
         } else if (selectedType === 'reminder') {
             if (!newItemContent.trim()) return;
             await invoke('add_reminder', {
@@ -88,10 +121,22 @@ export default function OrganizerPage() {
         loadData();
     };
 
-    const handleUpdateNote = async (id: number, content: string) => {
-        await invoke('update_note', { id, content });
+    const startEditing = (note: Note) => {
+        setEditingNoteId(note.id);
+        setEditingNoteTitle(note.title || '');
+        setEditingNoteContent(note.content);
+    };
+
+    const saveEditing = async () => {
+        if (editingNoteId !== null) {
+            await invoke('update_note', { id: editingNoteId, title: editingNoteTitle, content: editingNoteContent });
+            setEditingNoteId(null);
+            loadData();
+        }
+    };
+
+    const cancelEditing = () => {
         setEditingNoteId(null);
-        loadData();
     };
 
     const handleToggleAlarm = (id: string) => {
@@ -108,7 +153,7 @@ export default function OrganizerPage() {
         const matchesSearch = (text: string) => text.toLowerCase().includes(searchQuery.toLowerCase());
 
         if (filter === 'all' || filter === 'note') {
-            items.push(...notes.filter(n => matchesSearch(n.content)).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
+            items.push(...notes.filter(n => matchesSearch(n.content) || (n.title && matchesSearch(n.title))).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
         }
         if (filter === 'all' || filter === 'reminder') {
             items.push(...reminders.filter(r => matchesSearch(r.content)).map(r => ({ type: 'reminder' as const, data: r, date: r.due_date ? new Date(r.due_date) : new Date(r.created_at) })));
@@ -160,31 +205,18 @@ export default function OrganizerPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             {/* Standard Toolbar / Header with Search */}
-            <div className="titlebar" style={{ background: 'transparent', borderBottom: '1px solid var(--border-color)', height: '54px', padding: '0 20px' }}>
-                <div className="title-left" style={{ fontSize: '1.1rem', gap: '16px' }}>
-                    <span>Organizer</span>
+            <div className="organizer-toolbar">
+                <div className="title-left" style={{ fontSize: '1.1rem', gap: '16px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                    <span style={{ flexShrink: 0 }}>Organizer</span>
 
                     {/* Search Field */}
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <div className="organizer-search">
                         <Search size={14} style={{ position: 'absolute', left: 10, opacity: 0.5 }} />
                         <input
                             type="text"
                             placeholder="Search..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{
-                                background: 'var(--bg-input)',
-                                border: '1px solid var(--border-color)',
-                                padding: '4px 10px 4px 30px',
-                                borderRadius: '16px',
-                                fontSize: '0.85rem',
-                                color: 'var(--text-primary)',
-                                outline: 'none',
-                                width: '180px',
-                                transition: 'width 0.2s'
-                            }}
-                            onFocus={(e) => e.target.style.width = '240px'}
-                            onBlur={(e) => e.target.style.width = '180px'}
                         />
                         {searchQuery && (
                             <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
@@ -194,7 +226,7 @@ export default function OrganizerPage() {
                     </div>
                 </div>
 
-                <div className="title-right" style={{ gap: '4px' }}>
+                <div className="organizer-filter-group">
                     {(['all', 'note', 'reminder', 'alarm'] as ItemType[]).map(t => (
                         <button
                             key={t}
@@ -211,7 +243,7 @@ export default function OrganizerPage() {
 
             {/* Stats Bar */}
             {(reminderStats.overdue > 0 || reminderStats.total > 0) && (
-                <div style={{ padding: '8px 20px 0', display: 'flex', gap: '12px' }}>
+                <div className="organizer-stats">
                     {reminderStats.overdue > 0 && (
                         <div style={{ fontSize: '0.75rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', background: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '12px' }}>
                             <AlertCircle size={12} />
@@ -228,17 +260,11 @@ export default function OrganizerPage() {
             )}
 
             {/* Input Area */}
-            <div style={{ padding: '16px 20px 10px', flexShrink: 0 }}>
-                <div style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                }}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="organizer-input-container">
+                <div className="organizer-input-card">
+                    <div className="organizer-input-row" style={{ alignItems: selectedType === 'note' ? 'flex-start' : 'center' }}>
                         {/* Type Dropdown / Select */}
-                        <div style={{ display: 'flex', background: 'var(--bg-input)', borderRadius: '6px', padding: '2px', border: '1px solid var(--border-color)' }}>
+                        <div className="organizer-type-select">
                             {(['note', 'reminder', 'alarm'] as const).map(t => (
                                 <button
                                     key={t}
@@ -262,38 +288,67 @@ export default function OrganizerPage() {
                             ))}
                         </div>
 
-                        <div style={{ flex: 1, display: 'flex', gap: '8px' }}>
-                            <input
-                                type="text"
-                                value={newItemContent}
-                                onChange={(e) => setNewItemContent(e.target.value)}
-                                placeholder={selectedType === 'note' ? "Take a note..." : selectedType === 'reminder' ? "Remind me to..." : "Alarm label"}
-                                style={inputStyle}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && selectedType !== 'reminder' && selectedType !== 'alarm') handleAddItem();
-                                }}
-                            />
+                        <div className="organizer-input-field" data-color-mode={editorTheme}>
+                            {selectedType === 'note' ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                    <input
+                                        type="text"
+                                        value={newItemTitle}
+                                        onChange={(e) => setNewItemTitle(e.target.value)}
+                                        placeholder="Title (optional)"
+                                        style={{ ...inputStyle, fontWeight: 'bold' }}
+                                    />
+                                    <div className="note-editor-wrapper" style={{ zIndex: 50 }}>
+                                        <MDEditor
+                                            value={newItemContent}
+                                            onChange={(val) => setNewItemContent(val || '')}
+                                            preview="edit"
+                                            height={150}
+                                            className="custom-md-editor"
+                                            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                                            textareaProps={{
+                                                placeholder: "Take a note..."
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={newItemContent}
+                                        onChange={(e) => setNewItemContent(e.target.value)}
+                                        placeholder={selectedType === 'reminder' ? "Remind me to..." : "Alarm label"}
+                                        style={inputStyle}
+                                        className="main-input"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleAddItem();
+                                        }}
+                                    />
 
-                            {selectedType === 'reminder' && (
-                                <input
-                                    type="datetime-local"
-                                    value={reminderDate}
-                                    onChange={(e) => setReminderDate(e.target.value)}
-                                    style={{ ...inputStyle, flex: '0 0 auto', width: 'auto' }}
-                                />
-                            )}
+                                    {selectedType === 'reminder' && (
+                                        <input
+                                            type="datetime-local"
+                                            value={reminderDate}
+                                            onChange={(e) => setReminderDate(e.target.value)}
+                                            style={{ ...inputStyle, flex: '0 0 auto', width: 'auto' }}
+                                        />
+                                    )}
 
-                            {selectedType === 'alarm' && (
-                                <input
-                                    type="time"
-                                    value={alarmTime}
-                                    onChange={(e) => setAlarmTime(e.target.value)}
-                                    style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontWeight: 'bold' }}
-                                />
+                                    {selectedType === 'alarm' && (
+                                        <input
+                                            type="time"
+                                            value={alarmTime}
+                                            onChange={(e) => setAlarmTime(e.target.value)}
+                                            style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontWeight: 'bold' }}
+                                        />
+                                    )}
+                                </>
                             )}
                         </div>
 
                         <button
+                            className="add-btn"
                             onClick={handleAddItem}
                             style={{
                                 background: 'var(--accent-color)',
@@ -305,7 +360,8 @@ export default function OrganizerPage() {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                marginTop: selectedType === 'note' ? '0' : '0'
                             }}
                         >
                             <Plus size={18} />
@@ -315,7 +371,7 @@ export default function OrganizerPage() {
             </div>
 
             {/* Content List */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }} data-color-mode={editorTheme}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {combinedItems.length === 0 && (
                         <div className="empty-state">
@@ -331,55 +387,68 @@ export default function OrganizerPage() {
                             const isEditing = editingNoteId === note.id;
 
                             return (
-                                <div key={`note-${note.id}`} className="snippet-card" style={{ padding: '16px', display: 'flex', gap: '12px' }}>
+                                <div
+                                    key={`note-${note.id}`}
+                                    className="snippet-card"
+                                    style={{
+                                        padding: '16px',
+                                        display: 'flex',
+                                        gap: '12px',
+                                        overflow: isEditing ? 'visible' : 'hidden',
+                                        transform: isEditing ? 'none' : undefined,
+                                        zIndex: isEditing ? 100 : undefined,
+                                        backgroundColor: isEditing ? (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'rgba(50, 52, 58, 1)' : 'rgba(255, 255, 255, 1)') : undefined
+                                    }}
+                                >
                                     <div style={{ color: '#f59e0b', marginTop: '2px', flexShrink: 0 }}><StickyNote size={18} /></div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {isEditing ? (
-                                            <textarea
-                                                autoFocus
-                                                defaultValue={note.content}
-                                                onBlur={(e) => handleUpdateNote(note.id, e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && e.ctrlKey) {
-                                                        handleUpdateNote(note.id, e.currentTarget.value);
-                                                    }
-                                                }}
-                                                style={{
-                                                    width: '100%',
-                                                    background: 'var(--bg-input)',
-                                                    border: '1px solid var(--accent-color)',
-                                                    borderRadius: '4px',
-                                                    color: 'var(--text-primary)',
-                                                    fontSize: '0.95rem',
-                                                    resize: 'vertical',
-                                                    fontFamily: 'inherit',
-                                                    outline: 'none',
-                                                    minHeight: '60px',
-                                                    padding: '8px'
-                                                }}
-                                            />
+                                            <div data-color-mode={editorTheme} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <input
+                                                    type="text"
+                                                    value={editingNoteTitle}
+                                                    onChange={(e) => setEditingNoteTitle(e.target.value)}
+                                                    placeholder="Title"
+                                                    style={{ ...inputStyle, fontWeight: 'bold' }}
+                                                    autoFocus
+                                                />
+                                                <div style={{ zIndex: 100 }}>
+                                                    <MDEditor
+                                                        value={editingNoteContent}
+                                                        onChange={(val) => setEditingNoteContent(val || '')}
+                                                        preview="edit"
+                                                        height={300}
+                                                    />
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                    <button onClick={cancelEditing} className="icon-btn" style={{ padding: '6px 12px', fontSize: '0.85rem' }}>Cancel</button>
+                                                    <button onClick={saveEditing} className="primary-btn" style={{ padding: '6px 12px', fontSize: '0.85rem' }}>Save</button>
+                                                </div>
+                                            </div>
                                         ) : (
                                             <div
-                                                onClick={() => setEditingNoteId(note.id)}
-                                                className="clip-markdown"
-                                                style={{
-                                                    cursor: 'text',
-                                                    fontSize: '0.95rem',
-                                                    color: 'var(--text-primary)'
-                                                }}
+                                                onClick={() => startEditing(note)}
+                                                style={{ cursor: 'pointer' }}
                                             >
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                    {note.content}
-                                                </ReactMarkdown>
+                                                {note.title && (
+                                                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>
+                                                        {note.title}
+                                                    </div>
+                                                )}
+                                                <div className="clip-markdown">
+                                                    <MDEditor.Markdown source={note.content} style={{ background: 'transparent', color: 'inherit', fontSize: '0.95rem' }} />
+                                                </div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', opacity: 0.8 }}>
+                                                    {new Date(note.updated_at).toLocaleString()}
+                                                </div>
                                             </div>
                                         )}
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', opacity: 0.8 }}>
-                                            {new Date(note.updated_at).toLocaleString()}
-                                        </div>
                                     </div>
-                                    <button onClick={() => handleDelete('note', note.id)} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
-                                        <Trash2 size={14} />
-                                    </button>
+                                    {!isEditing && (
+                                        <button onClick={() => handleDelete('note', note.id)} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                 </div>
                             );
                         }
