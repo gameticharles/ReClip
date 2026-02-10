@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Note, Reminder } from '../types';
-import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle } from 'lucide-react';
+import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle, Pin, Archive, Palette } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 
 type ItemType = 'all' | 'note' | 'reminder' | 'alarm';
@@ -24,9 +24,10 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
     const [alarms, setAlarms] = useState<Alarm[]>([]);
 
     // UI State
-    const [filter, setFilter] = useState<ItemType>('all');
+    const [filter, setFilter] = useState<ItemType | 'archived'>('all');
     const [newItemContent, setNewItemContent] = useState('');
     const [newItemTitle, setNewItemTitle] = useState('');
+    const [newItemColor, setNewItemColor] = useState<string | undefined>(undefined);
     const [selectedType, setSelectedType] = useState<Exclude<ItemType, 'all'>>('note');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -34,6 +35,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
     const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
     const [editingNoteTitle, setEditingNoteTitle] = useState('');
     const [editingNoteContent, setEditingNoteContent] = useState('');
+    const [editingNoteColor, setEditingNoteColor] = useState<string | undefined>(undefined);
 
     // Auxiliary Input State
     const [reminderDate, setReminderDate] = useState('');
@@ -41,6 +43,17 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
 
     // Theme Logic
     const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>('light');
+
+    const colors = [
+        { name: 'None', value: undefined },
+        { name: 'Red', value: 'rgba(239, 68, 68, 0.1)' },
+        { name: 'Orange', value: 'rgba(249, 115, 22, 0.1)' },
+        { name: 'Yellow', value: 'rgba(234, 179, 8, 0.1)' },
+        { name: 'Green', value: 'rgba(34, 197, 94, 0.1)' },
+        { name: 'Blue', value: 'rgba(59, 130, 246, 0.1)' },
+        { name: 'Purple', value: 'rgba(168, 85, 247, 0.1)' },
+        { name: 'Pink', value: 'rgba(236, 72, 153, 0.1)' },
+    ];
 
     useEffect(() => {
         const updateTheme = () => {
@@ -81,14 +94,15 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
     const handleAddItem = async () => {
         if (selectedType === 'note') {
             if (!newItemContent.trim() && !newItemTitle.trim()) return;
-            await invoke('add_note', { title: newItemTitle, content: newItemContent });
+            await invoke('add_note', { title: newItemTitle, content: newItemContent, color: newItemColor });
             setNewItemContent('');
             setNewItemTitle('');
+            setNewItemColor(undefined);
         } else if (selectedType === 'reminder') {
             if (!newItemContent.trim()) return;
             await invoke('add_reminder', {
                 content: newItemContent,
-                dueDate: reminderDate ? new Date(reminderDate).toISOString() : null
+                due_date: reminderDate ? new Date(reminderDate).toISOString() : null
             });
             setNewItemContent('');
             setReminderDate('');
@@ -121,15 +135,38 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
         loadData();
     };
 
+    const handleTogglePin = async (note: Note) => {
+        await invoke('update_note', {
+            id: note.id, title: note.title || '', content: note.content,
+            color: note.color, is_pinned: !note.is_pinned, is_archived: note.is_archived
+        });
+        loadData();
+    };
+
+    const handleArchive = async (note: Note) => {
+        await invoke('update_note', {
+            id: note.id, title: note.title || '', content: note.content,
+            color: note.color, is_pinned: note.is_pinned, is_archived: !note.is_archived
+        });
+        loadData();
+    };
+
     const startEditing = (note: Note) => {
         setEditingNoteId(note.id);
         setEditingNoteTitle(note.title || '');
         setEditingNoteContent(note.content);
+        setEditingNoteColor(note.color);
     };
 
     const saveEditing = async () => {
         if (editingNoteId !== null) {
-            await invoke('update_note', { id: editingNoteId, title: editingNoteTitle, content: editingNoteContent });
+            const currentNote = notes.find(n => n.id === editingNoteId);
+            if (currentNote) {
+                await invoke('update_note', {
+                    id: editingNoteId, title: editingNoteTitle, content: editingNoteContent,
+                    color: editingNoteColor, is_pinned: currentNote.is_pinned, is_archived: currentNote.is_archived
+                });
+            }
             setEditingNoteId(null);
             loadData();
         }
@@ -152,17 +189,41 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
         // Filter helper
         const matchesSearch = (text: string) => text.toLowerCase().includes(searchQuery.toLowerCase());
 
-        if (filter === 'all' || filter === 'note') {
-            items.push(...notes.filter(n => matchesSearch(n.content) || (n.title && matchesSearch(n.title))).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
-        }
-        if (filter === 'all' || filter === 'reminder') {
-            items.push(...reminders.filter(r => matchesSearch(r.content)).map(r => ({ type: 'reminder' as const, data: r, date: r.due_date ? new Date(r.due_date) : new Date(r.created_at) })));
-        }
-        if (filter === 'all' || filter === 'alarm') {
-            items.push(...alarms.filter(a => matchesSearch(a.label) || matchesSearch(a.time)).map(a => ({ type: 'alarm' as const, data: a, date: new Date() })));
+        if (filter === 'all' || filter === 'note' || filter === 'archived') {
+            const noteList = notes.filter(n => {
+                const isArchived = n.is_archived;
+                if (filter === 'archived') return isArchived;
+                return !isArchived;
+            });
+
+            items.push(...noteList.filter(n => matchesSearch(n.content) || (n.title && matchesSearch(n.title))).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
         }
 
-        return items.sort((a, b) => b.date.getTime() - a.date.getTime());
+        if (filter !== 'archived') {
+            if (filter === 'all' || filter === 'reminder') {
+                items.push(...reminders.filter(r => matchesSearch(r.content)).map(r => ({ type: 'reminder' as const, data: r, date: r.due_date ? new Date(r.due_date) : new Date(r.created_at) })));
+            }
+            if (filter === 'all' || filter === 'alarm') {
+                items.push(...alarms.filter(a => matchesSearch(a.label) || matchesSearch(a.time)).map(a => ({ type: 'alarm' as const, data: a, date: new Date() })));
+            }
+        }
+
+        return items.sort((a, b) => {
+            // 1. Pinned notes first
+            if (a.type === 'note' && b.type === 'note') {
+                const noteA = a.data as Note;
+                const noteB = b.data as Note;
+                if (noteA.is_pinned && !noteB.is_pinned) return -1;
+                if (!noteA.is_pinned && noteB.is_pinned) return 1;
+            } else if (a.type === 'note' && (a.data as Note).is_pinned) {
+                return -1;
+            } else if (b.type === 'note' && (b.data as Note).is_pinned) {
+                return 1;
+            }
+
+            // 2. Date Descending
+            return b.date.getTime() - a.date.getTime();
+        });
     }, [notes, reminders, alarms, filter, searchQuery]);
 
     const reminderStats = useMemo(() => {
@@ -238,6 +299,15 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                             <span style={{ textTransform: 'capitalize' }}>{t}</span>
                         </button>
                     ))}
+                    <button
+                        onClick={() => setFilter('archived')}
+                        style={chipStyle(filter === 'archived')}
+                        onMouseEnter={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'var(--bg-hover, rgba(128,128,128,0.1))'; }}
+                        onMouseLeave={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <Archive size={12} />
+                        <span>Archived</span>
+                    </button>
                 </div>
             </div>
 
@@ -291,13 +361,42 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                         <div className="organizer-input-field" data-color-mode={editorTheme}>
                             {selectedType === 'note' ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                                    <input
-                                        type="text"
-                                        value={newItemTitle}
-                                        onChange={(e) => setNewItemTitle(e.target.value)}
-                                        placeholder="Title (optional)"
-                                        style={{ ...inputStyle, fontWeight: 'bold' }}
-                                    />
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            value={newItemTitle}
+                                            onChange={(e) => setNewItemTitle(e.target.value)}
+                                            placeholder="Title (optional)"
+                                            style={{ ...inputStyle, fontWeight: 'bold' }}
+                                        />
+                                        <div className="color-picker-trigger" style={{ position: 'relative', display: 'flex', gap: 2 }}>
+                                            {colors.slice(1).map(color => (
+                                                <button
+                                                    key={color.name}
+                                                    onClick={() => setNewItemColor(color.value)}
+                                                    title={color.name}
+                                                    style={{
+                                                        width: 16, height: 16, borderRadius: '50%', border: newItemColor === color.value ? '2px solid var(--text-primary)' : '1px solid var(--border-color)',
+                                                        backgroundColor: color.value,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                />
+                                            ))}
+                                            <button
+                                                onClick={() => setNewItemColor(undefined)}
+                                                title="None"
+                                                style={{
+                                                    width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-color)',
+                                                    backgroundColor: 'transparent',
+                                                    cursor: 'pointer',
+                                                    position: 'relative'
+                                                }}
+                                            >
+                                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(45deg)', width: '1px', height: '100%', background: 'var(--text-secondary)' }} />
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <div className="note-editor-wrapper" style={{ zIndex: 50 }}>
                                         <MDEditor
                                             value={newItemContent}
@@ -386,6 +485,21 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                             const note = item.data as Note;
                             const isEditing = editingNoteId === note.id;
 
+                            // Simple highlight helper
+                            const getHighlightedContent = (content: string, query: string) => {
+                                if (!query || !query.trim()) return content;
+                                try {
+                                    // Use a simple replace for now.
+                                    // wrapper <mark> needs to be parsed by markdown as HTML.
+                                    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                                    return content.replace(regex, '<mark style="background: rgba(255, 255, 0, 0.4); color: inherit; border-radius: 2px;">$1</mark>');
+                                } catch (e) {
+                                    return content;
+                                }
+                            };
+
+                            const displayContent = isEditing ? note.content : getHighlightedContent(note.content, searchQuery);
+
                             return (
                                 <div
                                     key={`note-${note.id}`}
@@ -397,21 +511,52 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                         overflow: isEditing ? 'visible' : 'hidden',
                                         transform: isEditing ? 'none' : undefined,
                                         zIndex: isEditing ? 100 : undefined,
-                                        backgroundColor: isEditing ? (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'rgba(50, 52, 58, 1)' : 'rgba(255, 255, 255, 1)') : undefined
+                                        backgroundColor: isEditing
+                                            ? (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'rgba(50, 52, 58, 1)' : 'rgba(255, 255, 255, 1)')
+                                            : (note.color ? note.color : undefined)
                                     }}
                                 >
                                     <div style={{ color: '#f59e0b', marginTop: '2px', flexShrink: 0 }}><StickyNote size={18} /></div>
                                     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {isEditing ? (
                                             <div data-color-mode={editorTheme} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                <input
-                                                    type="text"
-                                                    value={editingNoteTitle}
-                                                    onChange={(e) => setEditingNoteTitle(e.target.value)}
-                                                    placeholder="Title"
-                                                    style={{ ...inputStyle, fontWeight: 'bold' }}
-                                                    autoFocus
-                                                />
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={editingNoteTitle}
+                                                        onChange={(e) => setEditingNoteTitle(e.target.value)}
+                                                        placeholder="Title"
+                                                        style={{ ...inputStyle, fontWeight: 'bold' }}
+                                                        autoFocus
+                                                    />
+                                                    <div className="color-picker-trigger" style={{ position: 'relative', display: 'flex', gap: 2 }}>
+                                                        {colors.slice(1).map(color => (
+                                                            <button
+                                                                key={color.name}
+                                                                onClick={() => setEditingNoteColor(color.value)}
+                                                                title={color.name}
+                                                                style={{
+                                                                    width: 16, height: 16, borderRadius: '50%', border: editingNoteColor === color.value ? '2px solid var(--text-primary)' : '1px solid var(--border-color)',
+                                                                    backgroundColor: color.value,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            />
+                                                        ))}
+                                                        <button
+                                                            onClick={() => setEditingNoteColor(undefined)}
+                                                            title="None"
+                                                            style={{
+                                                                width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-color)',
+                                                                backgroundColor: 'transparent',
+                                                                cursor: 'pointer',
+                                                                position: 'relative'
+                                                            }}
+                                                        >
+                                                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(45deg)', width: '1px', height: '100%', background: 'var(--text-secondary)' }} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
                                                 <div style={{ zIndex: 100 }}>
                                                     <MDEditor
                                                         value={editingNoteContent}
@@ -428,7 +573,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                         ) : (
                                             <div
                                                 onClick={() => startEditing(note)}
-                                                style={{ cursor: 'pointer' }}
+                                                style={{ cursor: 'pointer', position: 'relative' }}
                                             >
                                                 {note.title && (
                                                     <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>
@@ -436,7 +581,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                                     </div>
                                                 )}
                                                 <div className="clip-markdown">
-                                                    <MDEditor.Markdown source={note.content} style={{ background: 'transparent', color: 'inherit', fontSize: '0.95rem' }} />
+                                                    <MDEditor.Markdown source={displayContent} style={{ background: 'transparent', color: 'inherit', fontSize: '0.95rem' }} />
                                                 </div>
                                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', opacity: 0.8 }}>
                                                     {new Date(note.updated_at).toLocaleString()}
@@ -445,9 +590,27 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                         )}
                                     </div>
                                     {!isEditing && (
-                                        <button onClick={() => handleDelete('note', note.id)} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
-                                            <Trash2 size={14} />
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-start' }}>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleTogglePin(note); }}
+                                                className={`icon-btn`}
+                                                style={{ height: 'fit-content', opacity: note.is_pinned ? 1 : 0.3 }}
+                                                title={note.is_pinned ? "Unpin" : "Pin Note"}
+                                            >
+                                                <Pin size={14} fill={note.is_pinned ? "currentColor" : "none"} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleArchive(note); }}
+                                                className="icon-btn"
+                                                style={{ height: 'fit-content', opacity: 0.3 }}
+                                                title={note.is_archived ? "Unarchive" : "Archive"}
+                                            >
+                                                <Archive size={14} />
+                                            </button>
+                                            <button onClick={() => handleDelete('note', note.id)} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             );

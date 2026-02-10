@@ -79,6 +79,11 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
     // We ignore the error if column already exists
     let _ = sqlx::query("ALTER TABLE notes ADD COLUMN title TEXT DEFAULT ''").execute(&pool).await;
 
+    // Migration: Add is_pinned, color, is_archived columns
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT 0").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN color TEXT DEFAULT NULL").execute(&pool).await;
+    let _ = sqlx::query("ALTER TABLE notes ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0").execute(&pool).await;
+
     // Create reminders table
     sqlx::query("CREATE TABLE IF NOT EXISTS reminders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,30 +103,37 @@ pub struct Note {
     pub id: i64,
     pub title: Option<String>,
     pub content: String,
+    pub is_pinned: bool,
+    pub color: Option<String>,
+    pub is_archived: bool,
     pub created_at: String,
     pub updated_at: String,
 }
 
 pub async fn get_notes(pool: &Pool<Sqlite>) -> Result<Vec<Note>, sqlx::Error> {
-    sqlx::query_as::<_, Note>("SELECT id, title, content, created_at, updated_at FROM notes ORDER BY updated_at DESC")
+    sqlx::query_as::<_, Note>("SELECT id, title, content, is_pinned, color, is_archived, created_at, updated_at FROM notes ORDER BY is_pinned DESC, updated_at DESC")
         .fetch_all(pool)
         .await
 }
 
-pub async fn add_note(pool: &Pool<Sqlite>, title: String, content: String) -> Result<i64, sqlx::Error> {
-    let id = sqlx::query("INSERT INTO notes (title, content) VALUES (?, ?) RETURNING id")
+pub async fn add_note(pool: &Pool<Sqlite>, title: String, content: String, color: Option<String>) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO notes (title, content, color) VALUES (?, ?, ?) RETURNING id")
         .bind(title)
         .bind(content)
+        .bind(color)
         .fetch_one(pool)
         .await?
         .get::<i64, _>(0);
     Ok(id)
 }
 
-pub async fn update_note(pool: &Pool<Sqlite>, id: i64, title: String, content: String) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+pub async fn update_note(pool: &Pool<Sqlite>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE notes SET title = ?, content = ?, color = ?, is_pinned = ?, is_archived = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         .bind(title)
         .bind(content)
+        .bind(color)
+        .bind(is_pinned)
+        .bind(is_archived)
         .bind(id)
         .execute(pool)
         .await?;

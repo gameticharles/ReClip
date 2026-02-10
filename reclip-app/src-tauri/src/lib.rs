@@ -471,6 +471,28 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+// ... existing code ...
+
+#[tauri::command]
+async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {
+    db::get_notes(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_note(state: State<'_, DbState>, title: String, content: String, color: Option<String>) -> Result<i64, String> {
+    db::add_note(&state.pool, title, content, color).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_note(state: State<'_, DbState>, id: i64, title: String, content: String, color: Option<String>, is_pinned: bool, is_archived: bool) -> Result<(), String> {
+    db::update_note(&state.pool, id, title, content, color, is_pinned, is_archived).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_note(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_note(&state.pool, id).await.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn copy_to_system(content: String) -> Result<(), String> {
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
@@ -804,26 +826,7 @@ async fn delete_regex_rule(state: State<'_, DbState>, id: i64) -> Result<(), Str
     db::delete_regex_rule(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
-// Notes
-#[tauri::command]
-async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {
-    db::get_notes(&state.pool).await.map_err(|e| e.to_string())
-}
 
-#[tauri::command]
-async fn add_note(state: State<'_, DbState>, title: String, content: String) -> Result<i64, String> {
-    db::add_note(&state.pool, title, content).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn update_note(state: State<'_, DbState>, id: i64, title: String, content: String) -> Result<(), String> {
-    db::update_note(&state.pool, id, title, content).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn delete_note(state: State<'_, DbState>, id: i64) -> Result<(), String> {
-    db::delete_note(&state.pool, id).await.map_err(|e| e.to_string())
-}
 
 // Reminders
 #[tauri::command]
