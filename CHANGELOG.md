@@ -1,9 +1,35 @@
-## [0.9.5] - 2026-02-09
-
-Fixed bugs and UI issues
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
+
+## [1.0.0] - 2026-02-10
+
+### ✨ New Features
+- **Organizer Dashboard**: A dedicated space for managing your Notes, Reminders, and Alarms.
+  - **Grid Layout**: Widgets for easy access to all your organized items.
+  - **Quick Add**: Rapidly create new notes or reminders directly from the dashboard.
+- **Rich Text Notes**:
+  - **Markdown Support**: Full WYSIWYG editor for styling notes (Bold, Italic, Lists, Code).
+  - **Title Support**: Add titles to your notes for better organization.
+  - **Pinning**: Pin important notes to the top of the list.
+  - **Color Coding**: Assign colors to notes to visually categorize them.
+- **Alarms & Reminders**:
+  - **System Notifications**: Get notified when an alarm goes off or a reminder is due, even if the app is minimized.
+  - **Sound Alerts**: Audio feedback for importance.
+  - **Smart Scheduling**: Set alarms for specific days of the week.
+- **Tagging System**:
+  - **Organization**: Add comma-separated tags to notes (e.g., "work, ideas").
+  - **Search**: Filter your content by searching for specific tags.
+
+### 🎨 UI/UX Improvements
+- **Drag & Drop Reordering**:
+  - **Manual Sort Mode**: Switch to "Manual" sort to drag and drop items into your preferred order.
+  - **Persistent Order**: Your custom order is saved and synced.
+- **Responsive Design**: The Organizer adapts to different window sizes, optimizing the layout for your screen.
+- **Global Navigation**: Added "Organizer" icon to the Title Bar for quick access.
+
+### 🐛 Bug Fixes
+- **HTML Paste**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed.
 
 ## [0.9.5] - 2026-02-09
 

@@ -7,6 +7,7 @@ import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
 import { ChangelogViewer } from '../components/ChangelogViewer';
+import { Settings, Keyboard, Shield, ScrollText, Bot, Wrench, Cloud, Info } from 'lucide-react';
 
 interface SettingsPageProps {
     compactMode: boolean;
@@ -538,15 +539,17 @@ export default function SettingsPage({
 
 
 
+
+
     const tabs = [
-        { id: 'interface', label: 'General', icon: '⚙️' },
-        { id: 'shortcuts', label: 'Shortcuts', icon: '⌨️' },
-        { id: 'security', label: 'Security', icon: '🔒' },
-        { id: 'snippets', label: 'Snippets', icon: '📋' },
-        { id: 'automations', label: 'Automations', icon: '🤖' },
-        { id: 'maintenance', label: 'Maintenance', icon: '🧹' },
-        { id: 'backup', label: 'Backup & Cloud', icon: '☁️' },
-        { id: 'about', label: 'About', icon: 'ℹ️' }
+        { id: 'interface', label: 'General', icon: <Settings size={20} /> },
+        { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard size={20} /> },
+        { id: 'security', label: 'Security', icon: <Shield size={20} /> },
+        { id: 'snippets', label: 'Snippets', icon: <ScrollText size={20} /> },
+        { id: 'automations', label: 'Automations', icon: <Bot size={20} /> },
+        { id: 'maintenance', label: 'Maintenance', icon: <Wrench size={20} /> },
+        { id: 'backup', label: 'Backup & Cloud', icon: <Cloud size={20} /> },
+        { id: 'about', label: 'About', icon: <Info size={20} /> }
     ];
 
     return (
@@ -595,12 +598,14 @@ export default function SettingsPage({
                                 onMouseEnter={(e) => {
                                     if (activeTab !== tab.id) {
                                         e.currentTarget.style.background = 'var(--bg-hover)';
+                                        e.currentTarget.style.color = 'var(--accent-color)';
                                         e.currentTarget.style.opacity = '1';
                                     }
                                 }}
                                 onMouseLeave={(e) => {
                                     if (activeTab !== tab.id) {
                                         e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = 'var(--text-primary)';
                                         e.currentTarget.style.opacity = '0.8';
                                     }
                                 }}

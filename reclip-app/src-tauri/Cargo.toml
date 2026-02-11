@@ -46,6 +46,7 @@ clap = { version = "4", features = ["derive"] }
 oauth2 = "4.4"
 url = "2.5"
 open = "5"
+html2text = "0.16.7"
 
 
 [target.'cfg(windows)'.dependencies]

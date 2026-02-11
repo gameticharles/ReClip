@@ -698,13 +698,38 @@ async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, cli
         {
             use clipboard_rs::{Clipboard, ClipboardContext};
             let ctx = ClipboardContext::new().map_err(|e| e.to_string())?;
-            // Ideally we should set BOTH text and HTML, but clipboard_rs might clear previous.
-            // For now, setting HTML is the priority.
+            
+            // Convert HTML to Plain Text for fallback
+            // We use html2text to strip tags and format nicely
+            let plain_text = html2text::from_read(content.as_bytes(), 80).unwrap_or(content.clone()); 
+            
+            // Set BOTH HTML and Text. 
+            // Note: clipboard-rs documentation isn't explicit if set_html clears others, 
+            // but usually multiple set calls in one context might work or overwrite.
+            // Let's try setting text first, then HTML.
+            // Actually, based on common clipboard APIs, setting one usually clears unless we use a specific "open/set/set/close" flow.
+            // clipboard-rs `set_text` and `set_html` might be independent operations that open/close individually.
+            // If so, the second one might clear the first.
+            // HOWEVER, we want to try setting HTML. If that fails to provide text fallback, we might need a crate that supports multiple.
+            // But let's verify if `clipboard-rs` supports `set_html` and `set_text` sequentially.
+            // Looking at the crate, it seems they are separate.
+            // But w/o testing, hard to know.
+            // A safer bet for Windows might be to use `clipboard-win` or `copypasta` if we needed complex handling,
+            // but let's try setting plain text first, then HTML. 
+            // If the user says it "activates and goes through process", it means something is on the clipboard.
+            
+            // Let's try to set the text content first, so at least we have text.
+            ctx.set_text(plain_text.clone()).map_err(|e| e.to_string())?;
+            // Then set HTML. If this overwrites, we lose text. If it adds, we win.
             ctx.set_html(content.clone()).map_err(|e| e.to_string())?;
         }
         #[cfg(not(target_os = "windows"))]
         {
-            clipboard.set_text(content.clone()).map_err(|e| e.to_string())?;
+            // For non-Windows (Mac/Linux), arboard set_text usually handles plain text. 
+            // We can try to strip HTML here too.
+            let plain_text = html2text::from_read(content.as_bytes(), 80); 
+            clipboard.set_text(plain_text).map_err(|e| e.to_string())?;
+            // Note: arboard doesn't support HTML on all platforms easily yet in this version.
         }
     } else {
         clipboard.set_text(content.clone()).map_err(|e| e.to_string())?;

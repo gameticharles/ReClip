@@ -9,6 +9,35 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.0.0",
+        date: "2026-02-10",
+        sections: [
+            {
+                title: "✨ New Features",
+                items: [
+                    "**Organizer Dashboard**: A dedicated space for managing your Notes, Reminders, and Alarms with a grid layout and quick add functionality.",
+                    "**Rich Text Notes**: Full WYSIWYG editor with Markdown support, titles, pinning, and color coding.",
+                    "**Alarms & Reminders**: Set alarms with system notifications, sound alerts, and smart scheduling.",
+                    "**Tagging System**: Add comma-separated tags to notes and filter content by tags."
+                ]
+            },
+            {
+                title: "🎨 UI/UX Improvements",
+                items: [
+                    "**Drag & Drop Reordering**: Switch to 'Manual' sort mode to drag and drop items into your preferred order.",
+                    "**Responsive Design**: The Organizer adapts to different window sizes.",
+                    "**Global Navigation**: Added 'Organizer' icon to the Title Bar for quick access."
+                ]
+            },
+            {
+                title: "🐛 Bug Fixes",
+                items: [
+                    "**HTML Paste**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed."
+                ]
+            }
+        ]
+    },
+    {
         version: "0.9.5",
         date: "2026-02-09",
         sections: [

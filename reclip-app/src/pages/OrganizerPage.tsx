@@ -42,6 +42,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
     const [selectedType, setSelectedType] = useState<Exclude<ItemType, 'all'>>('note');
     const [searchQuery, setSearchQuery] = useState('');
     const [sortMode, setSortMode] = useState<'date' | 'manual'>('date');
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     // Editing State
     const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
@@ -251,8 +252,6 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
 
         // items array is already reordered locally at this point (items contains the new order).
         // destinationIndex is where current item IS.
-        const prevItem = items[destinationIndex - 1]; // Item above
-        const nextItem = items[destinationIndex + 1]; // Item below
 
         // In DESC sort (High -> Low):
         // Item Above (Index - 1) should have Higher Position
@@ -391,7 +390,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                         title={sortMode === 'date' ? "Sort by Date" : "Manual Sort (Drag & Drop)"}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', opacity: 0.7 }}
                     >
-                        <ArrowUpDown size={16} color={sortMode === 'manual' ? 'var(--accent-color)' : 'currentColor'} />
+                        <ArrowUpDown size={16} color={sortMode === 'manual' ? 'var(--accent-color)' : 'var(--text-primary)'} />
                     </button>
 
                     {/* Search Field */}
@@ -431,6 +430,15 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                     >
                         <Archive size={12} />
                         <span>Archived</span>
+                    </button>
+
+                    {/* Add Button Trigger */}
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        style={{ ...chipStyle(true), background: 'var(--accent-color)', color: 'white', border: 'none', marginLeft: '8px' }}
+                    >
+                        <Plus size={14} />
+                        <span>Add</span>
                     </button>
                 </div>
             </div>
@@ -475,153 +483,184 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                 </div>
             )}
 
-            {/* Input Area */}
-            <div className="organizer-input-container">
-                <div className="organizer-input-card">
-                    <div className="organizer-input-row" style={{ alignItems: selectedType === 'note' ? 'flex-start' : 'center' }}>
-                        {/* Type Dropdown / Select */}
-                        <div className="organizer-type-select">
-                            {(['note', 'reminder', 'alarm'] as const).map(t => (
-                                <button
-                                    key={t}
-                                    onClick={() => setSelectedType(t)}
-                                    title={`Add ${t}`}
-                                    style={{
-                                        padding: '6px',
-                                        borderRadius: '4px',
-                                        border: 'none',
-                                        background: selectedType === t ? 'var(--bg-card)' : 'transparent',
-                                        color: selectedType === t ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        boxShadow: selectedType === t ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
-                                    }}
-                                >
-                                    {t === 'note' && <StickyNote size={16} />}
-                                    {t === 'reminder' && <Calendar size={16} />}
-                                    {t === 'alarm' && <Bell size={16} />}
-                                </button>
-                            ))}
-                        </div>
+            {/* Add Item Modal */}
+            {isAddModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', zIndex: 2000,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    backdropFilter: 'blur(2px)'
+                }} onClick={(e) => {
+                    if (e.target === e.currentTarget) setIsAddModalOpen(false);
+                }}>
+                    <div className="organizer-input-container" style={{ width: '90%', maxWidth: '600px', padding: 0, background: 'transparent' }}>
+                        <div className="organizer-input-card" style={{ boxShadow: '0 10px 25px rgba(0,0,0,0.3)', border: '1px solid var(--border-color)' }}>
+                            <div className="organizer-input-row" style={{ alignItems: selectedType === 'note' ? 'flex-start' : 'center' }}>
+                                {/* Type Dropdown / Select */}
+                                <div className="organizer-type-select">
+                                    {(['note', 'reminder', 'alarm'] as const).map(t => (
+                                        <button
+                                            key={t}
+                                            onClick={() => setSelectedType(t)}
+                                            title={`Add ${t}`}
+                                            style={{
+                                                padding: '6px',
+                                                borderRadius: '4px',
+                                                border: 'none',
+                                                background: selectedType === t ? 'var(--bg-card)' : 'transparent',
+                                                color: selectedType === t ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                boxShadow: selectedType === t ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
+                                            }}
+                                        >
+                                            {t === 'note' && <StickyNote size={16} />}
+                                            {t === 'reminder' && <Calendar size={16} />}
+                                            {t === 'alarm' && <Bell size={16} />}
+                                        </button>
+                                    ))}
+                                </div>
 
-                        <div className="organizer-input-field" data-color-mode={editorTheme}>
-                            {selectedType === 'note' ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <input
-                                            type="text"
-                                            value={newItemTitle}
-                                            onChange={(e) => setNewItemTitle(e.target.value)}
-                                            placeholder="Title (optional)"
-                                            style={{ ...inputStyle, fontWeight: 'bold' }}
-                                        />
-                                        <div className="color-picker-trigger" style={{ position: 'relative', display: 'flex', gap: 2 }}>
-                                            {colors.slice(1).map(color => (
-                                                <button
-                                                    key={color.name}
-                                                    onClick={() => setNewItemColor(color.value)}
-                                                    title={color.name}
-                                                    style={{
-                                                        width: 16, height: 16, borderRadius: '50%', border: newItemColor === color.value ? '2px solid var(--text-primary)' : '1px solid var(--border-color)',
-                                                        backgroundColor: color.value,
-                                                        cursor: 'pointer'
+                                <div className="organizer-input-field" data-color-mode={editorTheme}>
+                                    {selectedType === 'note' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                <input
+                                                    type="text"
+                                                    value={newItemTitle}
+                                                    onChange={(e) => setNewItemTitle(e.target.value)}
+                                                    placeholder="Title (optional)"
+                                                    style={{ ...inputStyle, fontWeight: 'bold' }}
+                                                />
+                                                <div className="color-picker-trigger" style={{ position: 'relative', display: 'flex', gap: 2 }}>
+                                                    {colors.slice(1).map(color => (
+                                                        <button
+                                                            key={color.name}
+                                                            onClick={() => setNewItemColor(color.value)}
+                                                            title={color.name}
+                                                            style={{
+                                                                width: 16, height: 16, borderRadius: '50%', border: newItemColor === color.value ? '2px solid var(--text-primary)' : '1px solid var(--border-color)',
+                                                                backgroundColor: color.value,
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        />
+                                                    ))}
+                                                    <button
+                                                        onClick={() => setNewItemColor(undefined)}
+                                                        title="None"
+                                                        style={{
+                                                            width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-color)',
+                                                            backgroundColor: 'transparent',
+                                                            cursor: 'pointer',
+                                                            position: 'relative'
+                                                        }}
+                                                    >
+                                                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(45deg)', width: '1px', height: '100%', background: 'var(--text-secondary)' }} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <input
+                                                type="text"
+                                                value={newItemTags}
+                                                onChange={(e) => setNewItemTags(e.target.value)}
+                                                placeholder="Tags (comma separated)"
+                                                style={{ ...inputStyle, fontSize: '0.8rem' }}
+                                            />
+
+                                            <div className="note-editor-wrapper" style={{ zIndex: 50 }}>
+                                                <MDEditor
+                                                    value={newItemContent}
+                                                    onChange={(val) => setNewItemContent(val || '')}
+                                                    preview="edit"
+                                                    height={200}
+                                                    className="custom-md-editor"
+                                                    style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                                                    textareaProps={{
+                                                        placeholder: "Take a note..."
                                                     }}
                                                 />
-                                            ))}
-                                            <button
-                                                onClick={() => setNewItemColor(undefined)}
-                                                title="None"
-                                                style={{
-                                                    width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-color)',
-                                                    backgroundColor: 'transparent',
-                                                    cursor: 'pointer',
-                                                    position: 'relative'
-                                                }}
-                                            >
-                                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(45deg)', width: '1px', height: '100%', background: 'var(--text-secondary)' }} />
-                                            </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={newItemContent}
+                                                onChange={(e) => setNewItemContent(e.target.value)}
+                                                placeholder={selectedType === 'reminder' ? "Remind me to..." : "Alarm label"}
+                                                style={inputStyle}
+                                                className="main-input"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        handleAddItem();
+                                                        setIsAddModalOpen(false);
+                                                    }
+                                                }}
+                                            />
 
-                                    <input
-                                        type="text"
-                                        value={newItemTags}
-                                        onChange={(e) => setNewItemTags(e.target.value)}
-                                        placeholder="Tags (comma separated)"
-                                        style={{ ...inputStyle, fontSize: '0.8rem' }}
-                                    />
+                                            {selectedType === 'reminder' && (
+                                                <input
+                                                    type="datetime-local"
+                                                    value={reminderDate}
+                                                    onChange={(e) => setReminderDate(e.target.value)}
+                                                    style={{ ...inputStyle, flex: '0 0 auto', width: 'auto' }}
+                                                />
+                                            )}
 
-                                    <div className="note-editor-wrapper" style={{ zIndex: 50 }}>
-                                        <MDEditor
-                                            value={newItemContent}
-                                            onChange={(val) => setNewItemContent(val || '')}
-                                            preview="edit"
-                                            height={150}
-                                            className="custom-md-editor"
-                                            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                                            textareaProps={{
-                                                placeholder: "Take a note..."
-                                            }}
-                                        />
-                                    </div>
+                                            {selectedType === 'alarm' && (
+                                                <input
+                                                    type="time"
+                                                    value={alarmTime}
+                                                    onChange={(e) => setAlarmTime(e.target.value)}
+                                                    style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontWeight: 'bold' }}
+                                                />
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                            ) : (
-                                <>
-                                    <input
-                                        type="text"
-                                        value={newItemContent}
-                                        onChange={(e) => setNewItemContent(e.target.value)}
-                                        placeholder={selectedType === 'reminder' ? "Remind me to..." : "Alarm label"}
-                                        style={inputStyle}
-                                        className="main-input"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleAddItem();
-                                        }}
-                                    />
-
-                                    {selectedType === 'reminder' && (
-                                        <input
-                                            type="datetime-local"
-                                            value={reminderDate}
-                                            onChange={(e) => setReminderDate(e.target.value)}
-                                            style={{ ...inputStyle, flex: '0 0 auto', width: 'auto' }}
-                                        />
-                                    )}
-
-                                    {selectedType === 'alarm' && (
-                                        <input
-                                            type="time"
-                                            value={alarmTime}
-                                            onChange={(e) => setAlarmTime(e.target.value)}
-                                            style={{ ...inputStyle, flex: '0 0 auto', width: 'auto', fontWeight: 'bold' }}
-                                        />
-                                    )}
-                                </>
-                            )}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px', gap: '8px', borderTop: '1px solid var(--border-color)', marginTop: '8px' }}>
+                                <button
+                                    onClick={() => setIsAddModalOpen(false)}
+                                    style={{
+                                        background: 'transparent',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '6px',
+                                        padding: '6px 12px',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-primary)'
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="add-btn"
+                                    onClick={() => {
+                                        handleAddItem();
+                                        setIsAddModalOpen(false);
+                                    }}
+                                    style={{
+                                        background: 'var(--accent-color)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        padding: '6px 16px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        gap: '6px'
+                                    }}
+                                >
+                                    <Plus size={16} />
+                                    Add
+                                </button>
+                            </div>
                         </div>
-
-                        <button
-                            className="add-btn"
-                            onClick={handleAddItem}
-                            style={{
-                                background: 'var(--accent-color)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                width: '36px',
-                                height: '36px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                marginTop: selectedType === 'note' ? '0' : '0'
-                            }}
-                        >
-                            <Plus size={18} />
-                        </button>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Content List */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }} data-color-mode={editorTheme}>
