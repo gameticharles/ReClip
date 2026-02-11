@@ -727,7 +727,7 @@ async fn paste_clip_to_system(app_handle: tauri::AppHandle, content: String, cli
         {
             // For non-Windows (Mac/Linux), arboard set_text usually handles plain text. 
             // We can try to strip HTML here too.
-            let plain_text = html2text::from_read(content.as_bytes(), 80); 
+            let plain_text = html2text::from_read(content.as_bytes(), 80).unwrap_or(content); 
             clipboard.set_text(plain_text).map_err(|e| e.to_string())?;
             // Note: arboard doesn't support HTML on all platforms easily yet in this version.
         }

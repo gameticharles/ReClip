@@ -26,7 +26,8 @@ export const CHANGELOG_DATA: ChangeLogEntry[] = [
                 items: [
                     "**Drag & Drop Reordering**: Switch to 'Manual' sort mode to drag and drop items into your preferred order.",
                     "**Responsive Design**: The Organizer adapts to different window sizes.",
-                    "**Global Navigation**: Added 'Organizer' icon to the Title Bar for quick access."
+                    "**Global Navigation**: Added 'Organizer' icon to the Title Bar for quick access.",
+                    "**Settings UI Polish**: Replaced sidebar emojis with consistent outlined icons and added hover effects."
                 ]
             },
             {

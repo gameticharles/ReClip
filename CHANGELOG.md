@@ -1,5 +1,8 @@
 ## [1.0.0] - 2026-02-11
 
+Fixed Settings and stabilised application
+## [1.0.0] - 2026-02-11
+
 Fixed bugs and UI.
 # CHANGELOG
 
@@ -30,6 +33,7 @@ All notable changes to this project will be documented in this file.
   - **Persistent Order**: Your custom order is saved and synced.
 - **Responsive Design**: The Organizer adapts to different window sizes, optimizing the layout for your screen.
 - **Global Navigation**: Added "Organizer" icon to the Title Bar for quick access.
+- **Settings UI Polish**: Replaced sidebar emojis with consistent outlined icons (Lucide) and added hover effects.
 
 ### 🐛 Bug Fixes
 - **HTML Paste**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed.
@@ -243,6 +247,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.1] - 2026-01-18
 - Fixed release script.
 - Initial project setup.
+
 
 
 
