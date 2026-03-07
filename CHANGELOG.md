@@ -1,19 +1,19 @@
 ## [1.0.3] - 2026-03-07
 
-Fixed system tray
-## [1.0.3] - 2026-03-07
-
 ### ✨ New Features
+
 - **Copy as Text**: Easily extract raw, unformatted text from HTML/Web clips via the 'More Actions' menu.
 - **Branding**: The application background process is now natively recognized as "ReClip" by the OS instead of "reclip-app".
 
 ### 🐛 Bug Fixes
+
 - **Launch on System Startup**: Fixed an issue where having Autostart enabled would cause the app to crash silently in the background on system boot.
 - **System Tray Sync**: Fixed an issue where toggling "Always on Top" or "Incognito Mode" from the system tray menu would fall out of sync with the main application's Settings UI.
 
 ## [1.0.2] - 2026-03-07
 
 ### ✨ New Features
+
 - **Auto-Updater Migration**: Replaced custom updater with the official `@tauri-apps/plugin-updater` for enhanced stability, security, and native progress indicators.
 - **App Icons**: Updated application branding with new high-resolution icons across all platforms.
 - Fixed updater capability configuration (added `updater:default`) for the settings page.
@@ -21,6 +21,7 @@ Fixed system tray
 ## [1.0.1] - 2026-03-07
 
 ### ✨ New Features
+
 - Initial setup for migrating to default updater plugin.
 
 ## [1.0.0] - 2026-02-10
@@ -294,4 +295,3 @@ Fixed system tray
 
 - Fixed release script.
 - Initial project setup.
-
