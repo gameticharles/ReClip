@@ -9,6 +9,39 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.0.3",
+        date: "2026-03-07",
+        sections: [
+            {
+                title: "✨ New Features",
+                items: [
+                    "**Copy as Text**: Easily extract raw, unformatted text from HTML/Web clips via the 'More Actions' menu.",
+                    "**Branding**: The application background process is now natively recognized as \"ReClip\" by the OS instead of \"reclip-app\"."
+                ]
+            },
+            {
+                title: "🐛 Bug Fixes",
+                items: [
+                    "**Launch on System Startup**: Fixed an issue where having Autostart enabled would cause the app to crash silently in the background on system boot.",
+                    "**System Tray Sync**: Fixed an issue where toggling \"Always on Top\" or \"Incognito Mode\" from the system tray menu would fall out of sync with the main application's Settings UI."
+                ]
+            }
+        ]
+    },
+    {
+        version: "1.0.2",
+        date: "2026-03-07",
+        sections: [
+            {
+                title: "✨ New Features",
+                items: [
+                    "**Auto-Updater Migration**: Replaced custom updater with the official `@tauri-apps/plugin-updater` for enhanced stability, security, and native progress indicators.",
+                    "**App Icons**: Updated application branding with new high-resolution icons across all platforms."
+                ]
+            }
+        ]
+    },
+    {
         version: "1.0.0",
         date: "2026-02-10",
         sections: [

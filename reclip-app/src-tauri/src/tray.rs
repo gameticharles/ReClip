@@ -1,49 +1,60 @@
 use tauri::{
-    menu::{Menu, MenuItem, Submenu, CheckMenuItem},
+    menu::{Menu, MenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconEvent},
-    AppHandle, Runtime, Emitter, Manager,
+    AppHandle, Emitter, Manager, Runtime,
 };
 
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     // 1. Create Menu Items
-    
+
     // Main Actions
     let show_item = MenuItem::with_id(app, "show", "Show ReClip", true, None::<&str>)?;
     let hide_item = MenuItem::with_id(app, "hide", "Hide ReClip", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     // Features
-    let incognito_item = CheckMenuItem::with_id(app, "toggle_incognito", "Incognito Mode", true, false, None::<&str>)?;
-    let always_on_top_item = CheckMenuItem::with_id(app, "toggle_top", "Always on Top", true, false, None::<&str>)?;
+    let incognito_item = MenuItem::with_id(
+        app,
+        "toggle_incognito",
+        "Toggle Incognito Mode",
+        true,
+        None::<&str>,
+    )?;
+    let always_on_top_item = MenuItem::with_id(
+        app,
+        "toggle_top",
+        "Toggle Always on Top",
+        true,
+        None::<&str>,
+    )?;
 
     // Tools
-    let maintenance_item = MenuItem::with_id(app, "maintenance", "Run Maintenance", true, None::<&str>)?;
+    let maintenance_item =
+        MenuItem::with_id(app, "maintenance", "Run Maintenance", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-    
+
     // Recent Clips Submenu (Placeholder)
     // In a full implementation, this would be dynamic
     let clip1 = MenuItem::with_id(app, "clip_1", "(Empty)", false, None::<&str>)?;
-    let recent_clips_menu = Submenu::with_items(
-        app, 
-        "Recent Clips", 
-        true, 
-        &[&clip1]
-    )?;
+    let recent_clips_menu = Submenu::with_items(app, "Recent Clips", true, &[&clip1])?;
 
     // 2. Build Menu Structure
-    let menu = Menu::with_items(app, &[
-        &show_item,
-        &hide_item,
-        &tauri::menu::PredefinedMenuItem::separator(app)?,
-        &incognito_item,
-        &always_on_top_item,
-        &tauri::menu::PredefinedMenuItem::separator(app)?,
-        &recent_clips_menu,
-        &maintenance_item,
-        &settings_item,
-        &tauri::menu::PredefinedMenuItem::separator(app)?,
-        &quit_item,
-    ])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &show_item,
+            &hide_item,
+            &tauri::menu::PredefinedMenuItem::separator(app)?,
+            &incognito_item,
+            &always_on_top_item,
+            &tauri::menu::PredefinedMenuItem::separator(app)?,
+            &recent_clips_menu,
+            &maintenance_item,
+            &settings_item,
+            &tauri::menu::PredefinedMenuItem::separator(app)?,
+            &quit_item,
+        ],
+    )?;
 
     // 3. Create Tray Icon
     let _tray = TrayIconBuilder::with_id("tray")
@@ -72,21 +83,19 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     // For now we just emit an event to frontend
                     let _ = app.emit("tray-toggle-incognito", ());
                 }
-                 "toggle_top" => {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let new_state = !window.is_always_on_top().unwrap_or(false);
-                        let _ = window.set_always_on_top(new_state);
-                    }
+                "toggle_top" => {
+                    // Let the frontend manage the state to avoid syncing issues
+                    let _ = app.emit("tray-toggle-top", ());
                 }
                 "settings" => {
-                     if let Some(window) = app.get_webview_window("main") {
+                    if let Some(window) = app.get_webview_window("main") {
                         let _ = window.show();
                         let _ = window.set_focus();
                         let _ = app.emit("open-settings", ());
                     }
                 }
                 "maintenance" => {
-                     let _ = app.emit("run-maintenance", ());
+                    let _ = app.emit("run-maintenance", ());
                 }
                 _ => {}
             }

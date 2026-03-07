@@ -1082,6 +1082,26 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                                                                                 </button>
                                                                             </>
                                                                         )}
+                                                                        {clip.type === 'html' && (
+                                                                            <button
+                                                                                className="menu-item-btn"
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    try {
+                                                                                        const parser = new DOMParser();
+                                                                                        const doc = parser.parseFromString(clip.content, 'text/html');
+                                                                                        const text = doc.body.textContent || "";
+                                                                                        await invoke('copy_to_system', { content: text });
+                                                                                        setActiveMenuId(null);
+                                                                                    } catch (error) {
+                                                                                        console.error("Failed to copy as text", error);
+                                                                                    }
+                                                                                }}
+                                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                                            >
+                                                                                📋 Copy as Text
+                                                                            </button>
+                                                                        )}
                                                                         <button
                                                                             className="menu-item-btn"
                                                                             onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}

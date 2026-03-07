@@ -37,7 +37,7 @@ jobs:
       - name: Download .deb from release
         run: |
           VERSION_NUM=${VERSION#v}
-          curl -L -o reclip-app.deb "https://github.com/${{ github.repository }}/releases/download/${VERSION}/reclip-app_${VERSION_NUM}_amd64.deb"
+          curl -L -o reclip-app.deb "https://github.com/${{ github.repository }}/releases/download/${VERSION}/ReClip_${VERSION_NUM}_amd64.deb"
 
       - name: Update Flatpak manifest
         run: |
@@ -45,7 +45,7 @@ jobs:
           SHA256=$(sha256sum reclip-app.deb | cut -d' ' -f1)
           sed -i "s|VERSION|${VERSION}|g" flatpak/com.reclip.app.yml
           sed -i "s|PLACEHOLDER_SHA256|${SHA256}|g" flatpak/com.reclip.app.yml
-          mv reclip-app.deb flatpak/reclip-app_${VERSION_NUM}_amd64.deb
+          mv reclip-app.deb flatpak/ReClip_${VERSION_NUM}_amd64.deb
 
       - name: Build Flatpak
         run: |
@@ -75,7 +75,7 @@ jobs:
       - name: Download .deb from release
         run: |
           VERSION_NUM=${VERSION#v}
-          curl -L -o snap/reclip-app_${VERSION_NUM}_amd64.deb "https://github.com/${{ github.repository }}/releases/download/${VERSION}/reclip-app_${VERSION_NUM}_amd64.deb"
+          curl -L -o snap/ReClip_${VERSION_NUM}_amd64.deb "https://github.com/${{ github.repository }}/releases/download/${VERSION}/ReClip_${VERSION_NUM}_amd64.deb"
 
       - name: Update snapcraft.yaml version
         run: |

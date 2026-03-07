@@ -1,22 +1,29 @@
+## [1.0.3] - 2026-03-07
+
+### ✨ New Features
+- **Copy as Text**: Easily extract raw, unformatted text from HTML/Web clips via the 'More Actions' menu.
+- **Branding**: The application background process is now natively recognized as "ReClip" by the OS instead of "reclip-app".
+
+### 🐛 Bug Fixes
+- **Launch on System Startup**: Fixed an issue where having Autostart enabled would cause the app to crash silently in the background on system boot.
+- **System Tray Sync**: Fixed an issue where toggling "Always on Top" or "Incognito Mode" from the system tray menu would fall out of sync with the main application's Settings UI.
+
 ## [1.0.2] - 2026-03-07
 
-fixed logo
+### ✨ New Features
+- **Auto-Updater Migration**: Replaced custom updater with the official `@tauri-apps/plugin-updater` for enhanced stability, security, and native progress indicators.
+- **App Icons**: Updated application branding with new high-resolution icons across all platforms.
+- Fixed updater capability configuration (added `updater:default`) for the settings page.
+
 ## [1.0.1] - 2026-03-07
 
-migrated to default updater
-## [1.0.0] - 2026-02-11
-
-Fixed Settings and stabilised application
-## [1.0.0] - 2026-02-11
-
-Fixed bugs and UI.
-# CHANGELOG
-
-All notable changes to this project will be documented in this file.
+### ✨ New Features
+- Initial setup for migrating to default updater plugin.
 
 ## [1.0.0] - 2026-02-10
 
 ### ✨ New Features
+
 - **Organizer Dashboard**: A dedicated space for managing your Notes, Reminders, and Alarms.
   - **Grid Layout**: Widgets for easy access to all your organized items.
   - **Quick Add**: Rapidly create new notes or reminders directly from the dashboard.
@@ -34,6 +41,7 @@ All notable changes to this project will be documented in this file.
   - **Search**: Filter your content by searching for specific tags.
 
 ### 🎨 UI/UX Improvements
+
 - **Drag & Drop Reordering**:
   - **Manual Sort Mode**: Switch to "Manual" sort to drag and drop items into your preferred order.
   - **Persistent Order**: Your custom order is saved and synced.
@@ -42,17 +50,20 @@ All notable changes to this project will be documented in this file.
 - **Settings UI Polish**: Replaced sidebar emojis with consistent outlined icons (Lucide) and added hover effects.
 
 ### 🐛 Bug Fixes
+
 - **HTML Paste**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed.
 
 ## [0.9.5] - 2026-02-09
 
 ### ✨ New Features
+
 - **Unified Title Bar**:
   - **Global Navigation**: A new, persistent Title Bar with dedicated navigation buttons (Home, Snippets, Colors, Settings).
   - **Active State Indicators**: Navigation icons now highlight to visually indicate the current active view.
   - **Home Button**: Added a dedicated Home button and clickable App Logo to quickly return to the main clipboard view.
 
 ### 🎨 UI/UX Improvements
+
 - **Main Clipboard View**:
   - **Scrollbar Polish**: Moved the scrollbar to the extreme right edge of the window for a cleaner look.
   - **Layout Spacing**: Added bottom padding to the clip list to prevent content cutoff and adjusted margins for Search Bar and Timeline View.
@@ -61,17 +72,20 @@ All notable changes to this project will be documented in this file.
   - **Color Tool & Snippets**: Removed duplicate "Close" and "Back" buttons from toolbars to reduce clutter given the new global navigation.
 
 ### 🧹 Code Cleanup
+
 - **Component Optimization**: Removed unused props (`onBack`, `onClose`, `compactMode`) and simplified component interfaces across the application.
 
 ## [0.9.0] - 2026-01-21
 
 ### ✨ New Features
+
 - **Google Drive Synchronization**:
   - **Cloud Backup**: Securely sync your clips to a dedicated "ReClip" folder on Google Drive.
   - **Cross-Device Sync**: Bidirectional sync (Upload & Download) to keep your clipboard consistent across devices.
   - **Seamless Auth**: Integrated Google OAuth 2.0 flow with PKCE for secure connection.
 
 ### 🎨 UI/UX Improvements
+
 - **Settings Page**:
   - **Backup & Cloud Sync**: New dedicated section for managing local backups and cloud connections.
   - **Sync Status**: Real-time feedback on connection state, user info, and last sync timestamp.
@@ -79,6 +93,7 @@ All notable changes to this project will be documented in this file.
   - **Layout**: Cleaned up the Backup section with clear "Export" and "Import" actions.
 
 ### 🐛 Bug Fixes
+
 - **Settings**:
   - Removed duplicate "About" and "Backup" sections that cluttered the interface.
   - Fixed duplicate/conflicting code that caused build failures.
@@ -90,6 +105,7 @@ All notable changes to this project will be documented in this file.
 ## [0.8.0] - 2026-01-20
 
 ### ✨ New Features
+
 - **Color Tool Overhaul**: A complete redesign with advanced features for designers and developers:
   - **Analyze Tab**: Added support for **LAB, LCH, OKLCH, HWB** color spaces and **Pantone/RAL/NCS** industry matches.
   - **Mixer Tab**: New **Perceptual (LAB)** and **Modern (OKLCH)** mixing modes, blend modes (Multiply, Overlay, etc.), and multi-stop support.
@@ -102,6 +118,7 @@ All notable changes to this project will be documented in this file.
   - **Library**: Added Import/Export (JSON) and palette renaming/tagging.
 
 ### 🎨 UI/UX Improvements
+
 - **Settings Page**:
   - **Reactive UI**: Fixed "Image Color Palette Limit", "Tooltip Preview", and "Auto-Hide" settings to update immediately on change.
   - **Visual Polish**: Standardized all sliders with a custom range component featuring dynamic fill and theme-aware styling.
@@ -114,10 +131,12 @@ All notable changes to this project will be documented in this file.
 ## [0.7.0] - 2026-01-19
 
 ### 🐛 Bug Fixes
+
 - **Stats & Timeline**: Now display total clips from database, not just loaded clips.
 - **App Metadata**: Fixed installer properties (Publisher, Copyright, Description) for Windows.
 
 ### ✨ New Features
+
 - **Update Download Progress**: Real-time progress bar when downloading app updates (MB downloaded / total).
 - **Calendar Navigation**: New calendar picker in Timeline - click 📆 to browse by month, days with clips are highlighted, click to filter.
 - **Clip Preview Tooltip**: Hover over clips to see full content preview (configurable in Settings → General, default OFF).
@@ -129,17 +148,18 @@ All notable changes to this project will be documented in this file.
 - **Snippet Library Stats**: Footer showing lines, words, chars, and size for code snippets.
 
 ### 🔧 Improvements
+
 - **File Clips**: Smart icons now distinguish files (📄) from folders (📁), with extension-specific icons (🐍 Python, 🦀 Rust, 📕 PDF, 🎵 audio, etc.). Missing paths show ❌ with red strikethrough.
-
-
 
 ## [0.6.0] - 2026-01-19
 
 ### 🚀 Performance
+
 - **Infinite Scrolling**: Clip list now uses pagination (20 items/page) and infinite scrolling for instant startup.
 - **Lazy Loading**: Images and rich previews are now lazy-loaded, improving scrolling performance and memory usage.
 
 ### ✨ New Features
+
 - **Save Image As**: Context menu option to save images as PNG, JPEG, or WebP.
 - **Enhanced Image Capture**: Improved logic to prioritize image content over HTML, fixing blank captures from web/WhatsApp.
 - **Rich Clip Card Rendering**:![alt text](image.png)
@@ -147,7 +167,13 @@ All notable changes to this project will be documented in this file.
   - **Markdown Preview**: Full GFM support (tables, checkboxes, code blocks, links).
   - **JSON Pretty Print**: Colorized, collapsible JSON with key/value highlighting.
   - **Diff View**: Git-style diff with green/red additions/deletions highlighting.
-  - **LaTeX Math**: Renders mathematical expressions using KaTeX ($...$ and $$...$$).
+  - **LaTeX Math**: Renders mathematical expressions using KaTeX ($...$ and
+
+    $$
+    ...
+    $$
+
+    ).
   - **Table Detection**: Auto-formats tab-separated or CSV data as tables.
   - **Contact Detection**: Clickable mailto: and tel: links for emails/phones.
   - **Image Color Palette**: Auto-extracts dominant colors from image clips (click to copy HEX).
@@ -160,16 +186,19 @@ All notable changes to this project will be documented in this file.
 - **Raw/Formatted Toggle**: Switch between raw text and formatted preview per clip via context menu.
 
 ### 🐛 Bug Fixes
+
 - **Clipboard**:
   - Fixed Files being pasted as string paths instead of actual files.
 
 ## [0.5.0] - 2026-01-19
 
 ### ✨ New Features
+
 - **Maintenance**:
   - Split "Clear Entire Database" into separate **Clear All Clips** and **Clear All Snippets** buttons for granular control.
 
 ### 🎨 UI/UX Improvements
+
 - **Snippet Library**:
   - Added hover effects to toolbar buttons (Import, Export, Paste, New) for better interactivity.
 - **Settings > About**:
@@ -180,6 +209,7 @@ All notable changes to this project will be documented in this file.
   - Added hover effects to danger zone buttons in Maintenance tab.
 
 ### 🐛 Bug Fixes
+
 - **Maintenance**:
   - Fixed "Clear Entire Database" button not functioning (now split into working individual buttons).
 - **QR Code Modal**:
@@ -188,6 +218,7 @@ All notable changes to this project will be documented in this file.
 ## [0.4.0] - 2026-01-18
 
 ### ✨ New Features
+
 - **Snippet Library Settings**:
   - Added dedicated Settings tab for snippet configuration.
   - **Editor Preferences**: Adjustable Font Size, Tab Size, Word Wrap, and Line Numbers.
@@ -196,13 +227,15 @@ All notable changes to this project will be documented in this file.
   - **Auto Update**: Built-in check for updates in Settings > About.
 
 ### 🎨 UI/UX Improvements
-  - **Snippet Settings UI**:
-    - Implemented cleaner grid layout for settings.
-    - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
-  - **About Page Overhaul**:
-    - Updated with official app icon, detailed description, and developer profile link.
+
+- **Snippet Settings UI**:
+  - Implemented cleaner grid layout for settings.
+  - Added theme-aware dropdown controls for consistent appearance in Light/Dark modes.
+- **About Page Overhaul**:
+  - Updated with official app icon, detailed description, and developer profile link.
 
 ### 🐛 Bug Fixes
+
 - **Persistence**:
   - Fixed **Always on Top** not applying automatically on startup.
   - Fixed **Incognito Mode** and **Timeline View** states not persisting across restarts.
@@ -213,6 +246,7 @@ All notable changes to this project will be documented in this file.
 ## [0.3.0] - 2026-01-18
 
 ### ✨ New Features
+
 - **Advanced Snippet Library**:
   - Added syntax highlighting with auto-switching Light (`Atom One Light`) and Dark (`Atom One Dark`) themes.
   - Added **Folders**, **Favorites**, and **Version History** tracking.
@@ -226,6 +260,7 @@ All notable changes to this project will be documented in this file.
   - Added ability to save QR codes as PNG.
 
 ### 🎨 UI/UX Improvements
+
 - **Theming**:
   - Greatly improved **Light Mode** readability with better borders and contrast.
   - Added **System Theme Detection** to automatically switch app theme.
@@ -239,34 +274,20 @@ All notable changes to this project will be documented in this file.
   - Consistent date formatting (Relative/Absolute) across Clips and Snippets.
 
 ### 🐛 Bug Fixes
+
 - Fixed invisible borders on snippet cards in Light Mode.
 - Fixed unreadable code syntax in Light Mode.
 - Fixed titlebar dragging dead zones.
 - Fixed favorite stat icons not adapting to theme changes.
 
 ## [0.2.0] - 2026-01-18
+
 - Initial Snippet Library implementation.
 - Basic clipboard history tracking.
 - Search functionality.
 - UI improvements.
 
 ## [0.1.1] - 2026-01-18
+
 - Fixed release script.
 - Initial project setup.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use clap::Parser;
 use arboard::Clipboard;
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -14,6 +14,10 @@ struct Cli {
     /// Print current clipboard content
     #[arg(long)]
     paste: bool,
+
+    /// Start application minimized to the system tray
+    #[arg(long)]
+    minimized: bool,
 }
 
 fn main() {
@@ -27,10 +31,10 @@ fn main() {
                     eprintln!("Error copying to clipboard: {}", e);
                     std::process::exit(1);
                 }
-                // We exit successfully after copying. 
+                // We exit successfully after copying.
                 // The running ReClip instance (if any) will detect the change via its listener.
                 std::process::exit(0);
-            },
+            }
             Err(e) => {
                 eprintln!("Failed to initialize clipboard: {}", e);
                 std::process::exit(1);
@@ -39,19 +43,19 @@ fn main() {
     }
 
     if args.paste {
-         match Clipboard::new() {
+        match Clipboard::new() {
             Ok(mut clipboard) => {
                 match clipboard.get_text() {
                     Ok(text) => {
                         print!("{}", text); // Print to stdout
                         std::process::exit(0);
-                    },
+                    }
                     Err(e) => {
                         eprintln!("Error reading clipboard: {}", e);
                         std::process::exit(1);
                     }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!("Failed to initialize clipboard: {}", e);
                 std::process::exit(1);

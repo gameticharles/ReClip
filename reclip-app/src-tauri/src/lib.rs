@@ -519,13 +519,20 @@ pub fn run() {
              get_notes, add_note, update_note, delete_note,
              get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
              get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
-             reorder_items
+             get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
+             reorder_items, is_minimized_launch
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 // ... existing code ...
+
+#[tauri::command]
+fn is_minimized_launch() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    args.contains(&"--minimized".to_string())
+}
 
 #[tauri::command]
 async fn get_notes(state: State<'_, DbState>) -> Result<Vec<db::Note>, String> {

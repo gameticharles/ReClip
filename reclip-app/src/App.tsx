@@ -131,12 +131,22 @@ function App() {
     import('@tauri-apps/api/event').then(async ({ listen }) => {
       await listen('open-settings', () => setView('settings'));
       await listen('run-maintenance', () => {
-        // Find and click maintenance button or trigger it directly
-        // For now just switch view
         setView('settings');
-        // Ideally we would pass a param to open maintenance tab directly
       });
-      // Incognito toggle is handled by backend state but we might want to refresh UI
+
+      await listen('tray-toggle-incognito', () => {
+        setIncognitoMode(prev => !prev);
+      });
+
+      await listen('tray-toggle-top', async () => {
+        const alwaysOnTop = localStorage.getItem('alwaysOnTop') === 'true';
+        const newState = !alwaysOnTop;
+        localStorage.setItem('alwaysOnTop', String(newState));
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().setAlwaysOnTop(newState);
+        window.dispatchEvent(new Event('storage')); // Notify SettingsPage
+      });
+
       // Store unlisteners to cleanup if needed, though App component usually doesn't unmount
     });
 
@@ -159,9 +169,20 @@ function App() {
   useEffect(() => {
     const rememberPosition = localStorage.getItem('rememberWindowPosition') === 'true';
 
+    const handleWindowShow = async (win: any) => {
+      try {
+        const isMinimized = await invoke<boolean>('is_minimized_launch');
+        if (!isMinimized) {
+          await win.show();
+        }
+      } catch (e) {
+        await win.show(); // Fallback to show if command fails
+      }
+    };
+
     const showWindow = async () => {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      await getCurrentWindow().show();
+      await handleWindowShow(getCurrentWindow());
     };
 
     const positionWindowBottomLeft = async () => {
@@ -172,7 +193,7 @@ function App() {
       const x = 20;
       const y = screenHeight - size.height - 60;
       await win.setPosition(new LogicalPosition(x, y));
-      await win.show();
+      await handleWindowShow(win);
     };
 
     const loadAndValidatePosition = async () => {
@@ -226,7 +247,7 @@ function App() {
         // Valid position - restore it then show
         await win.setSize(new LogicalSize(width, height));
         await win.setPosition(new LogicalPosition(x, y));
-        await win.show();
+        await handleWindowShow(win);
       } catch (e) {
         console.error("[WindowPos] Failed to restore:", e);
         positionWindowBottomLeft();
