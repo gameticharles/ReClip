@@ -1,8 +1,13 @@
 use tauri::{
-    menu::{Menu, MenuItem, Submenu},
+    menu::{CheckMenuItem, Menu, MenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, Runtime,
 };
+
+pub struct TrayState<R: Runtime> {
+    pub incognito_item: CheckMenuItem<R>,
+    pub always_on_top_item: CheckMenuItem<R>,
+}
 
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     // 1. Create Menu Items
@@ -13,20 +18,31 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
     // Features
-    let incognito_item = MenuItem::with_id(
+    let is_incognito = crate::clipboard::is_incognito();
+    let incognito_item = CheckMenuItem::with_id(
         app,
         "toggle_incognito",
-        "Toggle Incognito Mode",
+        "Incognito Mode",
         true,
+        is_incognito,
         None::<&str>,
     )?;
-    let always_on_top_item = MenuItem::with_id(
+
+    // Default to false on startup, frontend will update this if needed
+    let always_on_top_item = CheckMenuItem::with_id(
         app,
         "toggle_top",
-        "Toggle Always on Top",
+        "Always on Top",
         true,
+        false,
         None::<&str>,
     )?;
+
+    // Store in app state so commands can access them
+    app.manage(TrayState {
+        incognito_item: incognito_item.clone(),
+        always_on_top_item: always_on_top_item.clone(),
+    });
 
     // Tools
     let maintenance_item =

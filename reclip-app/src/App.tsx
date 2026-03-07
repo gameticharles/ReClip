@@ -26,6 +26,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem('incognitoMode', incognitoMode.toString());
     invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
+    invoke('update_tray_item_state', { id: 'toggle_incognito', checked: incognitoMode }).catch(() => { });
   }, [incognitoMode]);
 
   useEffect(() => {
@@ -144,7 +145,8 @@ function App() {
         localStorage.setItem('alwaysOnTop', String(newState));
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         await getCurrentWindow().setAlwaysOnTop(newState);
-        window.dispatchEvent(new Event('storage')); // Notify SettingsPage
+        window.dispatchEvent(new Event('alwaysOnTopChanged')); // Notify SettingsPage
+        await invoke('update_tray_item_state', { id: 'toggle_top', checked: newState }).catch(() => { });
       });
 
       // Store unlisteners to cleanup if needed, though App component usually doesn't unmount
@@ -160,6 +162,7 @@ function App() {
       if (alwaysOnTop) {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         await getCurrentWindow().setAlwaysOnTop(true);
+        invoke('update_tray_item_state', { id: 'toggle_top', checked: true }).catch(() => { });
       }
     };
     applyAlwaysOnTop();

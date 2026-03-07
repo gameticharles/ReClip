@@ -483,6 +483,18 @@ export default function SettingsPage({
                 console.error("Failed to load custom colors", e);
             }
         }
+
+        const handleAlwaysOnTopChange = () => {
+            const savedAlwaysOnTop = localStorage.getItem("alwaysOnTop");
+            if (savedAlwaysOnTop !== null) {
+                setAlwaysOnTop(savedAlwaysOnTop === "true");
+            }
+        };
+        window.addEventListener('alwaysOnTopChanged', handleAlwaysOnTopChange);
+
+        return () => {
+            window.removeEventListener('alwaysOnTopChanged', handleAlwaysOnTopChange);
+        };
     }, []);
 
     const toggleAlwaysOnTop = async () => {
@@ -490,6 +502,7 @@ export default function SettingsPage({
         setAlwaysOnTop(newState);
         localStorage.setItem("alwaysOnTop", newState.toString());
         await getCurrentWindow().setAlwaysOnTop(newState);
+        await invoke('update_tray_item_state', { id: 'toggle_top', checked: newState }).catch(() => { });
     };
 
     const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {

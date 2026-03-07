@@ -520,13 +520,24 @@ pub fn run() {
              get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
              get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
              get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
-             reorder_items, is_minimized_launch
+             get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
+             reorder_items, is_minimized_launch, update_tray_item_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 // ... existing code ...
+
+#[tauri::command]
+fn update_tray_item_state(state: tauri::State<'_, crate::tray::TrayState<tauri::Wry>>, id: String, checked: bool) -> Result<(), String> {
+    if id == "toggle_incognito" {
+        let _ = state.incognito_item.set_checked(checked);
+    } else if id == "toggle_top" {
+        let _ = state.always_on_top_item.set_checked(checked);
+    }
+    Ok(())
+}
 
 #[tauri::command]
 fn is_minimized_launch() -> bool {
