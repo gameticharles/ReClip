@@ -1,5 +1,8 @@
 ## [1.0.3] - 2026-03-07
 
+Fixed tray UI logic and updated version for CI/CD
+## [1.0.3] - 2026-03-07
+
 ### ✨ New Features
 
 - **Copy as Text**: Easily extract raw, unformatted text from HTML/Web clips via the 'More Actions' menu.
@@ -295,3 +298,4 @@
 
 - Fixed release script.
 - Initial project setup.
+
