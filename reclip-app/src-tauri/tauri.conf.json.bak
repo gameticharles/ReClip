@@ -44,6 +44,14 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/gameticharles/ReClip/releases/latest/download/updater.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBQUJEMkU3OTNFNzI2RUEKUldUcUp1ZVQ1OUtyeW4zem83S3VzRzVqRSs4M0ExNWhrbitsdXplaXk4OG93elk3M25RenpwVkkK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

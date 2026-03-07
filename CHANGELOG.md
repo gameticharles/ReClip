@@ -1,3 +1,6 @@
+## [1.0.1] - 2026-03-07
+
+migrated to default updater
 ## [1.0.0] - 2026-02-11
 
 Fixed Settings and stabilised application
@@ -247,6 +250,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.1] - 2026-01-18
 - Fixed release script.
 - Initial project setup.
+
 
 
 

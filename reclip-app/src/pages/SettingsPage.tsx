@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { check } from "@tauri-apps/plugin-updater";
 import { THEMES } from "../utils/themes";
 import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
@@ -380,9 +381,9 @@ export default function SettingsPage({
         setUpdateStatus('checking');
         setUpdateError("");
         try {
-            const info = await invoke<any | null>("check_update");
-            if (info) {
-                setUpdateInfo(info);
+            const update = await check();
+            if (update) {
+                setUpdateInfo({ version: update.version, updateTarget: update });
                 setUpdateStatus('available');
             } else {
                 setUpdateStatus('uptodate');
@@ -394,23 +395,31 @@ export default function SettingsPage({
     };
 
     const installUpdate = async () => {
-        if (!updateInfo) return;
+        if (!updateInfo || !updateInfo.updateTarget) return;
         if (!confirm(`Download and install ${updateInfo.version}? The app will close.`)) return;
-
-        // Set up progress listener
-        const unlisten = await listen<{ downloaded: number, total: number }>("update-progress", (event) => {
-            setDownloadProgress(event.payload);
-        });
 
         try {
             setUpdateStatus('downloading');
-            setDownloadProgress({ downloaded: 0, total: 0 });
-            await invoke("install_update", { url: updateInfo.url });
+            setDownloadProgress({ downloaded: 0, total: 100 });
+
+            await updateInfo.updateTarget.downloadAndInstall((event: any) => {
+                switch (event.event) {
+                    case 'Started':
+                        setDownloadProgress({ downloaded: 0, total: event.data.contentLength || 0 });
+                        break;
+                    case 'Progress':
+                        setDownloadProgress(prev => prev ? { ...prev, downloaded: prev.downloaded + event.data.chunkLength } : null);
+                        break;
+                    case 'Finished':
+                        setDownloadProgress(prev => prev ? { ...prev, downloaded: prev.total } : null);
+                        break;
+                }
+            });
+            // App might close automatically via installer
         } catch (e) {
             setUpdateStatus('error');
             setUpdateError("Install failed: " + e);
         } finally {
-            unlisten();
             setDownloadProgress(null);
         }
     };

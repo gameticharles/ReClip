@@ -3,7 +3,6 @@ mod clipboard;
 mod tray;
 #[cfg(target_os = "windows")]
 mod ocr;
-mod update;
 mod drive;
 
 use db::{DbState, init_db, Clip, Snippet};
@@ -498,6 +497,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
@@ -515,7 +515,6 @@ pub fn run() {
              get_sensitive_settings, set_sensitive_settings, get_maintenance_settings, set_maintenance_settings,
              get_snippets, add_snippet, update_snippet, delete_snippet, toggle_snippet_favorite, duplicate_snippet,
              run_ocr, get_file_size, export_image,
-             update::check_update, update::install_update,
              drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips,
              get_notes, add_note, update_note, delete_note,
              get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
