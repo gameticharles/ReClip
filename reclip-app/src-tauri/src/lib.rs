@@ -519,15 +519,11 @@ pub fn run() {
              get_notes, add_note, update_note, delete_note,
              get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
              get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
-             get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
-             get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
              reorder_items, is_minimized_launch, update_tray_item_state
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-// ... existing code ...
 
 #[tauri::command]
 fn update_tray_item_state(state: tauri::State<'_, crate::tray::TrayState<tauri::Wry>>, id: String, checked: bool) -> Result<(), String> {
