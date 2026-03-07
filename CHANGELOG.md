@@ -1,3 +1,6 @@
+## [1.0.2] - 2026-03-07
+
+fixed logo
 ## [1.0.1] - 2026-03-07
 
 migrated to default updater
@@ -250,6 +253,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.1] - 2026-01-18
 - Fixed release script.
 - Initial project setup.
+
 
 
 
