@@ -10,23 +10,26 @@ import TitleBar from "./components/TitleBar";
 import GlobalSearch from "./components/GlobalSearch";
 import Onboarding from "./components/Onboarding";
 import PinLock from "./components/PinLock";
-import { Clip } from "./types";
+import { useSettingsStore } from "./store/useSettingsStore";
+import { useClipStore } from "./store/useClipStore";
 
 function App() {
-  const [view, setView] = useState<'main' | 'settings' | 'snippets' | 'colors' | 'organizer'>('main');
-  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compactMode') === 'true');
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
-  const [useSystemAccent, setUseSystemAccent] = useState(() => localStorage.getItem('useSystemAccent') === 'true');
-  const [accentColor, setAccentColor] = useState('#4f46e5');
+  const {
+    view, setView,
+    theme, setTheme,
+    compactMode, setCompactMode,
+    useSystemAccent, setUseSystemAccent,
+    accentColor, setAccentColor,
+    incognitoMode, setIncognitoMode, loadIncognito, toggleIncognito,
+    queueMode, setQueueMode,
+    showTimeline, setShowTimeline,
+    showOnboarding, setShowOnboarding,
+    isLocked, setIsLocked,
+    applyTheme
+  } = useSettingsStore();
 
-  // Lifted State
-  const [incognitoMode, setIncognitoMode] = useState(() => localStorage.getItem('incognitoMode') === 'true');
-  const [queueMode, setQueueMode] = useState(() => localStorage.getItem('queueMode') === 'true');
-  const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
-  const [showTimeline, setShowTimeline] = useState(() => localStorage.getItem('showTimeline') === 'true');
+  const { pasteQueue, setPasteQueue } = useClipStore();
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboardingComplete'));
-  const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem('pinLock'));
   const [standaloneId, setStandaloneId] = useState<{ type: 'snippet' | 'note', id: number } | null>(null);
 
   useEffect(() => {
@@ -39,46 +42,14 @@ function App() {
       setStandaloneId({ type: 'note', id: parseInt(noteId) });
     }
   }, []);
-  useEffect(() => {
-    localStorage.setItem('incognitoMode', incognitoMode.toString());
-    invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
-    invoke('update_tray_item_state', { id: 'toggle_incognito', checked: incognitoMode }).catch(() => { });
-  }, [incognitoMode]);
 
+  // Load backend state on mount
   useEffect(() => {
-    localStorage.setItem('showTimeline', showTimeline.toString());
-  }, [showTimeline]);
-
-  useEffect(() => {
-    localStorage.setItem('queueMode', queueMode.toString());
-  }, [queueMode]);
-
-  // Load incognito state on mount
-  useEffect(() => {
-    invoke<boolean>("get_incognito_mode").then(setIncognitoMode);
-  }, []);
-
-  const toggleIncognito = async () => {
-    const newState = !incognitoMode;
-    setIncognitoMode(newState);
-    await invoke("set_incognito_mode", { enabled: newState });
-  };
+    loadIncognito();
+  }, [loadIncognito]);
 
   // Theme & Accent Effect
   useEffect(() => {
-    localStorage.setItem('theme', theme);
-    localStorage.setItem('useSystemAccent', useSystemAccent.toString());
-    localStorage.setItem('compactMode', compactMode.toString());
-
-    // Clear any previous custom color inline styles on body to let CSS take over
-    const colorVars = ['--bg-app', '--bg-card', '--text-primary'];
-    colorVars.forEach(v => document.body.style.removeProperty(v));
-
-    // Apply Theme
-    const applyTheme = () => {
-      const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      document.body.classList.toggle('dark', isDark);
-    };
     applyTheme();
 
     const savedOpacity = localStorage.getItem("opacity");
@@ -99,28 +70,12 @@ function App() {
       invoke<string>('get_system_accent_color')
         .then(color => setAccentColor(color))
         .catch(e => console.error(e));
-    } else {
-      // Load custom accent color from localStorage, or use default
-      const savedCustomColors = localStorage.getItem('customColors');
-      if (savedCustomColors) {
-        try {
-          const parsed = JSON.parse(savedCustomColors);
-          if (parsed.accentColor) {
-            setAccentColor(parsed.accentColor);
-          }
-        } catch (e) { console.error('Failed to parse customColors', e); }
-      } else {
-        setAccentColor('#4f46e5');
-      }
     }
 
-    // NOTE: We only apply custom bg/text colors to :root (not body) to avoid breaking dark mode CSS
-    // The accent color is applied separately via the second useEffect and works in both themes
-
     return () => mediaQuery.removeEventListener('change', handler);
-  }, [theme, useSystemAccent, compactMode]);
+  }, [theme, useSystemAccent, applyTheme, setAccentColor]);
 
-  // Apply accent color variable (to both :root and body - accent works in both themes)
+  // Apply accent color variable
   useEffect(() => {
     const hexToRgb = (hex: string) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -128,7 +83,6 @@ function App() {
     };
     const rgb = hexToRgb(accentColor);
 
-    // Apply accent to both :root and body - accent overrides both themes
     document.documentElement.style.setProperty('--accent-color', accentColor);
     document.body.style.setProperty('--accent-color', accentColor);
     if (rgb) {
@@ -147,12 +101,8 @@ function App() {
     // Listen for Tray Events
     import('@tauri-apps/api/event').then(async ({ listen }) => {
       await listen('open-settings', () => setView('settings'));
-      await listen('run-maintenance', () => {
-        setView('settings');
-      });
-
       await listen('tray-toggle-incognito', () => {
-        setIncognitoMode(prev => !prev);
+        toggleIncognito();
       });
 
       await listen('tray-toggle-top', async () => {
@@ -161,15 +111,13 @@ function App() {
         localStorage.setItem('alwaysOnTop', String(newState));
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
         await getCurrentWindow().setAlwaysOnTop(newState);
-        window.dispatchEvent(new Event('alwaysOnTopChanged')); // Notify SettingsPage
+        window.dispatchEvent(new Event('alwaysOnTopChanged'));
         await invoke('update_tray_item_state', { id: 'toggle_top', checked: newState }).catch(() => { });
       });
-
-      // Store unlisteners to cleanup if needed, though App component usually doesn't unmount
     });
 
     return () => window.removeEventListener('contextmenu', handleContextMenu);
-  }, []);
+  }, [setView, toggleIncognito]);
 
   // Global Search Shortcut (Ctrl+K)
   useEffect(() => {
@@ -207,7 +155,7 @@ function App() {
           await win.show();
         }
       } catch (e) {
-        await win.show(); // Fallback to show if command fails
+        await win.show();
       }
     };
 
@@ -239,7 +187,6 @@ function App() {
           return;
         }
 
-        // Handle different data formats (tuple vs object)
         let x: number, y: number, width: number, height: number;
         if (Array.isArray(result)) {
           [x, y, width, height] = result;
@@ -262,20 +209,13 @@ function App() {
 
         const screenWidth = window.screen.availWidth;
         const screenHeight = window.screen.availHeight;
-
-        // Validate position is within screen bounds
-        const isOutOfBounds =
-          x < -width + 50 ||
-          y < -height + 50 ||
-          x > screenWidth - 50 ||
-          y > screenHeight - 50;
+        const isOutOfBounds = x < -width + 50 || y < -height + 50 || x > screenWidth - 50 || y > screenHeight - 50;
 
         if (isOutOfBounds || width <= 0 || height <= 0) {
           await positionWindowBottomLeft();
           return;
         }
 
-        // Valid position - restore it then show
         await win.setSize(new LogicalSize(width, height));
         await win.setPosition(new LogicalPosition(x, y));
         await handleWindowShow(win);
@@ -286,14 +226,11 @@ function App() {
     };
 
     if (rememberPosition) {
-      // Position window then show
       setTimeout(loadAndValidatePosition, 50);
     } else {
-      // Just show the window at default position
       showWindow();
     }
 
-    // Save position function with debouncing
     let lastPosition = { x: 0, y: 0, width: 0, height: 0 };
     let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -305,18 +242,12 @@ function App() {
         const pos = await win.outerPosition();
         const size = await win.outerSize();
 
-        // Only save if position actually changed
-        if (pos.x === lastPosition.x && pos.y === lastPosition.y &&
-          size.width === lastPosition.width && size.height === lastPosition.height) {
+        if (pos.x === lastPosition.x && pos.y === lastPosition.y && size.width === lastPosition.width && size.height === lastPosition.height) {
           return;
         }
 
         lastPosition = { x: pos.x, y: pos.y, width: size.width, height: size.height };
-
-        await invoke("save_window_position", {
-          x: pos.x, y: pos.y,
-          width: size.width, height: size.height
-        });
+        await invoke("save_window_position", { x: pos.x, y: pos.y, width: size.width, height: size.height });
       } catch (e) {
         console.error("[WindowPos] Save error:", e);
       }
@@ -324,26 +255,21 @@ function App() {
 
     const triggerSave = () => {
       if (saveTimeout) clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(savePositionDebounced, 500); // 500ms debounce
+      saveTimeout = setTimeout(savePositionDebounced, 500);
     };
 
-    // Listen for window move and resize events
     let unlistenMove: (() => void) | null = null;
     let unlistenResize: (() => void) | null = null;
 
     if (localStorage.getItem('rememberWindowPosition') === 'true') {
-      // Set up event listeners
       import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
         const win = getCurrentWindow();
         win.onMoved(() => triggerSave()).then(fn => { unlistenMove = fn; });
         win.onResized(() => triggerSave()).then(fn => { unlistenResize = fn; });
       });
-
-      // Save initial position after 1 second
       setTimeout(savePositionDebounced, 1000);
     }
 
-    // Also save on visibility change and before unload
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') savePositionDebounced();
     };
@@ -359,7 +285,6 @@ function App() {
     };
   }, []);
 
-  // If we are in standalone mode, render a minimal view
   if (standaloneId) {
     return (
       <div className="app-container" style={{ padding: 16, overflow: 'auto' }}>
@@ -374,12 +299,8 @@ function App() {
 
   return (
     <div className="app-container">
-      {isLocked && (
-        <PinLock onUnlock={() => setIsLocked(false)} />
-      )}
-      {showOnboarding && !isLocked && (
-        <Onboarding onComplete={() => setShowOnboarding(false)} />
-      )}
+      {isLocked && <PinLock onUnlock={() => setIsLocked(false)} />}
+      {showOnboarding && !isLocked && <Onboarding onComplete={() => setShowOnboarding(false)} />}
       <TitleBar
         incognitoMode={incognitoMode}
         toggleIncognito={toggleIncognito}
@@ -396,17 +317,9 @@ function App() {
         onOpenOrganizer={() => setView('organizer')}
       />
       {view === 'main' ? (
-        <MainView
-          compactMode={compactMode}
-          queueMode={queueMode}
-          pasteQueue={pasteQueue}
-          setPasteQueue={setPasteQueue}
-          showTimeline={showTimeline}
-        />
+        <MainView />
       ) : view === 'snippets' ? (
-        <SnippetsPage
-          theme={theme}
-        />
+        <SnippetsPage theme={theme} />
       ) : view === 'colors' ? (
         <ColorToolPage />
       ) : view === 'organizer' ? (
@@ -426,7 +339,7 @@ function App() {
       <GlobalSearch
         visible={showGlobalSearch}
         onClose={() => setShowGlobalSearch(false)}
-        onNavigate={(module, _id) => {
+        onNavigate={(module) => {
           if (module === 'clip') setView('main');
           else if (module === 'snippet') setView('snippets');
           else if (module === 'note') setView('organizer');

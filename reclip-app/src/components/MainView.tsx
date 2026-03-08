@@ -1,27 +1,23 @@
-import { useState, useEffect, useRef, Dispatch, SetStateAction } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { motion } from "framer-motion";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
-import ClipContent, { ImageColorPalette, ImageMetadata } from "./ClipContent";
-import { convertFileSrc } from "@tauri-apps/api/core";
-import UrlPreview from "./UrlPreview";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
 import ImageZoomModal from "./ImageZoomModal";
 import { ToastContainer, useToasts } from "./Toast";
-
-interface MainViewProps {
-    compactMode: boolean;
-    queueMode: boolean;
-    pasteQueue: Clip[];
-    setPasteQueue: Dispatch<SetStateAction<Clip[]>>;
-    showTimeline: boolean;
-}
+import { useSettingsStore } from "../store/useSettingsStore";
+import { useClipStore } from "../store/useClipStore";
+import { ClipCard } from "./ClipCard";
+import { SearchBar } from "./SearchBar";
+import { FilterChips } from "./FilterChips";
+import { BulkActionsBar } from "./BulkActionsBar";
+import { MergeDialog } from "./MergeDialog";
 
 const isUrl = (text: string) => {
     try {
@@ -36,62 +32,45 @@ const isColorCode = (text: string) => {
     return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
 };
 
-export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQueue, showTimeline }: MainViewProps) {
-    const [clips, setClips] = useState<Clip[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [selectedIndex, setSelectedIndex] = useState(-1); // -1 = none selected
-    const [focusOnDelete, setFocusOnDelete] = useState(false); // Left/Right toggle
+export default function MainView() {
+    const {
+        compactMode, queueMode, showTimeline,
+        dateFormat, autoHideDuration, theme
+    } = useSettingsStore();
+
+    const {
+        clips, loadClips, searchTerm, setSearchTerm,
+        activeFilter, setActiveFilter, selectedIndex, setSelectedIndex,
+        selectedClipIds, setSelectedClipIds, lastSelectedId, setLastSelectedId,
+        pasteQueue, setPasteQueue, hasMore, isLoading,
+        allClips, timelineFilter, setTimelineFilter, totalClipCount
+    } = useClipStore();
+
+    const [focusOnDelete, setFocusOnDelete] = useState(false);
     const { toasts, addToast, dismissToast } = useToasts();
     const [showMergeDialog, setShowMergeDialog] = useState(false);
     const [mergeSeparator, setMergeSeparator] = useState('\n');
 
-    // Lifted State: incognitoMode passed as prop
-
-    const [selectedClipIds, setSelectedClipIds] = useState<Set<number>>(new Set());
-    const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const clipListRef = useRef<HTMLDivElement>(null);
-
-    // Paste Queue: queueMode, pasteQueue passed as props
 
     // Menu & QR
     const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
     const [qrContent, setQrContent] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
-    // Timeline View State: showTimeline passed as prop
-    const [timelineFilter, setTimelineFilter] = useState<{ start: number, end: number } | null>(null);
-    // version removed (handled in TitleBar)
-    const [allClips, setAllClips] = useState<Clip[]>([]);
-
-    // Advanced Settings States
-    const [dateFormat, setDateFormat] = useState<'absolute' | 'relative'>('relative');
-    const [autoHideDuration, setAutoHideDuration] = useState(0); // 0 = disabled
     const [shortcuts, setShortcuts] = useState<Record<string, string>>({});
-    const [activeFilter, setActiveFilter] = useState<string>('all');
 
-    // Rich Content View Toggle - per-clip basis
     const [rawViewClipIds, setRawViewClipIds] = useState<Set<number>>(new Set());
-
-    // Theme detection for ClipContent
     const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
     const [editingClip, setEditingClip] = useState<Clip | null>(null);
     const [extractingOcrClipId, setExtractingOcrClipId] = useState<number | null>(null);
     const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
-    const theme = localStorage.getItem('theme') || 'dark';
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
-    // Pagination State
-    const [page, setPage] = useState(0);
-    const [isLoading, setIsLoading] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
     const loaderRef = useRef<HTMLDivElement>(null);
     const LIMIT = 30;
 
-    // Database Stats
-    const [totalClipCount, setTotalClipCount] = useState(0);
-
-    // Tooltip setting
     const [showTooltipPreview, setShowTooltipPreview] = useState(() =>
         localStorage.getItem('showTooltipPreview') === 'true'
     );
@@ -103,16 +82,8 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         return () => window.removeEventListener('storage', handler);
     }, []);
 
-    const fetchClipStats = async (search?: string) => {
-        try {
-            const stats = await invoke<{ total_count: number, oldest_date: string | null, newest_date: string | null }>(
-                "get_clip_stats", { search: search || null }
-            );
-            setTotalClipCount(stats.total_count);
-        } catch (e) {
-            console.error("Failed to fetch clip stats", e);
-        }
-    };
+    // Clip stats and shortcuts are still fetched locally if needed, 
+    // but loadClips handles totalClipCount now.
 
     const fetchShortcuts = async () => {
         try {
@@ -176,12 +147,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
     }, [autoHideDuration]);
 
     useEffect(() => {
-        // Load settings from localStorage for now
-        const savedFormat = localStorage.getItem('dateFormat');
-        if (savedFormat) setDateFormat(savedFormat as any);
-
-        const savedAutoHide = localStorage.getItem('autoHideDuration');
-        if (savedAutoHide) setAutoHideDuration(parseInt(savedAutoHide));
+        // Settings are now handled by Zustand persist
     }, []);
 
     const addToQueue = (clip: Clip) => {
@@ -280,7 +246,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 if (selectedClip) {
                     if (focusOnDelete) {
                         invoke("delete_clip", { id: selectedClip.id }).then(() => {
-                            setClips(clips.filter(c => c.id !== selectedClip.id));
+                            useClipStore.getState().setClips(clips.filter(c => c.id !== selectedClip.id));
                             setSelectedIndex(prev => Math.min(prev, clips.length - 2));
                             setFocusOnDelete(false);
                         });
@@ -343,110 +309,30 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         setActiveMenuId(null);
     };
 
-    async function fetchClips(search = "", reset = false) {
-        if (isLoading && !reset) return; // Allow reset even if loading
-        setIsLoading(true);
-
-        try {
-            const currentOffset = reset ? 0 : page * LIMIT;
-
-            // If searching, we might want to fetch more? No, consistency.
-            const typeFilter = activeFilter === 'all' || activeFilter === 'favorites' ? null : activeFilter;
-            const favoritesOnly = activeFilter === 'favorites';
-            const newClips = await invoke<Clip[]>("get_recent_clips", {
-                limit: LIMIT,
-                offset: currentOffset,
-                search: search || null,
-                typeFilter: typeFilter,
-                favoritesOnly: favoritesOnly,
-            });
-
-            if (newClips.length < LIMIT) {
-                setHasMore(false);
-            } else {
-                setHasMore(true);
-            }
-
-            if (reset) {
-                setAllClips(newClips);
-                setClips(newClips);
-                setPage(1); // Prepare for next page
-
-                // If timeline active, we only show filtered.
-                if (timelineFilter) {
-                    const filtered = newClips.filter(clip => {
-                        const clipDate = new Date(clip.created_at).getTime();
-                        return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
-                    });
-                    setClips(filtered);
-                }
-            } else {
-                setAllClips(prev => {
-                    const combined = [...prev, ...newClips];
-                    // Remove duplicates just in case
-                    return Array.from(new Map(combined.map(c => [c.id, c])).values());
-                });
-                setClips(prev => {
-                    const combined = [...prev, ...newClips];
-                    // Apply filter if needed
-                    let result = Array.from(new Map(combined.map(c => [c.id, c])).values());
-                    if (timelineFilter) {
-                        result = result.filter(clip => {
-                            const clipDate = new Date(clip.created_at).getTime();
-                            return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
-                        });
-                    }
-                    return result;
-                });
-                setPage(prev => prev + 1);
-            }
-
-        } catch (error) {
-            console.error("Failed to fetch clips:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }
-
-    // Re-fetch when timeline filter changes
-    useEffect(() => {
-        if (allClips.length > 0) {
-            if (timelineFilter) {
-                const filtered = allClips.filter(clip => {
-                    const clipDate = new Date(clip.created_at).getTime();
-                    return clipDate >= timelineFilter.start && clipDate <= timelineFilter.end;
-                });
-                setClips(filtered);
-            } else {
-                setClips(allClips);
-            }
-        }
-    }, [timelineFilter]);
+    // Loading logic is now handled by useClipStore.loadClips
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            setPage(0); // Reset page logic
-            fetchClips(searchTerm, true); // Trigger absolute reset
-            fetchClipStats(searchTerm); // Refresh DB stats
+            loadClips(0, LIMIT, activeFilter, searchTerm, true);
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchTerm, activeFilter]);
+    }, [searchTerm, activeFilter, timelineFilter, loadClips]);
+
+    // Infinite Scroll Observer removed - using loadClips
 
     // Infinite Scroll Observer
     useEffect(() => {
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && hasMore && !isLoading) {
-                // If user scrolled to bottom, load next page
-                // Note: We don't pass 'reset=true' here.
-                // We assume fetchClips uses current page state or we need to pass it?
-                // fetchClips uses 'page' state.
-                fetchClips(searchTerm, false);
+                // Determine current page from clips length (or store page)
+                const currentPage = Math.floor(clips.length / LIMIT);
+                loadClips(currentPage, LIMIT, activeFilter, searchTerm, false);
             }
         }, { threshold: 0.1 });
 
         if (loaderRef.current) observer.observe(loaderRef.current);
         return () => observer.disconnect();
-    }, [hasMore, isLoading, searchTerm, page]);
+    }, [hasMore, isLoading, searchTerm, clips.length, activeFilter, loadClips]);
 
     const clipsRef = useRef(clips);
     useEffect(() => { clipsRef.current = clips; }, [clips]);
@@ -464,8 +350,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
 
 
             unlistenCreate = await listen("clip-created", (_event) => {
-                fetchClips(searchTerm, true); // Reset on new clip
-                fetchClipStats(searchTerm);
+                loadClips(0, LIMIT, activeFilter, searchTerm, true);
                 // Refresh tray clips
                 invoke('refresh_tray_clips').catch(e => console.warn('Tray refresh failed:', e));
             });
@@ -535,14 +420,15 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         if (!clipToDelete) return;
         const clipIndex = clips.findIndex(c => c.id === id);
 
-        // Soft-delete: remove from UI immediately
-        setClips(clips.filter(c => c.id !== id));
-        fetchClipStats(searchTerm);
+        // Optimistic UI update: Remove from store local view
+        useClipStore.getState().setClips(clips.filter(c => c.id !== id));
 
         // Show undo toast
         const timeoutId = setTimeout(async () => {
             try {
                 await invoke("delete_clip", { id });
+                // If search is active, we might need a refresh to keep stats in sync,
+                // but for simple cases this is fine.
             } catch (error) {
                 console.error("Failed to delete clip:", error);
             }
@@ -554,9 +440,10 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 label: 'Undo',
                 onClick: () => {
                     clearTimeout(timeoutId);
-                    // Restore clip to original position
-                    setClips(prev => {
+                    // Restore clip to original position in store
+                    useClipStore.getState().setClips(prev => {
                         const restored = [...prev];
+                        // Ensure it goes back to the exact same index
                         const insertAt = Math.min(clipIndex, restored.length);
                         restored.splice(insertAt, 0, clipToDelete);
                         return restored;
@@ -577,7 +464,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 const updatedTags = JSON.stringify(existingTags);
                 try {
                     await invoke("update_clip_tags", { id, tags: updatedTags });
-                    setClips(clips.map(c => c.id === id ? { ...c, tags: updatedTags } : c));
+                    useClipStore.getState().setClips(clips.map(c => c.id === id ? { ...c, tags: updatedTags } : c));
                 } catch (error) {
                     console.error("Failed to add tag:", error);
                 }
@@ -589,7 +476,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         e.stopPropagation();
         try {
             const newPinned = await invoke<boolean>("toggle_clip_pin", { id });
-            setClips(clips.map(c => c.id === id ? { ...c, pinned: newPinned } : c));
+            useClipStore.getState().setClips(clips.map(c => c.id === id ? { ...c, pinned: newPinned } : c));
         } catch (error) {
             console.error("Failed to toggle pin:", error);
         }
@@ -602,8 +489,8 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
 
             // Update local state
             const updatedClips = clips.map(c => c.id === editingClip.id ? { ...c, content: newContent } : c);
-            setClips(updatedClips);
-            setAllClips(allClips.map(c => c.id === editingClip.id ? { ...c, content: newContent } : c));
+            useClipStore.getState().setClips(updatedClips);
+            useClipStore.getState().setAllClips(allClips.map(c => c.id === editingClip.id ? { ...c, content: newContent } : c));
 
         } catch (error) {
             console.error('Failed to update clip content:', error);
@@ -627,7 +514,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
     async function bulkDelete() {
         if (!confirm(`Delete ${selectedClipIds.size} clips?`)) return;
         const idsToDelete = Array.from(selectedClipIds);
-        setClips(clips.filter(c => !selectedClipIds.has(c.id)));
+        useClipStore.getState().setClips(clips.filter(c => !selectedClipIds.has(c.id)));
         setSelectedClipIds(new Set());
         setLastSelectedId(null);
         for (const id of idsToDelete) {
@@ -637,7 +524,6 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 console.error(`Failed to delete clip ${id}:`, e);
             }
         }
-        fetchClipStats(searchTerm);
     }
 
     async function mergeSelectedClips() {
@@ -665,8 +551,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
             const position = Date.now();
             await invoke("reorder_clip", { id, position });
             // Refresh clips
-            const data = await invoke<Clip[]>("get_recent_clips", { limit: 100, offset: 0, search: searchTerm || null });
-            setClips(data);
+            loadClips(0, LIMIT, activeFilter, searchTerm, true);
         } catch (error) {
             console.error("Failed to reorder clip:", error);
         }
@@ -688,7 +573,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         if (newContent !== clip.content) {
             try {
                 await invoke("update_clip_content", { id, content: newContent });
-                setClips(clips.map(c => c.id === id ? { ...c, content: newContent } : c));
+                useClipStore.getState().setClips(clips.map(c => c.id === id ? { ...c, content: newContent } : c));
             } catch (error) {
                 console.error("Failed to transform text:", error);
             }
@@ -699,7 +584,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         e.stopPropagation();
         try {
             const newStatus = await invoke<boolean>("toggle_clip_favorite", { id });
-            setClips(clips.map(c => c.id === id ? { ...c, favorite: newStatus } : c));
+            useClipStore.getState().setClips(clips.map(c => c.id === id ? { ...c, favorite: newStatus } : c));
         } catch (error) {
             console.error("Failed to toggle favorite:", error);
         }
@@ -716,7 +601,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         const newClips = Array.from(clips);
         const [movedClip] = newClips.splice(sourceIndex, 1);
         newClips.splice(destIndex, 0, movedClip);
-        setClips(newClips);
+        useClipStore.getState().setClips(newClips);
 
         // Calculate new position
         // Logic: position = (prev.pos + next.pos) / 2
@@ -783,127 +668,19 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                     flexDirection: 'column',
                     gap: '8px',
                 }}>
-                    {/* Row 1: Search + Stats */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '12px',
-                        alignItems: 'center',
-                        width: '100%',
-                    }}>
-                        {/* Search Input */}
-                        <div style={{ flex: 1, position: 'relative' }}>
-                            <span style={{
-                                position: 'absolute',
-                                left: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                opacity: 0.4,
-                                pointerEvents: 'none',
-                            }}>🔍</span>
-                            <input
-                                ref={searchInputRef}
-                                type="text"
-                                placeholder="Search clips, tags, content..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="search-input"
-                                style={{
-                                    width: '100%',
-                                    padding: '8px 12px 8px 32px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--border-color, rgba(128,128,128,0.2))',
-                                    background: 'var(--bg-input, var(--bg-card))',
-                                    color: 'var(--text-primary, inherit)',
-                                    fontSize: '0.9rem',
-                                    outline: 'none',
-                                    transition: 'all 0.2s',
-                                }}
-                            />
-                            {searchTerm && (
-                                <button
-                                    onClick={() => setSearchTerm('')}
-                                    style={{
-                                        position: 'absolute',
-                                        right: '8px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        opacity: 0.5,
-                                        fontSize: '0.9rem',
-                                    }}
-                                >✕</button>
-                            )}
-                        </div>
-
-                        {/* Clip Stats */}
-                        <div style={{
-                            display: 'flex',
-                            gap: '8px',
-                            fontSize: '0.75rem',
-                            opacity: 0.7,
-                            whiteSpace: 'nowrap',
-                        }}>
-                            {searchTerm ? (
-                                <span style={{
-                                    background: 'var(--accent-color)',
-                                    color: 'white',
-                                    padding: '4px 8px',
-                                    borderRadius: '12px',
-                                    fontWeight: 600,
-                                }}>
-                                    {clips.length} found
-                                </span>
-                            ) : (
-                                <>
-                                    <span title="Total clips in database">📋 {totalClipCount}</span>
-                                    <span title="Pinned clips (loaded)">📌 {clips.filter(c => c.pinned).length}</span>
-                                    <span title="Favorites (loaded)">⭐ {clips.filter(c => c.favorite).length}</span>
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Row 2: Category Filter Chips */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '6px',
-                        flexWrap: 'wrap',
-                        width: '100%',
-                    }}>
-                        {[
-                            { key: 'all', label: '📋 All' },
-                            { key: 'text', label: '📝 Text' },
-                            { key: 'image', label: '🖼️ Images' },
-                            { key: 'html', label: '🌐 HTML' },
-                            { key: 'files', label: '📁 Files' },
-                            { key: 'file', label: '📄 File Path' },
-                            { key: 'favorites', label: '⭐ Favorites' },
-                        ].map(f => (
-                            <button
-                                key={f.key}
-                                onClick={() => {
-                                    setActiveFilter(f.key);
-                                    setPage(0);
-                                }}
-                                style={{
-                                    padding: '4px 10px',
-                                    borderRadius: '16px',
-                                    border: activeFilter === f.key ? '1px solid var(--accent-color, #6366f1)' : '1px solid var(--border-color, rgba(128,128,128,0.2))',
-                                    background: activeFilter === f.key ? 'var(--accent-color, #6366f1)' : 'transparent',
-                                    color: activeFilter === f.key ? '#fff' : 'var(--text-secondary, #888)',
-                                    fontSize: '0.75rem',
-                                    fontWeight: activeFilter === f.key ? 600 : 400,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
+                    <SearchBar
+                        searchTerm={searchTerm}
+                        setSearchTerm={setSearchTerm}
+                        totalClipCount={totalClipCount}
+                        foundCount={clips.length}
+                        pinnedCount={clips.filter(c => c.pinned).length}
+                        favoriteCount={clips.filter(c => c.favorite).length}
+                        inputRef={searchInputRef}
+                    />
+                    <FilterChips
+                        activeFilter={activeFilter}
+                        setActiveFilter={setActiveFilter}
+                    />
                 </div>
 
                 {/* Timeline View */}
@@ -927,8 +704,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                         setTimelineFilter({ start: startOfDay.getTime(), end: endOfDay.getTime() });
                         // Also fetch clips for that day with reset
                         setSearchTerm(''); // Clear any search
-                        setPage(0);
-                        fetchClips('', true);
+                        loadClips(0, LIMIT, activeFilter, '', true);
                     }}
                     onExportRange={(rangeClips) => {
                         // Trigger export of selected clips
@@ -948,342 +724,68 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                                 className={`clip-list ${compactMode ? 'compact' : ''}`}
                             >
                                 {clips.map((clip, index) => (
-                                    <Draggable key={clip.id} draggableId={clip.id.toString()} index={index}>
-                                        {(provided, snapshot) => (
-                                            <div
-                                                ref={provided.innerRef}
-                                                {...provided.draggableProps}
-                                                {...provided.dragHandleProps}
-                                                style={{ ...provided.draggableProps.style }}
-                                            >
-                                                <motion.div
-                                                    // layout={!snapshot.isDragging} // Disable layout anim to prevent conflict
-                                                    className={`clip-card ${selectedIndex === index ? 'selected' : ''} ${selectedClipIds.has(clip.id) ? 'multi-selected' : ''} ${clip.pinned ? 'pinned' : ''}`}
-                                                    onClick={(e) => handleClipClick(e, clip)}
-                                                    onMouseEnter={() => setSelectedIndex(index)}
-                                                    style={{
-                                                        boxShadow: snapshot.isDragging ? "0 10px 30px rgba(0,0,0,0.3)" : undefined,
-                                                        background: snapshot.isDragging ? "var(--bg-card)" : undefined
-                                                    }}
-                                                >
-                                                    <div className="clip-header">
-                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                            {index < 9 && (
-                                                                <span
-                                                                    title={`Shortcut: ${shortcuts[`paste_${index + 1}`] || `Ctrl+${index + 1}`}`}
-                                                                    style={{
-                                                                        fontSize: '0.7rem',
-                                                                        fontWeight: 'bold',
-                                                                        color: compactMode ? '#888' : '#aaa',
-                                                                        background: 'rgba(0,0,0,0.05)',
-                                                                        border: '1px solid rgba(0,0,0,0.1)',
-                                                                        borderRadius: '4px',
-                                                                        padding: '0 4px',
-                                                                        minWidth: '1.2em',
-                                                                        textAlign: 'center',
-                                                                        cursor: 'help'
-                                                                    }}>
-                                                                    {index + 1}
-                                                                </span>
-                                                            )}
-                                                            <span className="clip-type">{clip.type}</span>
-                                                            {clip.sender_app && (
-                                                                <span
-                                                                    title={`Copied from ${clip.sender_app}`}
-                                                                    style={{
-                                                                        fontSize: '0.65rem',
-                                                                        background: 'rgba(99, 102, 241, 0.1)',
-                                                                        color: 'var(--accent-color, #6366f1)',
-                                                                        padding: '2px 6px',
-                                                                        borderRadius: '10px',
-                                                                        fontWeight: 500,
-                                                                        maxWidth: '120px',
-                                                                        overflow: 'hidden',
-                                                                        textOverflow: 'ellipsis',
-                                                                        whiteSpace: 'nowrap',
-                                                                    }}
-                                                                >
-                                                                    {clip.sender_app}
-                                                                </span>
-                                                            )}
-                                                            {clip.sensitive && (
-                                                                <span
-                                                                    title="Sensitive - Auto-deletes in 30 seconds"
-                                                                    style={{
-                                                                        fontSize: '0.65rem',
-                                                                        background: 'rgba(239, 68, 68, 0.15)',
-                                                                        color: '#dc2626',
-                                                                        padding: '2px 6px',
-                                                                        borderRadius: '10px',
-                                                                        fontWeight: 600,
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '3px'
-                                                                    }}
-                                                                >
-                                                                    🔐 Sensitive
-                                                                </span>
-                                                            )}
-                                                            {clip.tags && JSON.parse(clip.tags).map((tag: string) => (
-                                                                <span
-                                                                    key={tag}
-                                                                    className="clip-tag"
-                                                                    style={{
-                                                                        fontSize: '0.85rem',
-                                                                        background: 'rgba(67, 56, 202, 0.1)',
-                                                                        color: '#4338ca',
-                                                                        padding: '2px 8px',
-                                                                        borderRadius: '12px',
-                                                                        fontWeight: 600,
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                    onClick={(e) => { e.stopPropagation(); filterByTag(tag); }}
-                                                                    title={`Filter by ${tag}`}
-                                                                >
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                            <button
-                                                                className="add-tag-btn"
-                                                                onClick={(e) => addTagToClip(e, clip.id, clip.tags || null)}
-                                                                title="Add tag"
-                                                                style={{
-                                                                    fontSize: '0.85rem',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '12px',
-                                                                    border: '1px dashed #aaa',
-                                                                    background: 'transparent',
-                                                                    cursor: 'pointer',
-                                                                    color: '#888'
-                                                                }}
-                                                            >
-                                                                + tag
-                                                            </button>
-                                                            {clip.type === 'image' && (
-                                                                <ImageMetadata filePath={clip.content} isCompact={compactMode} />
-                                                            )}
-                                                            {clip.type === 'text' && (
-                                                                <div className="transform-actions" style={{ display: 'flex', gap: '2px', opacity: selectedIndex === index ? 1 : 0, transition: 'opacity 0.2s', marginLeft: 'auto' }}>
-                                                                    <button onClick={(e) => transformText(e, clip.id, 'upper')} title="UPPERCASE" className="icon-btn">TT</button>
-                                                                    <button onClick={(e) => transformText(e, clip.id, 'lower')} title="lowercase" className="icon-btn">tt</button>
-                                                                    <button onClick={(e) => transformText(e, clip.id, 'title')} title="Title Case" className="icon-btn">Tt</button>
-                                                                    <button onClick={(e) => transformText(e, clip.id, 'trim')} title="Trim Whitespace" className="icon-btn">Tr</button>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="header-right">
-                                                            <button
-                                                                className={`fav-btn ${clip.favorite ? 'active' : ''}`}
-                                                                onClick={(e) => toggleFavorite(e, clip.id)}
-                                                                title={clip.favorite ? "Unfavorite" : "Favorite"}
-                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                                            >
-                                                                {clip.favorite ? (
-                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                                                ) : (
-                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                                                                )}
-                                                            </button>
-                                                            <button
-                                                                className={`pin-btn ${clip.pinned ? 'active' : ''}`}
-                                                                onClick={(e) => togglePin(e, clip.id)}
-                                                                title={clip.pinned ? "Unpin" : "Pin"}
-                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                                            >
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill={clip.pinned ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg)' }}>
-                                                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
-                                                                </svg>
-                                                            </button>
-                                                            {(clip.pinned || clip.favorite) && (
-                                                                <button
-                                                                    className="icon-btn"
-                                                                    onClick={(e) => moveToTop(e, clip.id)}
-                                                                    title="Move to Top"
-                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', opacity: 0.6 }}
-                                                                >
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                        <polyline points="18 15 12 9 6 15"></polyline>
-                                                                        <line x1="12" y1="9" x2="12" y2="21"></line>
-                                                                        <line x1="4" y1="3" x2="20" y2="3"></line>
-                                                                    </svg>
-                                                                </button>
-                                                            )}
-
-                                                            <span className="clip-date" title={clip.created_at}>{formatTime(clip.created_at)}</span>
-
-                                                            <div style={{ position: 'relative' }}>
-                                                                <button
-                                                                    className={`icon-btn menu-btn ${activeMenuId === clip.id ? 'active' : ''}`}
-                                                                    onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === clip.id ? null : clip.id); }}
-                                                                    title="More Options"
-                                                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px' }}
-                                                                >
-                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>
-                                                                </button>
-
-                                                                {activeMenuId === clip.id && (
-                                                                    <div
-                                                                        ref={menuRef}
-                                                                        className="clip-menu-dropdown"
-                                                                        style={{
-                                                                            position: 'absolute', top: '100%', right: 0,
-                                                                            background: 'var(--bg-card)',
-                                                                            border: '1px solid rgba(128,128,128,0.2)',
-                                                                            borderRadius: '8px',
-                                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                                                                            zIndex: 100, overflow: 'hidden', minWidth: '140px',
-                                                                            backdropFilter: 'blur(10px)'
-                                                                        }}
-                                                                        onClick={e => e.stopPropagation()}
-                                                                    >
-                                                                        {clip.type === 'image' && (
-                                                                            <>
-                                                                                <button
-                                                                                    className="menu-item-btn"
-                                                                                    onClick={(e) => handleExtractText(e, clip)}
-                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                                >
-                                                                                    👁️ Extract Text
-                                                                                </button>
-                                                                                <button
-                                                                                    className="menu-item-btn"
-                                                                                    onClick={async () => {
-                                                                                        try {
-                                                                                            const path = await save({
-                                                                                                defaultPath: 'image.png',
-                                                                                                filters: [
-                                                                                                    { name: 'PNG Image', extensions: ['png'] },
-                                                                                                    { name: 'JPEG Image', extensions: ['jpg', 'jpeg'] },
-                                                                                                    { name: 'WebP Image', extensions: ['webp'] }
-                                                                                                ]
-                                                                                            });
-                                                                                            if (path) {
-                                                                                                await invoke('export_image', { sourcePath: clip.content, targetPath: path });
-                                                                                                setActiveMenuId(null);
-                                                                                            }
-                                                                                        } catch (e) {
-                                                                                            console.error("Failed to save image", e);
-                                                                                        }
-                                                                                    }}
-                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                                >
-                                                                                    💾 Save As...
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                        {clip.type === 'text' && (
-                                                                            <>
-                                                                                <button
-                                                                                    className="menu-item-btn"
-                                                                                    onClick={() => {
-                                                                                        setRawViewClipIds(prev => {
-                                                                                            const next = new Set(prev);
-                                                                                            if (next.has(clip.id)) {
-                                                                                                next.delete(clip.id);
-                                                                                            } else {
-                                                                                                next.add(clip.id);
-                                                                                            }
-                                                                                            return next;
-                                                                                        });
-                                                                                        setActiveMenuId(null);
-                                                                                    }}
-                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                                >
-                                                                                    {rawViewClipIds.has(clip.id) ? '✨ Formatted View' : '📝 Raw View'}
-                                                                                </button>
-                                                                                <button
-                                                                                    className="menu-item-btn"
-                                                                                    onClick={() => {
-                                                                                        setEditingClip(clip);
-                                                                                        setActiveMenuId(null);
-                                                                                    }}
-                                                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                                >
-                                                                                    ✏️ Edit Content
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                        {clip.type === 'html' && (
-                                                                            <button
-                                                                                className="menu-item-btn"
-                                                                                onClick={async (e) => {
-                                                                                    e.stopPropagation();
-                                                                                    try {
-                                                                                        const parser = new DOMParser();
-                                                                                        const doc = parser.parseFromString(clip.content, 'text/html');
-                                                                                        const text = doc.body.textContent || "";
-                                                                                        await invoke('copy_to_system', { content: text });
-                                                                                        setActiveMenuId(null);
-                                                                                    } catch (error) {
-                                                                                        console.error("Failed to copy as text", error);
-                                                                                    }
-                                                                                }}
-                                                                                style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                            >
-                                                                                📋 Copy as Text
-                                                                            </button>
-                                                                        )}
-                                                                        <button
-                                                                            className="menu-item-btn"
-                                                                            onClick={() => { setQrContent(clip.content); setActiveMenuId(null); }}
-                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                                        >
-                                                                            📱 QR Code
-                                                                        </button>
-                                                                        <button
-                                                                            className="menu-item-btn delete-btn"
-                                                                            onClick={(e) => { deleteClip(e, clip.id); setActiveMenuId(null); }}
-                                                                            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: '#ef4444', fontSize: '0.9rem' }}
-                                                                        >
-                                                                            🗑️ Delete
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {/* Image Color Palette Row */}
-                                                    {clip.type === 'image' && !compactMode && (
-                                                        <div style={{ padding: '4px 12px', borderTop: '1px solid var(--border-color, rgba(128,128,128,0.1))' }}>
-                                                            <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
-                                                        </div>
-                                                    )}
-                                                    <div className="clip-content">
-                                                        {clip.type === 'text' && isColorCode(clip.content) ? (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                <div style={{
-                                                                    width: '32px',
-                                                                    height: '32px',
-                                                                    borderRadius: '6px',
-                                                                    backgroundColor: clip.content,
-                                                                    border: '2px solid rgba(0,0,0,0.25)',
-                                                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
-                                                                }} />
-                                                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{clip.content}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div
-                                                                className="clip-content-wrapper"
-                                                                title={showTooltipPreview && clip.type !== 'image' && clip.type !== 'file' ? clip.content.slice(0, 500) + (clip.content.length > 500 ? '...' : '') : undefined}
-                                                                style={{ cursor: showTooltipPreview && clip.type !== 'image' ? 'help' : 'default' }}
-                                                            >
-                                                                <ClipContent
-                                                                    content={clip.content}
-                                                                    type={clip.type}
-                                                                    isCompact={compactMode}
-                                                                    showRaw={rawViewClipIds.has(clip.id)}
-                                                                    isDark={isDark}
-                                                                    isExtracting={extractingOcrClipId === clip.id}
-                                                                    onZoom={(src) => setZoomedImageSrc(src)}
-                                                                />
-                                                                {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            </div>
-                                        )}
-                                    </Draggable>
+                                    <ClipCard
+                                        key={clip.id}
+                                        clip={clip}
+                                        index={index}
+                                        selectedIndex={selectedIndex}
+                                        selectedClipIds={selectedClipIds}
+                                        compactMode={compactMode}
+                                        shortcuts={shortcuts}
+                                        isDark={isDark}
+                                        extractingOcrClipId={extractingOcrClipId}
+                                        activeMenuId={activeMenuId}
+                                        rawViewClipIds={rawViewClipIds}
+                                        showTooltipPreview={showTooltipPreview}
+                                        formatTime={formatTime}
+                                        onClipClick={handleClipClick}
+                                        onMouseEnter={() => setSelectedIndex(index)}
+                                        toggleFavorite={toggleFavorite}
+                                        togglePin={togglePin}
+                                        moveToTop={moveToTop}
+                                        setActiveMenuId={setActiveMenuId}
+                                        handleExtractText={handleExtractText}
+                                        onEditContent={setEditingClip}
+                                        onDelete={deleteClip}
+                                        onTagClick={filterByTag}
+                                        onAddTag={addTagToClip}
+                                        onTransform={transformText}
+                                        onZoom={(src) => setZoomedImageSrc(src)}
+                                        isUrl={isUrl}
+                                        isColorCode={isColorCode}
+                                        menuRef={menuRef}
+                                        onSaveImage={async (clip) => {
+                                            try {
+                                                const path = await save({
+                                                    defaultPath: 'image.png',
+                                                    filters: [
+                                                        { name: 'PNG Image', extensions: ['png'] },
+                                                        { name: 'JPEG Image', extensions: ['jpg', 'jpeg'] },
+                                                        { name: 'WebP Image', extensions: ['webp'] }
+                                                    ]
+                                                });
+                                                if (path) {
+                                                    await invoke('export_image', { sourcePath: clip.content, targetPath: path });
+                                                    setActiveMenuId(null);
+                                                }
+                                            } catch (e) {
+                                                console.error("Failed to save image", e);
+                                            }
+                                        }}
+                                        onCopyAsText={async (clip) => {
+                                            try {
+                                                const parser = new DOMParser();
+                                                const doc = parser.parseFromString(clip.content, 'text/html');
+                                                const text = doc.body.textContent || "";
+                                                await invoke('copy_to_system', { content: text });
+                                                setActiveMenuId(null);
+                                            } catch (error) {
+                                                console.error("Failed to copy as text", error);
+                                            }
+                                        }}
+                                        onShowQRCode={(content) => { setQrContent(content); setActiveMenuId(null); }}
+                                        setRawViewClipIds={setRawViewClipIds}
+                                    />
                                 ))}
                                 {provided.placeholder}
                                 {hasMore && (
@@ -1297,34 +799,28 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 </DragDropContext>
             </main >
 
-            {queueMode && pasteQueue.length > 0 && (
-                <div className="bulk-actions-bar" style={{ background: 'rgba(16, 185, 129, 0.95)' }}>
-                    <div className="bulk-info">Queue: {pasteQueue.length} items</div>
-                    <div className="bulk-buttons">
-                        <button onClick={pasteNextInQueue} title="Paste the first item and remove it">Paste Next</button>
-                        <button id="hidden-paste-next-btn" style={{ display: 'none' }} onClick={pasteNextInQueue}></button>
-                        <button onClick={() => setPasteQueue([])}>Clear</button>
-                    </div>
-                </div>
-            )
-            }
+            <BulkActionsBar
+                selectedCount={selectedClipIds.size}
+                queuePendingCount={pasteQueue.length}
+                queueMode={queueMode}
+                onBulkPaste={bulkPaste}
+                onShowMergeDialog={() => setShowMergeDialog(true)}
+                onBulkDelete={bulkDelete}
+                onCancelSelection={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}
+                onPasteNextInQueue={pasteNextInQueue}
+                onClearQueue={() => setPasteQueue([])}
+            />
 
-            {
-                !queueMode && selectedClipIds.size > 0 && (
-                    <div className="bulk-actions-bar">
-                        <div className="bulk-info"> {selectedClipIds.size} selected </div>
-                        <div className="bulk-buttons">
-                            <button onClick={bulkPaste} title="Join and paste selected clips">Merge & Paste</button>
-                            <button onClick={() => setShowMergeDialog(true)} title="Copy merged clips to clipboard">Merge to Clipboard</button>
-                            <button onClick={bulkDelete} title="Delete selected clips">Delete</button>
-                            <button onClick={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}>Cancel</button>
-                        </div>
-                    </div>
-                )
-            }
+            <MergeDialog
+                isOpen={showMergeDialog}
+                onClose={() => setShowMergeDialog(false)}
+                onMerge={mergeSelectedClips}
+                selectedCount={selectedClipIds.size}
+                mergeSeparator={mergeSeparator}
+                setMergeSeparator={setMergeSeparator}
+            />
 
-
-            {/* QR Code Modal - Using shared component */}
+            {/* QR Code Modal */}
             {qrContent && (
                 <QRModal
                     title="Clipboard Content"
@@ -1347,51 +843,6 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                     src={zoomedImageSrc}
                     onClose={() => setZoomedImageSrc(null)}
                 />
-            )}
-            {/* Hidden button for paste-next trigger */}
-            <button id="hidden-paste-next-btn" style={{ display: 'none' }} onClick={pasteNextInQueue} />
-
-            {/* Merge Dialog */}
-            {showMergeDialog && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', zIndex: 9998,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }} onClick={() => setShowMergeDialog(false)}>
-                    <div style={{
-                        background: 'var(--bg-card, #1e1e2e)', borderRadius: '12px',
-                        padding: '20px', minWidth: '300px',
-                        boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
-                    }} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ margin: '0 0 12px', fontSize: '1rem' }}>Merge {selectedClipIds.size} Clips</h3>
-                        <label style={{ fontSize: '0.85rem', opacity: 0.7 }}>Separator:</label>
-                        <select
-                            value={mergeSeparator}
-                            onChange={e => setMergeSeparator(e.target.value)}
-                            style={{
-                                width: '100%', padding: '8px', marginTop: '4px', marginBottom: '12px',
-                                borderRadius: '6px', border: '1px solid var(--border-color, rgba(128,128,128,0.2))',
-                                background: 'var(--bg-input, var(--bg-app))', color: 'inherit',
-                            }}
-                        >
-                            <option value="\n">New Line</option>
-                            <option value=" ">Space</option>
-                            <option value=", ">Comma</option>
-                            <option value=" | ">Pipe</option>
-                            <option value="\n---\n">Separator (---)</option>
-                        </select>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button onClick={() => setShowMergeDialog(false)} style={{
-                                padding: '6px 16px', borderRadius: '6px', border: '1px solid var(--border-color)',
-                                background: 'transparent', color: 'inherit', cursor: 'pointer',
-                            }}>Cancel</button>
-                            <button onClick={mergeSelectedClips} style={{
-                                padding: '6px 16px', borderRadius: '6px', border: 'none',
-                                background: 'var(--accent-color, #6366f1)', color: '#fff', cursor: 'pointer',
-                            }}>Merge</button>
-                        </div>
-                    </div>
-                </div>
             )}
 
             {/* Toast Notifications */}
