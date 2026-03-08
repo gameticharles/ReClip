@@ -9,6 +9,7 @@ import { QRModal } from '../components/QRModal';
 
 interface SnippetsPageProps {
     theme: string;
+    standaloneId?: number;
 }
 
 type SortOption = 'updated' | 'created' | 'title' | 'language';
@@ -24,11 +25,12 @@ const selectStyle: React.CSSProperties = {
     cursor: 'pointer',
 };
 
-const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme }) => {
+const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme, standaloneId }) => {
     const [snippets, setSnippets] = useState<Snippet[]>([]);
     const [search, setSearch] = useState('');
     const [copiedId, setCopiedId] = useState<number | null>(null);
-    const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [expandedId, setExpandedId] = useState<number | null>(standaloneId || null);
+    const multiWindowEnabled = localStorage.getItem('multiWindow') === 'true';
     const searchRef = useRef<HTMLInputElement>(null);
 
     // Theme Detection
@@ -200,6 +202,17 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme }) => {
             } catch { alert('Invalid JSON file'); }
         };
         input.click();
+    };
+
+    const popOut = async (id: number) => {
+        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+        const label = `snippet-${id}`;
+        new WebviewWindow(label, {
+            url: `index.html?snippetId=${id}`,
+            title: `Snippet #${id}`,
+            width: 600,
+            height: 500,
+        });
     };
 
     const copyToClipboard = async (content: string, id: number) => {
@@ -395,6 +408,9 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme }) => {
                                                 {copiedId === snippet.id ? <Check size={12} /> : <Copy size={12} />} {copiedId === snippet.id ? 'Copied!' : 'Copy'}
                                             </button>
                                             <button onClick={() => openEditSnippet(snippet)} style={btnStyle()}><Edit2 size={12} /> Edit</button>
+                                            {multiWindowEnabled && !standaloneId && (
+                                                <button onClick={() => popOut(snippet.id)} style={btnStyle()} title="Open in new window"><Plus size={12} /> Pop out</button>
+                                            )}
                                             <button onClick={() => handleDuplicate(snippet.id)} style={btnStyle()}><CopyPlus size={12} /> Duplicate</button>
                                             <button onClick={() => setQrContent({ title: snippet.title, content: snippet.content })} style={btnStyle()}><QrCode size={12} /> QR</button>
                                             {history.length > 0 && (

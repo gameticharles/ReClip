@@ -1,9 +1,10 @@
 mod db;
 mod clipboard;
 mod tray;
-#[cfg(target_os = "windows")]
 mod ocr;
 mod drive;
+mod crypto;
+mod api;
 
 use db::{DbState, init_db, Clip, Snippet};
 use tauri::{State, Manager, Emitter};
@@ -308,6 +309,12 @@ pub fn run() {
 
             app.manage(ShortcutStateMap(Mutex::new(HashMap::new())));
             app.manage(drive::DriveState::new());
+            
+            // Start IDE Plugin API Server (Axum) on port 14201
+            let api_pool = pool.clone();
+            tauri::async_runtime::spawn(async move {
+                api::start_api_server(DbState { pool: api_pool }).await;
+            });
             
             // Start Clipboard Listener
             clipboard::start_clipboard_listener(app.handle(), pool.clone());

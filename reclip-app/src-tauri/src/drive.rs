@@ -8,6 +8,7 @@ use oauth2::{
 };
 use std::collections::HashMap;
 use crate::db::{DbState, set_setting, get_setting};
+use crate::crypto;
 use reqwest::Client;
 
 
@@ -419,19 +420,13 @@ pub async fn sync_clips(
     let drive_files = list_drive_files(&token, &folder_id).await?;
     
     // 4. List Local Clips
-    // We need a DB function to get all clips content. Ideally lightweight list first.
-    // Let's assume we fetch all for now, or fetch recent 50.
-    // For full backup, we need all.
-    // Using `get_all_clips_as_json` (need to implement or query directly).
-    // Let's query directly here for simplicity, or use `db` module if exposed.
-    // Accessing pool directly:
+    let sync_password = get_setting(&db_state.pool, "sync_encryption_password").await;
     
     // Use offline query function instead of macro for missing env
     let clips = sqlx::query_as::<_, (i64, String, String)>("SELECT id, content, created_at FROM clips WHERE is_text = 1")
         .fetch_all(&db_state.pool).await.map_err(|e| e.to_string())?;
         
     let mut uploaded_count = 0;
-    // let mut downloaded_count = 0;
     
     // 5. Upload missing
     let mut local_ids = std::collections::HashSet::new();
@@ -440,14 +435,25 @@ pub async fn sync_clips(
         
         let filename = format!("clip_{}.json", id);
         if !drive_files.contains_key(&filename) {
-            // Upload
+            // Prepare data
             let clip_data = serde_json::json!({
                 "id": id,
                 "content": content,
                 "created_at": created_at
             });
             
-            upload_file_content(&token, &folder_id, &filename, &clip_data.to_string()).await?;
+            let mut final_content = clip_data.to_string();
+            
+            // Encrypt if password set
+            if let Some(ref pwd) = sync_password {
+                if !pwd.is_empty() {
+                    if let Ok(encrypted) = crypto::encrypt(final_content.as_bytes(), pwd) {
+                        final_content = serde_json::to_string(&encrypted).unwrap_or(final_content);
+                    }
+                }
+            }
+            
+            upload_file_content(&token, &folder_id, &filename, &final_content).await?;
             uploaded_count += 1;
         }
     }
@@ -462,7 +468,20 @@ pub async fn sync_clips(
                 if !local_ids.contains(&id) {
                     // Download
                     if let Ok(content_str) = get_file_content(&token, &file_id).await {
-                        if let Ok(data) = serde_json::from_str::<serde_json::Value>(&content_str) {
+                        let mut final_data_str = content_str.clone();
+                        
+                        // Decrypt if password set
+                        if let Some(ref pwd) = sync_password {
+                            if !pwd.is_empty() {
+                                if let Ok(encrypted) = serde_json::from_str::<crypto::EncryptedData>(&content_str) {
+                                    if let Ok(decrypted) = crypto::decrypt(&encrypted, pwd) {
+                                        final_data_str = String::from_utf8_lossy(&decrypted).to_string();
+                                    }
+                                }
+                            }
+                        }
+
+                        if let Ok(data) = serde_json::from_str::<serde_json::Value>(&final_data_str) {
                              let content = data["content"].as_str().unwrap_or_default();
                              let created_at = data["created_at"].as_str().unwrap_or("");
                              

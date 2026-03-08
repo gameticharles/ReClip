@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { Note, Reminder } from '../types';
-import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle, Pin, Archive, GripVertical, ArrowUpDown } from 'lucide-react';
+import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle, Pin, Archive, GripVertical, ArrowUpDown, ExternalLink } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -26,9 +26,10 @@ interface Notification {
 
 interface OrganizerPageProps {
     theme?: string;
+    standaloneNoteId?: number;
 }
 
-export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) {
+export default function OrganizerPage({ theme = 'system', standaloneNoteId }: OrganizerPageProps) {
     // Data State
     const [notes, setNotes] = useState<Note[]>([]);
     const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -58,6 +59,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
 
     // Theme Logic
     const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>('light');
+    const multiWindowEnabled = localStorage.getItem('multiWindow') === 'true';
 
     const colors = [
         { name: 'None', value: undefined },
@@ -101,11 +103,11 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
             return unlisten;
         };
 
-        let unlisten: () => void;
-        setupListener().then(u => unlisten = u);
+        let unlistenFunc: () => void;
+        setupListener().then(u => unlistenFunc = u);
 
         return () => {
-            if (unlisten) unlisten();
+            if (unlistenFunc) unlistenFunc();
         };
     }, []);
 
@@ -214,6 +216,17 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
         setEditingNoteId(null);
     };
 
+    const popOut = async (id: number) => {
+        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+        const label = `note-${id}`;
+        new WebviewWindow(label, {
+            url: `index.html?noteId=${id}`,
+            title: `Note #${id}`,
+            width: 500,
+            height: 600,
+        });
+    };
+
     const onDragEnd = async (result: DropResult) => {
         if (!result.destination) return;
         if (sortMode !== 'manual') return;
@@ -249,14 +262,6 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
         // We are sorting by position DESC. So top item (index 0) has highest position value.
 
         const getPos = (i: any) => (i?.data as any).position || 0;
-
-        // items array is already reordered locally at this point (items contains the new order).
-        // destinationIndex is where current item IS.
-
-        // In DESC sort (High -> Low):
-        // Item Above (Index - 1) should have Higher Position
-        // Item Below (Index + 1) should have Lower Position
-        // We want: NextItem.Pos < NewPos < PrevItem.Pos
 
         let newPos = 0;
 
@@ -298,15 +303,19 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
 
         if (filter === 'all' || filter === 'note' || filter === 'archived') {
             const noteList = notes.filter(n => {
+                if (standaloneNoteId) return n.id === standaloneNoteId;
                 const isArchived = n.is_archived;
                 if (filter === 'archived') return isArchived;
                 return !isArchived;
             });
 
-            items.push(...noteList.filter(n => matchesSearch(n.content) || (n.title && matchesSearch(n.title)) || (n.tags && matchesSearch(n.tags))).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
+            items.push(...noteList.filter(n => {
+                if (standaloneNoteId) return true;
+                return matchesSearch(n.content) || (n.title && matchesSearch(n.title)) || (n.tags && matchesSearch(n.tags));
+            }).map(n => ({ type: 'note' as const, data: n, date: new Date(n.updated_at) })));
         }
 
-        if (filter !== 'archived') {
+        if (filter !== 'archived' && !standaloneNoteId) {
             if (filter === 'all' || filter === 'reminder') {
                 items.push(...reminders.filter(r => matchesSearch(r.content)).map(r => ({ type: 'reminder' as const, data: r, date: r.due_date ? new Date(r.due_date) : new Date(r.created_at) })));
             }
@@ -338,7 +347,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
             // 2. Date Descending
             return b.date.getTime() - a.date.getTime();
         });
-    }, [notes, reminders, alarms, filter, searchQuery, sortMode]);
+    }, [notes, reminders, alarms, filter, searchQuery, sortMode, standaloneNoteId]);
 
     const reminderStats = useMemo(() => {
         const total = reminders.length;
@@ -380,68 +389,70 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             {/* Standard Toolbar / Header with Search */}
-            <div className="organizer-toolbar">
-                <div className="title-left" style={{ fontSize: '1.1rem', gap: '16px', flexWrap: 'nowrap', overflow: 'hidden' }}>
-                    <span style={{ flexShrink: 0 }}>Organizer</span>
+            {!standaloneNoteId && (
+                <div className="organizer-toolbar">
+                    <div className="title-left" style={{ fontSize: '1.1rem', gap: '16px', flexWrap: 'nowrap', overflow: 'hidden' }}>
+                        <span style={{ flexShrink: 0 }}>Organizer</span>
 
-                    {/* Sort Toggle */}
-                    <button
-                        onClick={() => setSortMode(prev => prev === 'date' ? 'manual' : 'date')}
-                        title={sortMode === 'date' ? "Sort by Date" : "Manual Sort (Drag & Drop)"}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', opacity: 0.7 }}
-                    >
-                        <ArrowUpDown size={16} color={sortMode === 'manual' ? 'var(--accent-color)' : 'var(--text-primary)'} />
-                    </button>
+                        {/* Sort Toggle */}
+                        <button
+                            onClick={() => setSortMode(prev => prev === 'date' ? 'manual' : 'date')}
+                            title={sortMode === 'date' ? "Sort by Date" : "Manual Sort (Drag & Drop)"}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', opacity: 0.7 }}
+                        >
+                            <ArrowUpDown size={16} color={sortMode === 'manual' ? 'var(--accent-color)' : 'var(--text-primary)'} />
+                        </button>
 
-                    {/* Search Field */}
-                    <div className="organizer-search">
-                        <Search size={14} style={{ position: 'absolute', left: 10, opacity: 0.5 }} />
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
-                                <X size={12} style={{ opacity: 0.5 }} />
+                        {/* Search Field */}
+                        <div className="organizer-search">
+                            <Search size={14} style={{ position: 'absolute', left: 10, opacity: 0.5 }} />
+                            <input
+                                type="text"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                                    <X size={12} style={{ opacity: 0.5 }} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="organizer-filter-group">
+                        {(['all', 'note', 'reminder', 'alarm'] as ItemType[]).map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setFilter(t)}
+                                style={chipStyle(filter === t)}
+                                onMouseEnter={(e) => { if (filter !== t) e.currentTarget.style.background = 'var(--bg-hover, rgba(128,128,128,0.1))'; }}
+                                onMouseLeave={(e) => { if (filter !== t) e.currentTarget.style.background = 'transparent'; }}
+                            >
+                                <span style={{ textTransform: 'capitalize' }}>{t}</span>
                             </button>
-                        )}
+                        ))}
+                        <button
+                            onClick={() => setFilter('archived')}
+                            style={chipStyle(filter === 'archived')}
+                            onMouseEnter={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'var(--bg-hover, rgba(128,128,128,0.1))'; }}
+                            onMouseLeave={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'transparent'; }}
+                        >
+                            <Archive size={12} />
+                            <span>Archived</span>
+                        </button>
+
+                        {/* Add Button Trigger */}
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            style={{ ...chipStyle(true), background: 'var(--accent-color)', color: 'white', border: 'none', marginLeft: '8px' }}
+                        >
+                            <Plus size={14} />
+                            <span>Add</span>
+                        </button>
                     </div>
                 </div>
-
-                <div className="organizer-filter-group">
-                    {(['all', 'note', 'reminder', 'alarm'] as ItemType[]).map(t => (
-                        <button
-                            key={t}
-                            onClick={() => setFilter(t)}
-                            style={chipStyle(filter === t)}
-                            onMouseEnter={(e) => { if (filter !== t) e.currentTarget.style.background = 'var(--bg-hover, rgba(128,128,128,0.1))'; }}
-                            onMouseLeave={(e) => { if (filter !== t) e.currentTarget.style.background = 'transparent'; }}
-                        >
-                            <span style={{ textTransform: 'capitalize' }}>{t}</span>
-                        </button>
-                    ))}
-                    <button
-                        onClick={() => setFilter('archived')}
-                        style={chipStyle(filter === 'archived')}
-                        onMouseEnter={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'var(--bg-hover, rgba(128,128,128,0.1))'; }}
-                        onMouseLeave={(e) => { if (filter !== 'archived') e.currentTarget.style.background = 'transparent'; }}
-                    >
-                        <Archive size={12} />
-                        <span>Archived</span>
-                    </button>
-
-                    {/* Add Button Trigger */}
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        style={{ ...chipStyle(true), background: 'var(--accent-color)', color: 'white', border: 'none', marginLeft: '8px' }}
-                    >
-                        <Plus size={14} />
-                        <span>Add</span>
-                    </button>
-                </div>
-            </div>
+            )}
 
             {/* Stats Bar */}
             {(reminderStats.overdue > 0 || reminderStats.total > 0) && (
@@ -688,7 +699,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                         if (item.type === 'alarm') draggableId = `alarm-${(item.data as Alarm).id}`;
 
                                         return (
-                                            <Draggable key={draggableId} draggableId={draggableId} index={index} isDragDisabled={sortMode !== 'manual'}>
+                                            <Draggable key={draggableId} draggableId={draggableId} index={index} isDragDisabled={sortMode !== 'manual' || !!standaloneNoteId}>
                                                 {(provided, snapshot) => (
                                                     <div
                                                         ref={provided.innerRef}
@@ -699,7 +710,7 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                                         }}
                                                     >
                                                         <div style={{ position: 'relative', display: 'flex', gap: 8 }}>
-                                                            {sortMode === 'manual' && (
+                                                            {sortMode === 'manual' && !standaloneNoteId && (
                                                                 <div
                                                                     {...provided.dragHandleProps}
                                                                     style={{ display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)', cursor: 'grab', flexShrink: 0 }}
@@ -730,6 +741,9 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                                                                     handleDelete={handleDelete}
                                                                     handleToggleReminder={handleToggleReminder}
                                                                     handleToggleAlarm={handleToggleAlarm}
+                                                                    multiWindowEnabled={multiWindowEnabled}
+                                                                    standaloneNoteId={standaloneNoteId}
+                                                                    popOut={popOut}
                                                                 />
                                                             </div>
                                                         </div>
@@ -745,6 +759,11 @@ export default function OrganizerPage({ theme = 'system' }: OrganizerPageProps) 
                     </DragDropContext>
                 </div>
             </div>
+            {standaloneNoteId && combinedItems.length > 0 && (
+                <div style={{ padding: '0 20px 20px', fontSize: '0.8rem', opacity: 0.5, textAlign: 'center' }}>
+                    Standalone View
+                </div>
+            )}
         </div>
     );
 }
@@ -756,7 +775,8 @@ function ItemContent(props: any) {
         editingNoteTitle, editingNoteContent, editingNoteColor, searchQuery,
         colors, inputStyle, setEditingNoteTitle, setEditingNoteColor,
         setEditingNoteContent, startEditing, saveEditing, cancelEditing,
-        handleTogglePin, handleArchive, handleDelete, handleToggleReminder, handleToggleAlarm
+        handleTogglePin, handleArchive, handleDelete, handleToggleReminder, handleToggleAlarm,
+        multiWindowEnabled, standaloneNoteId, popOut
     } = props;
 
     // RENDER NOTE: Markdown Support
@@ -876,6 +896,16 @@ function ItemContent(props: any) {
                 </div>
                 {!isEditing && (
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'flex-start' }}>
+                        {multiWindowEnabled && !standaloneNoteId && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); popOut(note.id); }}
+                                className="icon-btn"
+                                style={{ height: 'fit-content', opacity: 0.5 }}
+                                title="Pop out into new window"
+                            >
+                                <ExternalLink size={14} />
+                            </button>
+                        )}
                         <button
                             onClick={(e) => { e.stopPropagation(); handleTogglePin(note); }}
                             className={`icon-btn`}
@@ -892,7 +922,7 @@ function ItemContent(props: any) {
                         >
                             <Archive size={14} />
                         </button>
-                        <button onClick={() => handleDelete('note', note.id)} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete('note', note.id); }} className="icon-btn" style={{ height: 'fit-content', opacity: 0.5 }}>
                             <Trash2 size={14} />
                         </button>
                     </div>

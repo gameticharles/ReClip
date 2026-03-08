@@ -27,8 +27,18 @@ function App() {
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboardingComplete'));
   const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem('pinLock'));
+  const [standaloneId, setStandaloneId] = useState<{ type: 'snippet' | 'note', id: number } | null>(null);
 
-  // Persistence Effects
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const snippetId = params.get('snippetId');
+    const noteId = params.get('noteId');
+    if (snippetId) {
+      setStandaloneId({ type: 'snippet', id: parseInt(snippetId) });
+    } else if (noteId) {
+      setStandaloneId({ type: 'note', id: parseInt(noteId) });
+    }
+  }, []);
   useEffect(() => {
     localStorage.setItem('incognitoMode', incognitoMode.toString());
     invoke('set_incognito_mode', { enabled: incognitoMode }).catch(() => { });
@@ -348,6 +358,19 @@ function App() {
       if (unlistenResize) unlistenResize();
     };
   }, []);
+
+  // If we are in standalone mode, render a minimal view
+  if (standaloneId) {
+    return (
+      <div className="app-container" style={{ padding: 16, overflow: 'auto' }}>
+        {standaloneId.type === 'snippet' ? (
+          <SnippetsPage theme={theme} standaloneId={standaloneId.id} />
+        ) : (
+          <OrganizerPage theme={theme} standaloneNoteId={standaloneId.id} />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">

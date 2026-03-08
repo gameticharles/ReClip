@@ -111,7 +111,7 @@ export default function SettingsPage({
     const [colorPaletteLimit, setColorPaletteLimit] = useState(() => parseInt(localStorage.getItem('colorPaletteLimit') || '15'));
     const [showTooltipPreview, setShowTooltipPreview] = useState(() => localStorage.getItem('showTooltipPreview') === 'true');
     const [autoHideDuration, setAutoHideDuration] = useState(() => parseInt(localStorage.getItem('autoHideDuration') || '0'));
-    const [multiWindow, setMultiWindow] = useState(() => localStorage.getItem('multiWindowMode') === 'true');
+    const [multiWindow, setMultiWindow] = useState(() => localStorage.getItem('multiWindow') === 'true');
 
     // Google Drive
     const [driveConnected, setDriveConnected] = useState(false);
@@ -822,7 +822,8 @@ export default function SettingsPage({
                                         checked={multiWindow}
                                         onChange={(e) => {
                                             setMultiWindow(e.target.checked);
-                                            localStorage.setItem('multiWindowMode', e.target.checked ? 'true' : 'false');
+                                            localStorage.setItem('multiWindow', e.target.checked ? 'true' : 'false');
+                                            window.dispatchEvent(new Event('storage')); // Notify other pages if open
                                         }}
                                         style={{ accentColor: 'var(--accent-color)' }}
                                     />

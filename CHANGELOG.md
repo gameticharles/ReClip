@@ -8,7 +8,8 @@
 - **PIN Lock**: Secure your clipboard history with a local PIN.
 - **Category Filters**: Dedicated chips to filter by All, Text, Images, HTML, Files, and Favorites.
 - **Improved OCR (Windows)**: Enhanced native OCR with progress indicators.
-- **Automation Workflows**: Foundation for trigger-action clipboard automations.
+- **IDE Plugin API**: RESTful API for integration with VS Code, IntelliJ, and more (localhost:14401).
+- **E2E Encrypted Cloud Sync**: Securely sync clipboard data via Google Drive with local AES-256-GCM encryption.
 - **Multi-Window Support**: Option to allow multiple instances of snippet or note windows.
 
 ### 🐛 Bug Fixes

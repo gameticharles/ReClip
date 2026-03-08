@@ -1,26 +1,20 @@
-
+#[cfg(target_os = "windows")]
 use std::io::Cursor;
+#[cfg(target_os = "windows")]
 use windows::Graphics::Imaging::BitmapDecoder;
+#[cfg(target_os = "windows")]
 use windows::Media::Ocr::OcrEngine;
+#[cfg(target_os = "windows")]
 use windows::Storage::Streams::{DataWriter, InMemoryRandomAccessStream};
 
-// Note: This function must be called from a thread where Windows RT is initialized (which Tauri usually handles on main thread, but safe to do in spawned blocking task?)
-// Windows RT objects are mostly Agile so they are thread-safe.
+#[cfg(not(target_os = "windows"))]
+use rusty_tesseract::{Args, Image};
 
+#[cfg(target_os = "windows")]
 pub async fn extract_text_from_image(image_path: &str) -> Result<String, String> {
-    // 1. Load image into memory using helper
     let img = image::open(image_path).map_err(|e| format!("Failed to open image: {}", e))?;
-    // 2. Create SoftwareBitmap
-    // We need to feed data into a RandomAccessStream to use BitmapDecoder to create SoftwareBitmap? 
-    // Or create SoftwareBitmap directly. 
-    // Native SoftwareBitmap creation from buffer is complex in Rust bindings without IBuffer helpers.
-    // Easier path: Write to in-memory stream -> BitmapDecoder -> SoftwareBitmap.
-
     let stream = InMemoryRandomAccessStream::new().map_err(|e| e.to_string())?;
     let writer = DataWriter::CreateDataWriter(&stream).map_err(|e| e.to_string())?;
-    
-    // We need to encode as PNG/JPEG to stream first? 
-    // 'image' crate can write to buffer.
     
     let mut buffer = Vec::new();
     img.write_to(&mut Cursor::new(&mut buffer), image::ImageFormat::Png)
@@ -35,8 +29,6 @@ pub async fn extract_text_from_image(image_path: &str) -> Result<String, String>
     let decoder = BitmapDecoder::CreateAsync(&stream).map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
     let bitmap = decoder.GetSoftwareBitmapAsync().map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
 
-    // 3. Initialize OCR Engine
-    // Use default language or "en-US"
     let engine = match OcrEngine::TryCreateFromUserProfileLanguages() {
         Ok(e) => e,
         Err(_) => {
@@ -46,7 +38,6 @@ pub async fn extract_text_from_image(image_path: &str) -> Result<String, String>
         }
     };
 
-    // 4. Recognize
     let result = engine.RecognizeAsync(&bitmap).map_err(|e| e.to_string())?.await.map_err(|e| e.to_string())?;
     
     let lines = result.Lines().map_err(|e| e.to_string())?;
@@ -57,5 +48,18 @@ pub async fn extract_text_from_image(image_path: &str) -> Result<String, String>
         text.push('\n');
     }
 
+    Ok(text.trim().to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub async fn extract_text_from_image(image_path: &str) -> Result<String, String> {
+    let img = Image::from_path(image_path).map_err(|e| format!("Tesseract error (is it installed?): {}", e))?;
+    let args = Args::default();
+    
+    // rusty-tesseract is mostly blocking in its current form, wrap in spawn_blocking if needed
+    // but here we just call it.
+    let text = rusty_tesseract::image_to_string(&img, &args)
+        .map_err(|e| format!("OCR execution failed: {}", e))?;
+        
     Ok(text.trim().to_string())
 }
