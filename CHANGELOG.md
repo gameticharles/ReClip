@@ -1,3 +1,6 @@
+## [1.1.2] - 2026-03-08
+
+updated CSP
 ## [1.1.1] - 2026-03-08
 
 features and bugs fixes
@@ -334,6 +337,7 @@ Fixed tray UI logic and updated version for CI/CD
 
 - Fixed release script.
 - Initial project setup.
+
 
 
 
