@@ -15,7 +15,7 @@ export const CHANGELOG_DATA: ChangeLogEntry[] = [
             {
                 title: "Security",
                 items: [
-                    "**Content Security Policy (CSP)**: Added restrictive CSP for improved app safety."
+                    "**Content Security Policy (CSP)**: Updated CSP to allow local file access."
                 ]
             }
         ]

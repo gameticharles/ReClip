@@ -1,5 +1,5 @@
 ## [1.1.2] - 2026-03-08
-- **Security**: Added restrictive Content Security Policy (CSP) for improved app safety.
+- **Security**: Updated Content Security Policy (CSP) to allow local file access.
 
 features and bugs fixes
 ## [1.1.1] - 2026-03-08
