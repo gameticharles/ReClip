@@ -1206,6 +1206,44 @@ export default function SettingsPage({
                                     ))}
                                 </div>
                             </div>
+
+                            {/* PIN Lock */}
+                            <div className="setting-item" style={{ marginTop: '24px', padding: '16px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+                                <h3 style={{ fontSize: '0.9rem', marginBottom: '12px', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    🔒 PIN Lock
+                                </h3>
+                                <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '12px' }}>
+                                    Require a PIN to access ReClip on startup.
+                                </p>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    {localStorage.getItem('pinLock') ? (
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm('Remove PIN lock?')) {
+                                                    localStorage.removeItem('pinLock');
+                                                    window.alert('PIN lock removed.');
+                                                }
+                                            }}
+                                            className="primary-btn"
+                                            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
+                                        >
+                                            Remove PIN
+                                        </button>
+                                    ) : (
+                                        <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>No PIN set. PIN setup appears on app launch.</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Reset Onboarding */}
+                            <div className="setting-item" style={{ marginTop: '16px' }}>
+                                <button
+                                    onClick={() => { localStorage.removeItem('onboardingComplete'); window.alert('Onboarding will show on next launch.'); }}
+                                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color, rgba(128,128,128,0.3))', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '0.8rem' }}
+                                >
+                                    🔄 Reset Onboarding Tour
+                                </button>
+                            </div>
                         </div>
                     )}
 

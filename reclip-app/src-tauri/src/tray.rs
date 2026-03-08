@@ -7,6 +7,60 @@ use tauri::{
 pub struct TrayState<R: Runtime> {
     pub incognito_item: CheckMenuItem<R>,
     pub always_on_top_item: CheckMenuItem<R>,
+    pub recent_clips_menu: Submenu<R>,
+}
+
+/// Truncate text for tray display (max ~50 chars)
+fn truncate_for_tray(text: &str) -> String {
+    let cleaned = text.replace('\n', " ").replace('\r', "");
+    if cleaned.len() > 50 {
+        format!("{}…", &cleaned[..47])
+    } else {
+        cleaned
+    }
+}
+
+/// Update the recent clips in the tray menu
+pub fn update_tray_clips<R: Runtime>(app: &AppHandle<R>, clips: Vec<(i64, String, String)>) {
+    let state = match app.try_state::<TrayState<R>>() {
+        Some(s) => s,
+        None => return,
+    };
+
+    let submenu = &state.recent_clips_menu;
+    
+    // Remove existing items
+    let items: Vec<_> = submenu.items().unwrap_or_default();
+    for item in items {
+        let _ = submenu.remove(&item);
+    }
+    
+    if clips.is_empty() {
+        let empty_item = MenuItem::with_id(app, "clip_empty", "(No clips yet)", false, None::<&str>);
+        if let Ok(item) = empty_item {
+            let _ = submenu.append(&item);
+        }
+        return;
+    }
+
+    // Add clip items
+    for (i, (_id, content, clip_type)) in clips.iter().enumerate() {
+        let label = if clip_type == "image" {
+            format!("🖼️ Image")
+        } else if clip_type == "files" {
+            "📁 Files".to_string()
+        } else if clip_type == "html" {
+            let text = html2text::from_read(content.as_bytes(), 80).unwrap_or_else(|_| content.clone());
+            truncate_for_tray(&text)
+        } else {
+            truncate_for_tray(content)
+        };
+        
+        let item_id = format!("tray_clip_{}", i);
+        if let Ok(item) = MenuItem::with_id(app, &item_id, &label, true, None::<&str>) {
+            let _ = submenu.append(&item);
+        }
+    }
 }
 
 pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
@@ -28,7 +82,6 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         None::<&str>,
     )?;
 
-    // Default to false on startup, frontend will update this if needed
     let always_on_top_item = CheckMenuItem::with_id(
         app,
         "toggle_top",
@@ -38,21 +91,14 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         None::<&str>,
     )?;
 
-    // Store in app state so commands can access them
-    app.manage(TrayState {
-        incognito_item: incognito_item.clone(),
-        always_on_top_item: always_on_top_item.clone(),
-    });
-
     // Tools
     let maintenance_item =
         MenuItem::with_id(app, "maintenance", "Run Maintenance", true, None::<&str>)?;
     let settings_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
 
-    // Recent Clips Submenu (Placeholder)
-    // In a full implementation, this would be dynamic
-    let clip1 = MenuItem::with_id(app, "clip_1", "(Empty)", false, None::<&str>)?;
-    let recent_clips_menu = Submenu::with_items(app, "Recent Clips", true, &[&clip1])?;
+    // Recent Clips Submenu (populated dynamically)
+    let clip_empty = MenuItem::with_id(app, "clip_empty", "(No clips yet)", false, None::<&str>)?;
+    let recent_clips_menu = Submenu::with_items(app, "Recent Clips", true, &[&clip_empty])?;
 
     // 2. Build Menu Structure
     let menu = Menu::with_items(
@@ -71,6 +117,13 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             &quit_item,
         ],
     )?;
+
+    // Store in app state
+    app.manage(TrayState {
+        incognito_item: incognito_item.clone(),
+        always_on_top_item: always_on_top_item.clone(),
+        recent_clips_menu: recent_clips_menu.clone(),
+    });
 
     // 3. Create Tray Icon
     let _tray = TrayIconBuilder::with_id("tray")
@@ -95,12 +148,9 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     app.exit(0);
                 }
                 "toggle_incognito" => {
-                    // Logic to toggle incognito in backend state would go here
-                    // For now we just emit an event to frontend
                     let _ = app.emit("tray-toggle-incognito", ());
                 }
                 "toggle_top" => {
-                    // Let the frontend manage the state to avoid syncing issues
                     let _ = app.emit("tray-toggle-top", ());
                 }
                 "settings" => {
@@ -113,7 +163,28 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 "maintenance" => {
                     let _ = app.emit("run-maintenance", ());
                 }
-                _ => {}
+                _ => {
+                    // Handle tray clip clicks
+                    if id.starts_with("tray_clip_") {
+                        if let Ok(index) = id.trim_start_matches("tray_clip_").parse::<usize>() {
+                            let app_clone = app.clone();
+                            let db_state = app.state::<crate::db::DbState>();
+                            let pool = db_state.pool.clone();
+                            tauri::async_runtime::spawn(async move {
+                                if let Ok(clips) = crate::db::get_clips(&pool, 10, 0, None, None, false).await {
+                                    if let Some(clip) = clips.get(index) {
+                                        if clip.type_ != "image" {
+                                            if let Ok(mut cb) = arboard::Clipboard::new() {
+                                                let _ = cb.set_text(&clip.content);
+                                                let _ = app_clone.emit("notification", "Copied from tray!");
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
             }
         })
         .on_tray_icon_event(|tray, event| {

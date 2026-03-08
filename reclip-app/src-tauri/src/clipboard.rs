@@ -7,6 +7,7 @@ use log::{info, error};
 use tauri::{Manager, Emitter};
 
 use crate::db::insert_clip;
+use crate::db::insert_clip_with_sensitive;
 
 // Global incognito mode flag
 pub static INCOGNITO_MODE: AtomicBool = AtomicBool::new(false);
@@ -129,8 +130,9 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                              let content_clone = content.clone();
                              let hash_clone = hash.clone();
                              
+                             let sender = active_window.as_ref().map(|w| w.info.name.clone());
                              tauri::async_runtime::spawn(async move {
-                                  let _ = insert_clip(&pool_clone, content_clone, "files".to_string(), hash_clone, None).await;
+                                  let _ = insert_clip(&pool_clone, content_clone, "files".to_string(), hash_clone, None, sender).await;
                                   let _ = app_handle_clone.emit("clip-created", ());
                              });
                              thread::sleep(Duration::from_millis(500));
@@ -182,7 +184,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                          ) {
                              Ok(_) => {
                                  let content_path = img_path.to_string_lossy().to_string();
-                                 match insert_clip(&pool_clone, content_path, "image".to_string(), hash_clone, None).await {
+                                 match insert_clip(&pool_clone, content_path, "image".to_string(), hash_clone, None, None).await {
                                      Ok(id) => {
                                          let _ = app_handle_clone.emit("clip-created", id);
                                      },
@@ -253,8 +255,9 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                         
                                         info!("New HTML clip detected ({} bytes)", clean_html.len());
                                         
+                                        let sender = active_window.as_ref().map(|w| w.info.name.clone());
                                         tauri::async_runtime::spawn(async move {
-                                            match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None).await {
+                                            match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None, sender).await {
                                                 Ok(id) => {
                                                     let _ = app_handle_clone.emit("clip-created", id);
                                                 },
@@ -427,7 +430,10 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                crate::clipboard::detect_tags(&text_clone)
                            };
                            
-                           match crate::db::insert_clip_with_sensitive(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags, is_sensitive).await {
+                           // Extract sender app name from active window
+                           let sender = active_window_clone.as_ref().map(|w| w.info.name.clone());
+                           
+                           match crate::db::insert_clip_with_sensitive(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags, is_sensitive, sender).await {
                                Ok(id) => {
                                    let _ = app_handle_clone.emit("clip-created", id);
                                    

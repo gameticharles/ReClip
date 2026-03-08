@@ -7,6 +7,9 @@ import SnippetsPage from "./pages/SnippetsPage";
 import ColorToolPage from "./pages/ColorToolPage";
 import OrganizerPage from "./pages/OrganizerPage";
 import TitleBar from "./components/TitleBar";
+import GlobalSearch from "./components/GlobalSearch";
+import Onboarding from "./components/Onboarding";
+import PinLock from "./components/PinLock";
 import { Clip } from "./types";
 
 function App() {
@@ -21,6 +24,9 @@ function App() {
   const [queueMode, setQueueMode] = useState(() => localStorage.getItem('queueMode') === 'true');
   const [pasteQueue, setPasteQueue] = useState<Clip[]>([]);
   const [showTimeline, setShowTimeline] = useState(() => localStorage.getItem('showTimeline') === 'true');
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('onboardingComplete'));
+  const [isLocked, setIsLocked] = useState(() => !!localStorage.getItem('pinLock'));
 
   // Persistence Effects
   useEffect(() => {
@@ -153,6 +159,18 @@ function App() {
     });
 
     return () => window.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
+  // Global Search Shortcut (Ctrl+K)
+  useEffect(() => {
+    const handleGlobalSearch = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowGlobalSearch(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalSearch);
+    return () => window.removeEventListener('keydown', handleGlobalSearch);
   }, []);
 
   // Always on Top Persistence
@@ -333,6 +351,12 @@ function App() {
 
   return (
     <div className="app-container">
+      {isLocked && (
+        <PinLock onUnlock={() => setIsLocked(false)} />
+      )}
+      {showOnboarding && !isLocked && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      )}
       <TitleBar
         incognitoMode={incognitoMode}
         toggleIncognito={toggleIncognito}
@@ -376,6 +400,15 @@ function App() {
           setAccentColor={setAccentColor}
         />
       )}
+      <GlobalSearch
+        visible={showGlobalSearch}
+        onClose={() => setShowGlobalSearch(false)}
+        onNavigate={(module, _id) => {
+          if (module === 'clip') setView('main');
+          else if (module === 'snippet') setView('snippets');
+          else if (module === 'note') setView('organizer');
+        }}
+      />
     </div>
   );
 }

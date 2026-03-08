@@ -34,7 +34,7 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https: data: blob:; font-src 'self' data: https:; connect-src 'self' https: http://localhost:*; media-src 'self' asset:",
       "assetProtocol": {
         "enable": true,
         "scope": [

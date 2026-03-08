@@ -109,7 +109,59 @@ pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std
     let _ = sqlx::query("ALTER TABLE reminders ADD COLUMN position INTEGER DEFAULT 0").execute(&pool).await;
     let _ = sqlx::query("ALTER TABLE alarms ADD COLUMN position INTEGER DEFAULT 0").execute(&pool).await;
 
+    // Create workflows table for automation
+    sqlx::query("CREATE TABLE IF NOT EXISTS workflows (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        trigger_type TEXT NOT NULL DEFAULT 'content_match',
+        trigger_pattern TEXT NOT NULL DEFAULT '',
+        action_type TEXT NOT NULL DEFAULT 'tag',
+        action_value TEXT NOT NULL DEFAULT '',
+        enabled BOOLEAN NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )").execute(&pool).await?;
+
     Ok(pool)
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, sqlx::FromRow)]
+pub struct Workflow {
+    pub id: i64,
+    pub name: String,
+    pub trigger_type: String,
+    pub trigger_pattern: String,
+    pub action_type: String,
+    pub action_value: String,
+    pub enabled: bool,
+    pub created_at: String,
+}
+
+pub async fn get_workflows(pool: &Pool<Sqlite>) -> Result<Vec<Workflow>, sqlx::Error> {
+    let workflows = sqlx::query_as::<_, Workflow>(
+        "SELECT id, name, trigger_type, trigger_pattern, action_type, action_value, enabled, created_at FROM workflows ORDER BY created_at DESC"
+    ).fetch_all(pool).await?;
+    Ok(workflows)
+}
+
+pub async fn add_workflow(pool: &Pool<Sqlite>, name: String, trigger_type: String, trigger_pattern: String, action_type: String, action_value: String) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query(
+        "INSERT INTO workflows (name, trigger_type, trigger_pattern, action_type, action_value) VALUES (?, ?, ?, ?, ?)"
+    )
+    .bind(&name).bind(&trigger_type).bind(&trigger_pattern).bind(&action_type).bind(&action_value)
+    .execute(pool).await?.last_insert_rowid();
+    Ok(id)
+}
+
+pub async fn delete_workflow(pool: &Pool<Sqlite>, id: i64) -> Result<(), sqlx::Error> {
+    sqlx::query("DELETE FROM workflows WHERE id = ?").bind(id).execute(pool).await?;
+    Ok(())
+}
+
+pub async fn get_enabled_workflows(pool: &Pool<Sqlite>) -> Result<Vec<Workflow>, sqlx::Error> {
+    let workflows = sqlx::query_as::<_, Workflow>(
+        "SELECT id, name, trigger_type, trigger_pattern, action_type, action_value, enabled, created_at FROM workflows WHERE enabled = 1"
+    ).fetch_all(pool).await?;
+    Ok(workflows)
 }
 
 // ... existing code ...
@@ -316,19 +368,20 @@ pub async fn get_active_alarms(pool: &Pool<Sqlite>) -> Result<Vec<Alarm>, sqlx::
         .await
 }
 
-pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>) -> Result<i64, sqlx::Error> {
-    insert_clip_with_sensitive(pool, content, type_, hash, tags, false).await
+pub async fn insert_clip(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>, sender_app: Option<String>) -> Result<i64, sqlx::Error> {
+    insert_clip_with_sensitive(pool, content, type_, hash, tags, false, sender_app).await
 }
 
-pub async fn insert_clip_with_sensitive(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>, sensitive: bool) -> Result<i64, sqlx::Error> {
-    let id = sqlx::query("INSERT INTO clips (content, type, hash, tags, sensitive) VALUES (?, ?, ?, ?, ?) 
-        ON CONFLICT(hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP
+pub async fn insert_clip_with_sensitive(pool: &Pool<Sqlite>, content: String, type_: String, hash: String, tags: Option<String>, sensitive: bool, sender_app: Option<String>) -> Result<i64, sqlx::Error> {
+    let id = sqlx::query("INSERT INTO clips (content, type, hash, tags, sensitive, sender_app) VALUES (?, ?, ?, ?, ?, ?) 
+        ON CONFLICT(hash) DO UPDATE SET created_at = CURRENT_TIMESTAMP, sender_app = COALESCE(excluded.sender_app, clips.sender_app)
         RETURNING id")
         .bind(content)
         .bind(type_)
         .bind(hash)
         .bind(tags)
         .bind(sensitive)
+        .bind(sender_app)
         .fetch_one(pool)
         .await?
         .get::<i64, _>(0);
@@ -345,24 +398,143 @@ pub async fn update_clip_content(pool: &Pool<Sqlite>, id: i64, content: String) 
     Ok(())
 }
 
-pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Option<String>) -> Result<Vec<Clip>, sqlx::Error> {
-    let query_str = if let Some(term) = search {
-        format!(
-            "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app, sensitive, position FROM clips 
-             WHERE content LIKE '%{}%' OR tags LIKE '%{}%' 
-             ORDER BY favorite DESC, pinned DESC, COALESCE(position, 0) DESC, created_at DESC LIMIT ? OFFSET ?", 
-            term, term
-        )
+pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Option<String>, type_filter: Option<String>, favorites_only: bool) -> Result<Vec<Clip>, sqlx::Error> {
+    let mut conditions = Vec::new();
+    let mut bind_values: Vec<String> = Vec::new();
+    
+    if let Some(ref term) = search {
+        conditions.push(format!("(content LIKE '%{}%' OR tags LIKE '%{}%')", term, term));
+    }
+    
+    if let Some(ref tf) = type_filter {
+        conditions.push("type = ?".to_string());
+        bind_values.push(tf.clone());
+    }
+    
+    if favorites_only {
+        conditions.push("favorite = 1".to_string());
+    }
+    
+    let where_clause = if conditions.is_empty() {
+        String::new()
     } else {
-        "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app, sensitive, position FROM clips ORDER BY favorite DESC, pinned DESC, COALESCE(position, 0) DESC, created_at DESC LIMIT ? OFFSET ?".to_string()
+        format!("WHERE {}", conditions.join(" AND "))
     };
+    
+    let query_str = format!(
+        "SELECT id, content, type, hash, created_at, pinned, favorite, tags, sender_app, sensitive, position FROM clips {} ORDER BY favorite DESC, pinned DESC, COALESCE(position, 0) DESC, created_at DESC LIMIT ? OFFSET ?",
+        where_clause
+    );
 
-    let clips = sqlx::query_as::<_, Clip>(&query_str)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await?;
+    let mut query = sqlx::query_as::<_, Clip>(&query_str);
+    
+    for val in &bind_values {
+        query = query.bind(val);
+    }
+    
+    query = query.bind(limit).bind(offset);
+    
+    let clips = query.fetch_all(pool).await?;
     Ok(clips)
+}
+
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct TypeCount {
+    pub type_name: String,
+    pub count: i64,
+}
+
+pub async fn get_clip_type_counts(pool: &Pool<Sqlite>) -> Result<Vec<TypeCount>, sqlx::Error> {
+    let counts = sqlx::query_as::<_, TypeCount>(
+        "SELECT type as type_name, COUNT(*) as count FROM clips GROUP BY type ORDER BY count DESC"
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(counts)
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GlobalSearchResult {
+    pub id: i64,
+    pub module: String,
+    pub title: String,
+    pub preview: String,
+    pub created_at: String,
+}
+
+pub async fn global_search(pool: &Pool<Sqlite>, term: &str, limit: i64) -> Result<Vec<GlobalSearchResult>, sqlx::Error> {
+    let mut results = Vec::new();
+    let search_pattern = format!("%{}%", term);
+    
+    // Search clips
+    let clip_rows = sqlx::query(
+        "SELECT id, content, type, created_at FROM clips WHERE content LIKE ?1 OR tags LIKE ?1 ORDER BY created_at DESC LIMIT ?2"
+    )
+    .bind(&search_pattern)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    
+    for row in clip_rows {
+        let content: String = row.get("content");
+        let clip_type: String = row.get("type");
+        let preview = if content.len() > 100 { format!("{}…", &content[..97]) } else { content.clone() };
+        results.push(GlobalSearchResult {
+            id: row.get("id"),
+            module: "clip".to_string(),
+            title: format!("{} clip", clip_type),
+            preview,
+            created_at: row.get("created_at"),
+        });
+    }
+    
+    // Search snippets
+    let snippet_rows = sqlx::query(
+        "SELECT id, title, content, created_at FROM snippets WHERE title LIKE ?1 OR content LIKE ?1 ORDER BY created_at DESC LIMIT ?2"
+    )
+    .bind(&search_pattern)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    
+    for row in snippet_rows {
+        let content: String = row.get("content");
+        let preview = if content.len() > 100 { format!("{}…", &content[..97]) } else { content.clone() };
+        results.push(GlobalSearchResult {
+            id: row.get("id"),
+            module: "snippet".to_string(),
+            title: row.get("title"),
+            preview,
+            created_at: row.get("created_at"),
+        });
+    }
+    
+    // Search notes
+    let note_rows = sqlx::query(
+        "SELECT id, title, content, created_at FROM notes WHERE title LIKE ?1 OR content LIKE ?1 ORDER BY created_at DESC LIMIT ?2"
+    )
+    .bind(&search_pattern)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+    
+    for row in note_rows {
+        let content: String = row.get("content");
+        let preview = if content.len() > 100 { format!("{}…", &content[..97]) } else { content.clone() };
+        results.push(GlobalSearchResult {
+            id: row.get("id"),
+            module: "note".to_string(),
+            title: row.get("title"),
+            preview,
+            created_at: row.get("created_at"),
+        });
+    }
+    
+    // Sort by created_at descending
+    results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    results.truncate(limit as usize);
+    
+    Ok(results)
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -397,6 +569,60 @@ pub async fn get_clip_stats(pool: &Pool<Sqlite>, search: Option<String>) -> Resu
         total_count: count,
         oldest_date: dates.0,
         newest_date: dates.1,
+    })
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct UsageStats {
+    pub total_clips: i64,
+    pub total_snippets: i64,
+    pub total_notes: i64,
+    pub clips_today: i64,
+    pub clips_this_week: i64,
+    pub type_breakdown: Vec<TypeCount>,
+    pub top_source_apps: Vec<TypeCount>,
+    pub daily_counts: Vec<DailyCount>,
+}
+
+#[derive(Debug, serde::Serialize, sqlx::FromRow)]
+pub struct DailyCount {
+    pub day: String,
+    pub count: i64,
+}
+
+pub async fn get_usage_stats(pool: &Pool<Sqlite>) -> Result<UsageStats, sqlx::Error> {
+    let total_clips: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM clips")
+        .fetch_one(pool).await?;
+    let total_snippets: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM snippets")
+        .fetch_one(pool).await?;
+    let total_notes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM notes")
+        .fetch_one(pool).await?;
+    let clips_today: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM clips WHERE date(created_at) = date('now')"
+    ).fetch_one(pool).await?;
+    let clips_this_week: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM clips WHERE created_at >= datetime('now', '-7 days')"
+    ).fetch_one(pool).await?;
+    
+    let type_breakdown = get_clip_type_counts(pool).await?;
+    
+    let top_source_apps = sqlx::query_as::<_, TypeCount>(
+        "SELECT COALESCE(sender_app, 'Unknown') as type_name, COUNT(*) as count FROM clips GROUP BY sender_app ORDER BY count DESC LIMIT 10"
+    ).fetch_all(pool).await?;
+    
+    let daily_counts = sqlx::query_as::<_, DailyCount>(
+        "SELECT date(created_at) as day, COUNT(*) as count FROM clips WHERE created_at >= datetime('now', '-7 days') GROUP BY date(created_at) ORDER BY day ASC"
+    ).fetch_all(pool).await?;
+    
+    Ok(UsageStats {
+        total_clips,
+        total_snippets,
+        total_notes,
+        clips_today,
+        clips_this_week,
+        type_breakdown,
+        top_source_apps,
+        daily_counts,
     })
 }
 

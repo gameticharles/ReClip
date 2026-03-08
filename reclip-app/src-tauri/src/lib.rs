@@ -15,10 +15,46 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn get_recent_clips(state: State<'_, DbState>, limit: i64, offset: i64, search: Option<String>) -> Result<Vec<Clip>, String> {
-    db::get_clips(&state.pool, limit, offset, search)
+async fn get_recent_clips(state: State<'_, DbState>, limit: i64, offset: i64, search: Option<String>, type_filter: Option<String>, favorites_only: Option<bool>) -> Result<Vec<Clip>, String> {
+    db::get_clips(&state.pool, limit, offset, search, type_filter, favorites_only.unwrap_or(false))
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_clip_type_counts(state: State<'_, DbState>) -> Result<Vec<db::TypeCount>, String> {
+    db::get_clip_type_counts(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn global_search(state: State<'_, DbState>, term: String, limit: Option<i64>) -> Result<Vec<db::GlobalSearchResult>, String> {
+    db::global_search(&state.pool, &term, limit.unwrap_or(20))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_usage_stats(state: State<'_, DbState>) -> Result<db::UsageStats, String> {
+    db::get_usage_stats(&state.pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_workflows(state: State<'_, DbState>) -> Result<Vec<db::Workflow>, String> {
+    db::get_workflows(&state.pool).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_workflow(state: State<'_, DbState>, name: String, trigger_type: String, trigger_pattern: String, action_type: String, action_value: String) -> Result<i64, String> {
+    db::add_workflow(&state.pool, name, trigger_type, trigger_pattern, action_type, action_value).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_workflow(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+    db::delete_workflow(&state.pool, id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -464,7 +500,7 @@ pub fn run() {
                                             let pool = state.pool.clone();
                                             
                                             tauri::async_runtime::spawn(async move {
-                                                if let Ok(clips) = db::get_clips(&pool, 20, 0, None).await {
+                                                if let Ok(clips) = db::get_clips(&pool, 20, 0, None, None, false).await {
                                                     if let Some(clip) = clips.get(num - 1) {
                                                         let _ = paste_clip_to_system(app_clone, clip.content.clone(), clip.type_.clone()).await;
                                                     }
@@ -490,6 +526,16 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 let _ = tray::create_tray(app.handle());
+                
+                // Load initial clips into tray
+                let pool_for_tray = pool.clone();
+                let app_for_tray = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(clips) = db::get_clips(&pool_for_tray, 10, 0, None, None, false).await {
+                        let tray_clips: Vec<(i64, String, String)> = clips.iter().map(|c| (c.id, c.content.clone(), c.type_.clone())).collect();
+                        tray::update_tray_clips(&app_for_tray, tray_clips);
+                    }
+                });
             }
 
             Ok(())
@@ -503,7 +549,7 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .invoke_handler(tauri::generate_handler![
-             greet, get_recent_clips, get_clip_stats, get_clip_dates, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
+             greet, get_recent_clips, get_clip_stats, get_clip_dates, get_clip_type_counts, global_search, get_usage_stats, get_workflows, add_workflow, delete_workflow, add_privacy_rule, delete_privacy_rule, get_privacy_rules, 
              update_shortcut, get_shortcuts,
              get_templates, add_template, delete_template, update_template,
              copy_to_system, delete_clip, paste_clip_to_system, run_maintenance, get_app_data_path, 
@@ -519,7 +565,7 @@ pub fn run() {
              get_notes, add_note, update_note, delete_note,
              get_reminders, add_reminder, toggle_reminder, delete_reminder, update_reminder_content,
              get_alarms, add_alarm, update_alarm, toggle_alarm, delete_alarm,
-             reorder_items, is_minimized_launch, update_tray_item_state
+             reorder_items, is_minimized_launch, update_tray_item_state, refresh_tray_clips
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -532,6 +578,14 @@ fn update_tray_item_state(state: tauri::State<'_, crate::tray::TrayState<tauri::
     } else if id == "toggle_top" {
         let _ = state.always_on_top_item.set_checked(checked);
     }
+    Ok(())
+}
+
+#[tauri::command]
+async fn refresh_tray_clips(app: tauri::AppHandle, state: State<'_, DbState>) -> Result<(), String> {
+    let clips = db::get_clips(&state.pool, 10, 0, None, None, false).await.map_err(|e| e.to_string())?;
+    let tray_clips: Vec<(i64, String, String)> = clips.iter().map(|c| (c.id, c.content.clone(), c.type_.clone())).collect();
+    tray::update_tray_clips(&app, tray_clips);
     Ok(())
 }
 
