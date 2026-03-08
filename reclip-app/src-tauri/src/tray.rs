@@ -204,3 +204,20 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
     Ok(())
 }
+
+pub fn update_item_state<R: Runtime>(state: tauri::State<'_, TrayState<R>>, id: String, checked: bool) -> Result<(), String> {
+    if id == "toggle_incognito" {
+        let _ = state.incognito_item.set_checked(checked);
+    } else if id == "toggle_top" {
+        let _ = state.always_on_top_item.set_checked(checked);
+    }
+    Ok(())
+}
+
+pub async fn update_tray_history<R: Runtime>(app: &AppHandle<R>, state: tauri::State<'_, crate::db::DbState>) -> Result<(), String> {
+    if let Ok(clips) = crate::db::get_clips(&state.pool, 10, 0, None, None, false).await {
+        let tray_clips: Vec<(i64, String, String)> = clips.iter().map(|c| (c.id, c.content.clone(), c.type_.clone())).collect();
+        update_tray_clips(app, tray_clips);
+    }
+    Ok(())
+}
