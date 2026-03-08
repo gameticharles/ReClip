@@ -4,7 +4,6 @@ import { listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Clip } from "../types";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { motion } from "framer-motion";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { QRModal } from "./QRModal";
 import TimelineView from "./TimelineView";

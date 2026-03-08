@@ -31,7 +31,9 @@ export const CHANGELOG_DATA: ChangeLogEntry[] = [
             {
                 title: "🐛 Bug Fixes",
                 items: [
-                    "**Undo Position**: Fixed an issue where undoing a deletion would place the clip at the top instead of its original position.",
+                    "**Bug Fix (Undo Delete)**: Resolved issue where undone clips were restored to the top of the list. They now return to their **original index/position**.",
+                    "**Listen to Self Toggle**: Users can now disable capturing clipboard events that originate from within the ReClip app itself to prevent cluttering the history.",
+                    "**Linting**: Resolved all TypeScript compiler warnings and unused variable errors across `App.tsx`, `MainView.tsx`, and state stores.",
                     "**Search Layout**: Optimized search and filter bar for better responsiveness on small windows.",
                     "**Security**: Added restrictive Content Security Policy (CSP) for improved app safety.",
                     "**Tray**: Fixed tray menu logic to ensure proper updates and sync with main application state.",

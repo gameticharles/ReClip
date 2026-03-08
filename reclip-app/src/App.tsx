@@ -20,7 +20,7 @@ function App() {
     compactMode, setCompactMode,
     useSystemAccent, setUseSystemAccent,
     accentColor, setAccentColor,
-    incognitoMode, setIncognitoMode, loadIncognito, loadListenToSelf, toggleIncognito,
+    incognitoMode, loadIncognito, loadListenToSelf, toggleIncognito,
     queueMode, setQueueMode,
     showTimeline, setShowTimeline,
     showOnboarding, setShowOnboarding,
@@ -28,7 +28,7 @@ function App() {
     applyTheme
   } = useSettingsStore();
 
-  const { pasteQueue, setPasteQueue } = useClipStore();
+  const { pasteQueue } = useClipStore();
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
   const [standaloneId, setStandaloneId] = useState<{ type: 'snippet' | 'note', id: number } | null>(null);
 

@@ -28,7 +28,7 @@ interface SnippetState {
     deleteSnippet: (id: number) => Promise<void>;
 }
 
-export const useSnippetStore = create<SnippetState>((set, get) => ({
+export const useSnippetStore = create<SnippetState>((set) => ({
     snippets: [],
     search: '',
     filterLanguage: '',

@@ -34,7 +34,7 @@ interface OrganizerState {
     deleteItem: (type: 'note' | 'reminder' | 'alarm', id: number) => Promise<void>;
 }
 
-export const useOrganizerStore = create<OrganizerState>((set, get) => ({
+export const useOrganizerStore = create<OrganizerState>((set) => ({
     notes: [],
     reminders: [],
     alarms: [],
