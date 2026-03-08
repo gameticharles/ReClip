@@ -1,3 +1,6 @@
+## [1.1.1] - 2026-03-08
+
+features and bug fix
 ## [1.1.0] - 2026-03-08
 
 ### ✨ New Features
@@ -328,6 +331,7 @@ Fixed tray UI logic and updated version for CI/CD
 
 - Fixed release script.
 - Initial project setup.
+
 
 
 
