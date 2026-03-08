@@ -76,6 +76,8 @@ export const CHANGELOG_DATA: ChangeLogEntry[] = [
                 items: [
                     "**Bug Fix (Undo Delete)**: Resolved issue where undone clips were restored to the top of the list. They now return to their **original index/position**.",
                     "**Listen to Self Toggle**: Users can now disable capturing clipboard events that originate from within the ReClip app itself to prevent cluttering the history.",
+                    "**Single Instance Protection**: Added backend logic to prevent multiple app instances and focus the existing window on second launch.",
+                    "**CSP Image Fix**: Resolved image rendering issues in Windows release builds by allowing `http://asset.localhost` in the Content Security Policy.",
                     "**Linting**: Resolved all TypeScript compiler warnings and unused variable errors across `App.tsx`, `MainView.tsx`, and state stores.",
                     "**Search Layout**: Optimized search and filter bar for better responsiveness on small windows.",
                     "**Security**: Added restrictive Content Security Policy (CSP) for improved app safety.",

@@ -188,8 +188,5 @@ pub async fn get_url_metadata(url: String) -> Result<UrlMetadata, String> {
 
 #[tauri::command]
 pub async fn run_ocr(path: String) -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    { ocr::extract_text_from_image(&path).await }
-    #[cfg(not(target_os = "windows"))]
-    { Err("OCR only supported on Windows".to_string()) }
+    ocr::extract_text_from_image(&path).await
 }
