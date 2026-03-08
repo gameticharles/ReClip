@@ -9,6 +9,36 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.1.2",
+        date: "2026-03-08",
+        sections: [
+            {
+                title: "Security",
+                items: [
+                    "**Content Security Policy (CSP)**: Added restrictive CSP for improved app safety."
+                ]
+            }
+        ]
+    },
+    {
+        version: "1.1.1",
+        date: "2026-03-08",
+        sections: [
+            {
+                title: "Tray",
+                items: [
+                    "**Tray**: Fixed tray menu logic to ensure proper updates and sync with main application state."
+                ]
+            },
+            {
+                title: "Pasting",
+                items: [
+                    "**Pasting**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed."
+                ]
+            }
+        ]
+    },
+    {
         version: "1.1.0",
         date: "2026-03-08",
         sections: [
