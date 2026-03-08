@@ -1,6 +1,6 @@
 [package]
 name = "reclip-app"
-version = "0.1.0"
+version = "1.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -52,6 +52,11 @@ url = "2.5"
 open = "5"
 html2text = "0.16.7"
 tauri-plugin-updater = "2.10.0"
+rusty-tesseract = "1.1.10"
+aes-gcm = "0.10.3"
+argon2 = "0.5.3"
+axum = "0.7.5"
+tokio = { version = "1", features = ["full"] }
 
 
 [target.'cfg(windows)'.dependencies]

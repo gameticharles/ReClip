@@ -180,6 +180,7 @@ async fn get_shortcuts(state: State<'_, DbState>) -> Result<HashMap<String, Stri
     if let Some(s) = db::get_setting(&state.pool, "shortcut_show_quick").await { shortcuts.insert("show_quick".to_string(), s); }
     if let Some(s) = db::get_setting(&state.pool, "shortcut_incognito").await { shortcuts.insert("incognito".to_string(), s); }
     if let Some(s) = db::get_setting(&state.pool, "shortcut_paste_next").await { shortcuts.insert("paste_next".to_string(), s); }
+    if let Some(s) = db::get_setting(&state.pool, "shortcut_global_search").await { shortcuts.insert("global_search".to_string(), s); }
     for i in 1..=9 {
         let key = format!("shortcut_paste_{}", i);
         if let Some(s) = db::get_setting(&state.pool, &key).await {

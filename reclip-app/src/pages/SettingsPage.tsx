@@ -111,6 +111,7 @@ export default function SettingsPage({
     const [colorPaletteLimit, setColorPaletteLimit] = useState(() => parseInt(localStorage.getItem('colorPaletteLimit') || '15'));
     const [showTooltipPreview, setShowTooltipPreview] = useState(() => localStorage.getItem('showTooltipPreview') === 'true');
     const [autoHideDuration, setAutoHideDuration] = useState(() => parseInt(localStorage.getItem('autoHideDuration') || '0'));
+    const [multiWindow, setMultiWindow] = useState(() => localStorage.getItem('multiWindowMode') === 'true');
 
     // Google Drive
     const [driveConnected, setDriveConnected] = useState(false);
@@ -809,6 +810,25 @@ export default function SettingsPage({
                                 </label>
                             </div>
 
+                            {/* Multi-Window Mode */}
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Multi-Window Mode</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Allow opening multiple snippet or note windows simultaneously.</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={multiWindow}
+                                        onChange={(e) => {
+                                            setMultiWindow(e.target.checked);
+                                            localStorage.setItem('multiWindowMode', e.target.checked ? 'true' : 'false');
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                            </div>
+
                             <h3 style={{ marginTop: '24px', marginBottom: '16px', opacity: 0.9 }}>Appearance</h3>
 
                             <div className="setting-item">
@@ -998,6 +1018,34 @@ export default function SettingsPage({
                                     }}
                                 >
                                     {recordingAction === 'incognito' ? 'Press keys...' : (shortcuts['incognito'] || 'Not Set')}
+                                </div>
+                            </div>
+
+                            <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Global Search</span>
+                                    <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Search across all clips, notes, and snippets.</span>
+                                </div>
+                                <div
+                                    tabIndex={0}
+                                    onFocus={() => setRecordingAction('global_search')}
+                                    onBlur={() => setRecordingAction(null)}
+                                    className="shortcut-input"
+                                    style={{
+                                        width: '120px',
+                                        padding: '8px',
+                                        background: recordingAction === 'global_search' ? 'var(--accent-color)' : 'rgba(128,128,128,0.1)',
+                                        color: recordingAction === 'global_search' ? 'white' : 'inherit',
+                                        borderRadius: '8px',
+                                        border: '1px solid rgba(128,128,128,0.2)',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontWeight: 700,
+                                        outline: 'none',
+                                        userSelect: 'none'
+                                    }}
+                                >
+                                    {recordingAction === 'global_search' ? 'Press keys...' : (shortcuts['global_search'] || 'Ctrl+K')}
                                 </div>
                             </div>
 

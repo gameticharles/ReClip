@@ -9,6 +9,34 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.1.0",
+        date: "2026-03-08",
+        sections: [
+            {
+                title: "✨ New Features",
+                items: [
+                    "**Global Search (Ctrl+K)**: Spotlight-style search to quickly find clips, snippets, and notes.",
+                    "**Undo System**: 5-second window to undo accidental clip deletions.",
+                    "**Source App Tracking**: Clips now show which application they were copied from.",
+                    "**First-Run Onboarding**: Interactive tour to help new users discover ReClip features.",
+                    "**PIN Lock**: Secure your clipboard history with a local PIN.",
+                    "**Category Filters**: Dedicated chips to filter by All, Text, Images, HTML, Files, and Favorites.",
+                    "**Improved OCR (Windows)**: Enhanced native OCR with progress indicators.",
+                    "**Automation Workflows**: Foundation for trigger-action clipboard automations.",
+                    "**Multi-Window Support**: Option to allow multiple instances of snippet or note windows."
+                ]
+            },
+            {
+                title: "🐛 Bug Fixes",
+                items: [
+                    "**Undo Position**: Fixed an issue where undoing a deletion would place the clip at the top instead of its original position.",
+                    "**Search Layout**: Optimized search and filter bar for better responsiveness on small windows.",
+                    "**Security**: Added restrictive Content Security Policy (CSP) for improved app safety."
+                ]
+            }
+        ]
+    },
+    {
         version: "1.0.5",
         date: "2026-03-08",
         sections: [

@@ -533,6 +533,7 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
         e.stopPropagation();
         const clipToDelete = clips.find(c => c.id === id);
         if (!clipToDelete) return;
+        const clipIndex = clips.findIndex(c => c.id === id);
 
         // Soft-delete: remove from UI immediately
         setClips(clips.filter(c => c.id !== id));
@@ -553,8 +554,13 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 label: 'Undo',
                 onClick: () => {
                     clearTimeout(timeoutId);
-                    // Restore clip to UI
-                    setClips(prev => [clipToDelete, ...prev]);
+                    // Restore clip to original position
+                    setClips(prev => {
+                        const restored = [...prev];
+                        const insertAt = Math.min(clipIndex, restored.length);
+                        restored.splice(insertAt, 0, clipToDelete);
+                        return restored;
+                    });
                 }
             }
         });
@@ -766,98 +772,105 @@ export default function MainView({ compactMode, queueMode, pasteQueue, setPasteQ
                 {/* Search and Stats Bar */}
                 <div style={{
                     display: 'flex',
-                    gap: '12px',
                     alignItems: 'center',
                     marginTop: '8px',
                     marginBottom: '12px',
                     padding: '10px 14px',
-                    marginRight: '16px', // Restore layout after container padding removal
+                    marginRight: '16px',
                     background: 'var(--bg-card)',
                     borderRadius: '12px',
                     boxShadow: 'var(--shadow-sm)',
+                    flexDirection: 'column',
+                    gap: '8px',
                 }}>
-                    {/* Search Input */}
-                    <div style={{ flex: 1, position: 'relative' }}>
-                        <span style={{
-                            position: 'absolute',
-                            left: '10px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            opacity: 0.4,
-                            pointerEvents: 'none',
-                        }}>🔍</span>
-                        <input
-                            ref={searchInputRef}
-                            type="text"
-                            placeholder="Search clips, tags, content..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="search-input"
-                            style={{
-                                width: '100%',
-                                padding: '8px 12px 8px 32px',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-color, rgba(128,128,128,0.2))',
-                                background: 'var(--bg-input, var(--bg-card))',
-                                color: 'var(--text-primary, inherit)',
-                                fontSize: '0.9rem',
-                                outline: 'none',
-                                transition: 'all 0.2s',
-                            }}
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => setSearchTerm('')}
-                                style={{
-                                    position: 'absolute',
-                                    right: '8px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    opacity: 0.5,
-                                    fontSize: '0.9rem',
-                                }}
-                            >✕</button>
-                        )}
-                    </div>
-
-                    {/* Clip Stats */}
+                    {/* Row 1: Search + Stats */}
                     <div style={{
                         display: 'flex',
-                        gap: '8px',
-                        fontSize: '0.75rem',
-                        opacity: 0.7,
-                        whiteSpace: 'nowrap',
+                        gap: '12px',
+                        alignItems: 'center',
+                        width: '100%',
                     }}>
-                        {searchTerm ? (
+                        {/* Search Input */}
+                        <div style={{ flex: 1, position: 'relative' }}>
                             <span style={{
-                                background: 'var(--accent-color)',
-                                color: 'white',
-                                padding: '4px 8px',
-                                borderRadius: '12px',
-                                fontWeight: 600,
-                            }}>
-                                {clips.length} found
-                            </span>
-                        ) : (
-                            <>
-                                <span title="Total clips in database">📋 {totalClipCount}</span>
-                                <span title="Pinned clips (loaded)">📌 {clips.filter(c => c.pinned).length}</span>
-                                <span title="Favorites (loaded)">⭐ {clips.filter(c => c.favorite).length}</span>
-                            </>
-                        )}
+                                position: 'absolute',
+                                left: '10px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                opacity: 0.4,
+                                pointerEvents: 'none',
+                            }}>🔍</span>
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search clips, tags, content..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="search-input"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px 8px 32px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-color, rgba(128,128,128,0.2))',
+                                    background: 'var(--bg-input, var(--bg-card))',
+                                    color: 'var(--text-primary, inherit)',
+                                    fontSize: '0.9rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s',
+                                }}
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '8px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        opacity: 0.5,
+                                        fontSize: '0.9rem',
+                                    }}
+                                >✕</button>
+                            )}
+                        </div>
+
+                        {/* Clip Stats */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '8px',
+                            fontSize: '0.75rem',
+                            opacity: 0.7,
+                            whiteSpace: 'nowrap',
+                        }}>
+                            {searchTerm ? (
+                                <span style={{
+                                    background: 'var(--accent-color)',
+                                    color: 'white',
+                                    padding: '4px 8px',
+                                    borderRadius: '12px',
+                                    fontWeight: 600,
+                                }}>
+                                    {clips.length} found
+                                </span>
+                            ) : (
+                                <>
+                                    <span title="Total clips in database">📋 {totalClipCount}</span>
+                                    <span title="Pinned clips (loaded)">📌 {clips.filter(c => c.pinned).length}</span>
+                                    <span title="Favorites (loaded)">⭐ {clips.filter(c => c.favorite).length}</span>
+                                </>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Category Filter Chips */}
+                    {/* Row 2: Category Filter Chips */}
                     <div style={{
                         display: 'flex',
                         gap: '6px',
-                        marginBottom: '10px',
-                        marginRight: '16px',
-                        padding: '0 4px',
                         flexWrap: 'wrap',
+                        width: '100%',
                     }}>
                         {[
                             { key: 'all', label: '📋 All' },
