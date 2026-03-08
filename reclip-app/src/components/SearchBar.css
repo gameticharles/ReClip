@@ -1,22 +1,3 @@
-/* Icon Buttons (Used in SearchBar and FilterChips) */
-.icon-btn {
-    background: transparent;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    cursor: pointer;
-    padding: 1px 4px;
-    font-size: 0.65rem;
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
-
-.icon-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: var(--accent-color);
-    color: var(--accent-color);
-    opacity: 1;
-}
-
 /* Search Bar Specifics */
 .search-container {
     display: flex;

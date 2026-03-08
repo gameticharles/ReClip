@@ -21,6 +21,32 @@
 - [x] Finalize Project Plan <!-- id: 18 -->
     - [x] Analyze legacy `SQLiteHelper.cs` data model <!-- id: 19 -->
     - [x] Create Master Implementation Plan (Architecture, UI, Schema) <!-- id: 20 -->
+- [x] Fully analyze the ReClip app and identify features to add or improve
+    - [x] Explore project structure and backend logic (`db.rs`, `clipboard.rs`)
+    - [x] Analyze core frontend components (`App.tsx`, `MainView.tsx`, `TimelineView.tsx`)
+    - [x] Review specialized pages (`ColorToolPage.tsx`, `OrganizerPage.tsx`, `SettingsPage.tsx`)
+    - [x] Identify improvement areas and formulate recommendations
+
+## Analysis Results & Recommendations
+
+### 🟢 Quick wins (UI/UX & Polish)
+- [ ] **Modern CSS Transitions**: Add smooth exit animations for `ClipCard` (already has `AnimatePresence` but could be more fluid).
+- [ ] **Visual Feedback**: Add subtle haptic-like scaling effects (0.98x) on click for all interactive cards.
+- [ ] **Timeline Tooltips**: Show clip counts/summaries when hovering over heatmap markers.
+- [ ] **Empty States**: Enhance empty state illustrations for Search, Favorites, and Tags using SVG/Lottie.
+
+### 🟡 Functional Enhancements
+- [ ] **Advanced OCR**: Add "Copy Text from Image" context menu action directly on image clips.
+- [ ] **Smart Collections**: Auto-group clips by domain (e.g., "Developer Links", "Design Assets") using smarter content detection.
+- [ ] **Bulk Transformation**: Allow applying text transformations (Upper/Lower/Title case) to multiple selected clips at once.
+- [ ] **Clipboard History Search Extensions**: Support searching within the content of file lists (filenames).
+
+### 🔴 New Feature Ideas
+- [ ] **AI-Powered Summarization**: integrate local LLM (via sidecar) to summarize long text clips or extract key info (names, dates).
+- [ ] **Network Clipboard Sync**: Peer-to-peer clip sharing between devices on the same network (Tailscale/Libp2p).
+- [ ] **Actionable Clippings**: Multi-step workflows (e.g., "Extract URL -> Shorten -> Send to Discord") triggered by regex.
+- [ ] **Privacy/Blacklist**: Domain-based ignoring (don't capture anything copied from specific websites in browsers).
+- [ ] **Plugin System**: Allow users to write simple JS scripts to extend the context menu or automation rules.
 - [ ] Initialize Project <!-- id: 21 -->
     - [x] Run `create-tauri-app` (React/TS) <!-- id: 22 -->
     - [x] Install dependencies <!-- id: 23 -->

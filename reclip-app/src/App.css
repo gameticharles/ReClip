@@ -110,3 +110,31 @@ body.dark ::-webkit-scrollbar-thumb:hover {
     opacity: 1;
   }
 }
+
+/* Global Utility Classes */
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background: rgba(128, 128, 128, 0.15);
+  /* var(--bg-hover) */
+  color: var(--text-primary);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+}
+
+.icon-btn.active {
+  color: var(--accent-color);
+}

@@ -18,6 +18,12 @@ export const CHANGELOG_DATA: ChangeLogEntry[] = [
                     "**Single Instance**: Prevented multiple app instances from running simultaneously. Attempting to open a second instance will now focus the existing main window."
                 ]
             },
+            {
+                title: "Modularization",
+                items: [
+                    "**Modularization**: Modularized the application into smaller, more manageable components."
+                ]
+            }
 
         ]
     },
