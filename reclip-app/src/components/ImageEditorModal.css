@@ -1,0 +1,430 @@
+.image-editor-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    background: rgba(8, 8, 10, 0.95);
+    backdrop-filter: blur(40px);
+    overflow: hidden;
+    color: white;
+    font-family: 'Outfit', 'Inter', sans-serif;
+}
+
+.editor-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+}
+
+/* Side Primary Toolbar Pill */
+.side-tool-pill {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    animation: slideInLeft 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translate(-40px, -50%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translate(0, -50%);
+        opacity: 1;
+    }
+}
+
+.side-pill-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 4px 8px;
+}
+
+.side-icon-btn {
+    position: relative;
+    background: transparent;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.side-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.05);
+}
+
+.side-icon-btn.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+}
+
+.side-icon-btn .indicator {
+    position: absolute;
+    left: -8px;
+    width: 3px;
+    height: 16px;
+    background: var(--accent-color, #6366f1);
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transition: all 0.3s;
+    transform: scaleY(0);
+}
+
+.side-icon-btn .indicator.visible {
+    opacity: 1;
+    transform: scaleY(1);
+}
+
+/* Top Island Bar: Settings */
+.top-island-bar {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px;
+    background: rgba(20, 20, 25, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+}
+
+.island-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.island-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.color-wheel-button {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    transition: transform 0.2s;
+    overflow: hidden;
+}
+
+.color-wheel-button:hover {
+    transform: scale(1.1);
+}
+
+.color-preview-circle {
+    width: 100%;
+    height: 100%;
+}
+
+.color-wheel-button input[type="color"] {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.size-slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px;
+}
+
+.size-preview-dot {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+input[type="range"] {
+    width: 100px;
+    accent-color: var(--accent-color, #6366f1);
+    cursor: pointer;
+}
+
+.island-action-btn {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s;
+}
+
+.island-action-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.island-action-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.island-action-btn.save-btn {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+}
+
+.island-action-btn.save-btn:hover {
+    background: var(--accent-color, #6366f1);
+    color: white;
+    box-shadow: 0 4px 12px rgba(var(--accent-rgb, 99, 102, 241), 0.3);
+}
+
+.island-action-btn.close-btn {
+    background: rgba(239, 68, 68, 0.05);
+    color: #f87171;
+}
+
+.island-action-btn.close-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* Status Pill Island (Bottom) */
+.status-pill-island {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 24px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 50px;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.02em;
+    z-index: 100;
+}
+
+.pill-metric {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.metric-value {
+    color: #818cf8;
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 42px;
+}
+
+.pill-separator {
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 4px;
+}
+
+.pill-dot-sep {
+    color: rgba(255, 255, 255, 0.15);
+    margin: 0 4px;
+}
+
+.pill-shortcuts {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.shortcut-item span {
+    white-space: nowrap;
+}
+
+/* Canvas Viewport */
+.canvas-viewport {
+    flex-grow: 1;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    cursor: crosshair;
+    background: #090909;
+    /* Deep artboard background */
+}
+
+.canvas-viewport.panning {
+    cursor: grab;
+}
+
+.canvas-viewport.panning:active {
+    cursor: grabbing;
+}
+
+.canvas-stack {
+    position: relative;
+    pointer-events: none;
+    /* Let the container handle events */
+}
+
+.editor-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.editor-layer.bg {
+    z-index: 10;
+}
+
+.editor-layer.main {
+    z-index: 20;
+}
+
+.editor-layer.overlay {
+    z-index: 30;
+}
+
+canvas {
+    image-rendering: pixelated;
+    /* Sharp rendering for icons/pen */
+}
+
+/* Inline Text Editor */
+.inline-text-editor {
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.inline-text-editor input {
+    pointer-events: auto;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    font-weight: bold;
+}
+
+.inline-text-editor input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-apply-crop {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-apply-crop:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+/* Crop Overlay */
+.crop-overlay {
+    position: absolute;
+    border: 2px solid #10b981;
+    box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+    z-index: 50;
+    pointer-events: none;
+    /* Pointer handled by viewport */
+}
+
+.crop-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #10b981;
+    border: 2px solid white;
+    border-radius: 2px;
+}
+
+.crop-handle.tl {
+    top: -6px;
+    left: -6px;
+}
+
+.crop-handle.tr {
+    top: -6px;
+    right: -6px;
+}
+
+.crop-handle.bl {
+    bottom: -6px;
+    left: -6px;
+}
+
+.crop-handle.br {
+    bottom: -6px;
+    right: -6px;
+}
+
+/* Magnifier Loupe */
+.magnifier-loupe {
+    position: absolute;
+    border: 3px solid var(--accent-color, #6366f1);
+    border-radius: 50%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    background: #111;
+    z-index: 1000;
+    pointer-events: none;
+}

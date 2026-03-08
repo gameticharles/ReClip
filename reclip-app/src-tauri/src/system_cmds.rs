@@ -23,6 +23,28 @@ pub async fn copy_to_system(content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn copy_image_to_system(base64_data: String) -> Result<(), String> {
+    use base64::{Engine as _, engine::general_purpose};
+    let data = general_purpose::STANDARD
+        .decode(base64_data)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+    
+    let img = image::load_from_memory(&data).map_err(|e| format!("Failed to load image: {}", e))?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    let image_data = arboard::ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+    };
+    
+    clipboard.set_image(image_data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn validate_paths(content: String) -> Vec<(String, bool, bool)> {
     if let Ok(paths) = serde_json::from_str::<Vec<String>>(&content) {
         let mut results = Vec::new();

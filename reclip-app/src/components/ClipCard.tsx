@@ -39,6 +39,7 @@ interface ClipCardProps {
     onSaveImage: (clip: Clip) => void;
     onCopyAsText: (clip: Clip) => void;
     onShowQRCode: (content: string) => void;
+    onEditImage: (src: string, id: number) => void;
     setRawViewClipIds: React.Dispatch<SetStateAction<Set<number>>>;
 }
 
@@ -49,7 +50,7 @@ export const ClipCard: React.FC<ClipCardProps> = ({
     toggleFavorite, togglePin, moveToTop, setActiveMenuId,
     handleExtractText, onEditContent, onDelete, onTagClick, onAddTag,
     onTransform, onZoom, isUrl, isColorCode, menuRef, onSaveImage,
-    onCopyAsText, onShowQRCode, setRawViewClipIds
+    onCopyAsText, onShowQRCode, onEditImage, setRawViewClipIds
 }) => {
     return (
         <Draggable draggableId={clip.id.toString()} index={index}>
@@ -279,6 +280,16 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                                                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
                                                     >
                                                         💾 Save As...
+                                                    </button>
+                                                    <button
+                                                        className="menu-item-btn"
+                                                        onClick={() => {
+                                                            onEditImage(convertFileSrc(clip.content), clip.id);
+                                                            setActiveMenuId(null);
+                                                        }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                    >
+                                                        🖌️ Edit Image
                                                     </button>
                                                 </>
                                             )}

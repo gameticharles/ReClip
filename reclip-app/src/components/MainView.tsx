@@ -9,6 +9,7 @@ import { QRModal } from "./QRModal";
 import TimelineView from "./TimelineView";
 import ClipEditDialog from "./ClipEditDialog";
 import ImageZoomModal from "./ImageZoomModal";
+import ImageEditorModal from "./ImageEditorModal";
 import { ToastContainer, useToasts } from "./Toast";
 import { useSettingsStore } from "../store/useSettingsStore";
 import { useClipStore } from "../store/useClipStore";
@@ -67,6 +68,7 @@ export default function MainView() {
     const [editingClip, setEditingClip] = useState<Clip | null>(null);
     const [extractingOcrClipId, setExtractingOcrClipId] = useState<number | null>(null);
     const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
+    const [editingImageSrc, setEditingImageSrc] = useState<{ src: string, clipId: number } | null>(null);
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
     const loaderRef = useRef<HTMLDivElement>(null);
@@ -821,6 +823,7 @@ export default function MainView() {
                                             }
                                         }}
                                         onShowQRCode={(content) => { setQrContent(content); setActiveMenuId(null); }}
+                                        onEditImage={(src, clipId) => setEditingImageSrc({ src, clipId })}
                                         setRawViewClipIds={setRawViewClipIds}
                                     />
                                 ))}
@@ -891,6 +894,29 @@ export default function MainView() {
                 <ImageZoomModal
                     src={zoomedImageSrc}
                     onClose={() => setZoomedImageSrc(null)}
+                />
+            )}
+
+            {/* Image Editor Modal */}
+            {editingImageSrc && (
+                <ImageEditorModal
+                    src={editingImageSrc.src}
+                    onClose={() => setEditingImageSrc(null)}
+                    onSaveToFeed={async (base64Data) => {
+                        try {
+                            // Extract just the base64 part if it has a data URI prefix
+                            const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+                            await invoke('copy_image_to_system', { base64Data: base64 });
+                            setEditingImageSrc(null);
+                            setActiveMenuId(null);
+                            addToast("Image saved to clipboard!");
+                            // Wait a moment for clipboard to update, then ReClip will auto-detect it
+                            // Or we could trigger a manual refresh here.
+                        } catch (err) {
+                            console.error("Failed to save edited image", err);
+                            addToast("Failed to save image");
+                        }
+                    }}
                 />
             )}
 

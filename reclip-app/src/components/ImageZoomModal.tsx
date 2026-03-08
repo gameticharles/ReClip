@@ -24,44 +24,60 @@ export default function ImageZoomModal({ src, onClose }: ImageZoomModalProps) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    // Scroll wheel zoom
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        setScale(s => Math.min(Math.max(s * delta, 0.5), 5));
-    }, []);
+    // Panning & Zoom handlers
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
 
-    // Pan start
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (scale <= 1) return;
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            if (e.ctrlKey || e.metaKey) {
+                // Continuous scaling factor
+                const zoomFactor = -e.deltaY * 0.005;
+                const delta = 1 + zoomFactor;
+                const newScale = Math.min(Math.max(0.1, scale * delta), 10);
+
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                const rect = container.getBoundingClientRect();
+                const viewX = mouseX - rect.left;
+                const viewY = mouseY - rect.top;
+
+                const canvasX = (viewX - position.x) / scale;
+                const canvasY = (viewY - position.y) / scale;
+
+                setScale(newScale);
+                setPosition({ x: viewX - canvasX * newScale, y: viewY - canvasY * newScale });
+            } else {
+                setPosition(prev => ({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+            }
+        };
+
+        container.addEventListener('wheel', onWheel, { passive: false });
+        return () => container.removeEventListener('wheel', onWheel);
     }, [scale, position]);
 
-    // Pan move
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }, [position]);
+
     const handleMouseMove = useCallback((e: React.MouseEvent) => {
         if (!isDragging) return;
         setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
     }, [isDragging, dragStart]);
 
-    // Pan end
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
-
-    const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-        if (e.target === containerRef.current) onClose();
-    }, [onClose]);
+    const handleMouseUp = useCallback(() => setIsDragging(false), []);
 
     const resetView = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
-    const zoomIn = () => setScale(s => Math.min(s * 1.25, 5));
-    const zoomOut = () => setScale(s => Math.max(s / 1.25, 0.5));
+    const zoomIn = () => setScale(s => Math.min(s * 1.5, 10));
+    const zoomOut = () => setScale(s => Math.max(s / 1.5, 0.1));
 
     return (
         <div
             ref={containerRef}
             className="image-zoom-modal"
-            onClick={handleBackdropClick}
+            onClick={(e) => e.target === containerRef.current && onClose()}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
@@ -74,25 +90,23 @@ export default function ImageZoomModal({ src, onClose }: ImageZoomModalProps) {
                 justifyContent: 'center',
                 zIndex: 9999,
                 cursor: isDragging ? 'grabbing' : (scale > 1 ? 'grab' : 'default'),
-                backdropFilter: 'blur(4px)',
+                backdropFilter: 'blur(8px)',
                 overflow: 'hidden',
+                userSelect: 'none'
             }}
         >
             <img
                 src={src}
                 alt="Zoomed"
                 draggable={false}
-                onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
-                onClick={(e) => e.stopPropagation()}
                 style={{
-                    maxWidth: '95vw',
-                    maxHeight: '95vh',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
                     objectFit: 'contain',
-                    transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-                    transition: isDragging ? 'none' : 'transform 0.1s',
+                    transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    transition: isDragging ? 'none' : 'transform 0.1s cubic-bezier(0.2, 0, 0, 1)',
                     cursor: isDragging ? 'grabbing' : (scale > 1 ? 'grab' : 'zoom-in'),
-                    userSelect: 'none',
                 }}
             />
 

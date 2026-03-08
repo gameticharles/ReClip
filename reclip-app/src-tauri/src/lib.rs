@@ -222,7 +222,7 @@ pub fn run() {
              workflow_cmds::get_regex_rules, workflow_cmds::add_regex_rule, workflow_cmds::update_regex_rule, workflow_cmds::delete_regex_rule,
              workflow_cmds::get_reminders, workflow_cmds::add_reminder, workflow_cmds::update_reminder_content, workflow_cmds::toggle_reminder, workflow_cmds::delete_reminder,
              workflow_cmds::get_alarms, workflow_cmds::add_alarm, workflow_cmds::update_alarm, workflow_cmds::toggle_alarm, workflow_cmds::delete_alarm,
-             system_cmds::copy_to_system, system_cmds::paste_clip_to_system, system_cmds::validate_paths, system_cmds::get_app_data_path, system_cmds::get_system_accent_color, system_cmds::get_file_size, system_cmds::export_image, system_cmds::get_url_metadata, system_cmds::run_ocr,
+             system_cmds::copy_to_system, system_cmds::copy_image_to_system, system_cmds::paste_clip_to_system, system_cmds::validate_paths, system_cmds::get_app_data_path, system_cmds::get_system_accent_color, system_cmds::get_file_size, system_cmds::export_image, system_cmds::get_url_metadata, system_cmds::run_ocr,
              window_cmds::save_window_position, window_cmds::load_window_position, window_cmds::is_minimized_launch,
              maintenance_cmds::run_maintenance, maintenance_cmds::export_clips, maintenance_cmds::import_clips, maintenance_cmds::update_tray_item_state, maintenance_cmds::refresh_tray_clips,
              drive::start_google_auth, drive::finish_google_auth, drive::get_drive_status, drive::disconnect_google_drive, drive::sync_clips
