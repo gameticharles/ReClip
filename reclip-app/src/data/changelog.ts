@@ -9,6 +9,19 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.1.3",
+        date: "2026-03-08",
+        sections: [
+            {
+                title: "Core Updates",
+                items: [
+                    "**Single Instance**: Prevented multiple app instances from running simultaneously. Attempting to open a second instance will now focus the existing main window."
+                ]
+            },
+
+        ]
+    },
+    {
         version: "1.1.2",
         date: "2026-03-08",
         sections: [

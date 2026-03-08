@@ -58,6 +58,7 @@ argon2 = "0.5.3"
 axum = "0.7.5"
 tokio = { version = "1", features = ["full"] }
 getrandom = "0.2"
+tauri-plugin-single-instance = "2.2.0"
 
 
 

@@ -1,3 +1,7 @@
+
+## [1.1.3] - 2026-03-08
+- **Core**: Prevented multiple instances of the app from running simultaneously. Launching a second instance now focuses the existing main window.
+
 ## [1.1.2] - 2026-03-08
 - **Security**: Updated Content Security Policy (CSP) to allow local file access.
 
