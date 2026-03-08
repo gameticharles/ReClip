@@ -1,3 +1,6 @@
+## [1.0.4] - 2026-03-08
+
+Security: Updated updater keys and bumped version to v1.0.4
 ## [1.0.3] - 2026-03-07
 
 Fixed tray UI logic and updated version for CI/CD
@@ -298,4 +301,5 @@ Fixed tray UI logic and updated version for CI/CD
 
 - Fixed release script.
 - Initial project setup.
+
 
