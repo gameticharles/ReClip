@@ -193,3 +193,18 @@ pub async fn add_privacy_rule(state: State<'_, DbState>, rule_type: String, valu
 pub async fn delete_privacy_rule(state: State<'_, DbState>, id: i64) -> Result<(), String> {
     db::delete_privacy_rule(&state.pool, id).await.map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn get_listen_to_self(state: State<'_, DbState>) -> Result<bool, String> {
+    let enabled = db::get_setting(&state.pool, "listen_to_self").await
+        .map(|v| v != "false")
+        .unwrap_or(true); // Default true
+    Ok(enabled)
+}
+
+#[tauri::command]
+pub async fn set_listen_to_self(state: State<'_, DbState>, enabled: bool) -> Result<(), String> {
+    db::set_setting(&state.pool, "listen_to_self", if enabled { "true" } else { "false" })
+        .await.map_err(|e| e.to_string())?;
+    Ok(())
+}

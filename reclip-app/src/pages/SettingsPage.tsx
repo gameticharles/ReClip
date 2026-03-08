@@ -9,6 +9,7 @@ import { LANGUAGES } from "../utils/languages";
 import { getVersion } from '@tauri-apps/api/app';
 import { ChangelogViewer } from '../components/ChangelogViewer';
 import { Settings, Keyboard, Shield, ScrollText, Bot, Wrench, Cloud, Info } from 'lucide-react';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 interface SettingsPageProps {
     compactMode: boolean;
@@ -44,6 +45,8 @@ export default function SettingsPage({
     const [privacyRules, setPrivacyRules] = useState<any[]>([]);
     const [shortcuts, setShortcuts] = useState<{ [key: string]: string }>({});
     const [recordingAction, setRecordingAction] = useState<string | null>(null);
+
+    const { listenToSelf, setListenToSelf } = useSettingsStore();
 
     // Sidebar State
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('settingsSidebarCollapsed') === 'true');
@@ -824,6 +827,24 @@ export default function SettingsPage({
                                             setMultiWindow(e.target.checked);
                                             localStorage.setItem('multiWindow', e.target.checked ? 'true' : 'false');
                                             window.dispatchEvent(new Event('storage')); // Notify other pages if open
+                                        }}
+                                        style={{ accentColor: 'var(--accent-color)' }}
+                                    />
+                                </label>
+                            </div>
+
+                            {/* Listen to Self */}
+                            <div className="setting-item">
+                                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: '12px' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600 }}>Listen to Self</div>
+                                        <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>Capture clips copied from within ReClip itself.</div>
+                                    </div>
+                                    <input
+                                        type="checkbox"
+                                        checked={listenToSelf}
+                                        onChange={async (e) => {
+                                            await setListenToSelf(e.target.checked);
                                         }}
                                         style={{ accentColor: 'var(--accent-color)' }}
                                     />

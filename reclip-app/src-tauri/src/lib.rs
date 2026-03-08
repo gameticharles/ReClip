@@ -211,6 +211,7 @@ pub fn run() {
              settings_cmds::get_sensitive_settings, settings_cmds::set_sensitive_settings, settings_cmds::get_maintenance_settings, settings_cmds::set_maintenance_settings,
              settings_cmds::get_autostart, settings_cmds::set_autostart, settings_cmds::get_incognito_mode, settings_cmds::set_incognito_mode,
              settings_cmds::get_privacy_rules, settings_cmds::add_privacy_rule, settings_cmds::delete_privacy_rule,
+             settings_cmds::get_listen_to_self, settings_cmds::set_listen_to_self,
              workflow_cmds::get_workflows, workflow_cmds::add_workflow, workflow_cmds::delete_workflow,
              workflow_cmds::get_regex_rules, workflow_cmds::add_regex_rule, workflow_cmds::update_regex_rule, workflow_cmds::delete_regex_rule,
              workflow_cmds::get_reminders, workflow_cmds::add_reminder, workflow_cmds::update_reminder_content, workflow_cmds::toggle_reminder, workflow_cmds::delete_reminder,

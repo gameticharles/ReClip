@@ -20,7 +20,7 @@ function App() {
     compactMode, setCompactMode,
     useSystemAccent, setUseSystemAccent,
     accentColor, setAccentColor,
-    incognitoMode, setIncognitoMode, loadIncognito, toggleIncognito,
+    incognitoMode, setIncognitoMode, loadIncognito, loadListenToSelf, toggleIncognito,
     queueMode, setQueueMode,
     showTimeline, setShowTimeline,
     showOnboarding, setShowOnboarding,
@@ -46,7 +46,8 @@ function App() {
   // Load backend state on mount
   useEffect(() => {
     loadIncognito();
-  }, [loadIncognito]);
+    loadListenToSelf();
+  }, [loadIncognito, loadListenToSelf]);
 
   // Theme & Accent Effect
   useEffect(() => {

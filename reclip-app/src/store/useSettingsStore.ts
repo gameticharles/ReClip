@@ -16,6 +16,7 @@ interface SettingsState {
     multiWindow: boolean;
     dateFormat: 'absolute' | 'relative';
     autoHideDuration: number;
+    listenToSelf: boolean;
 
     // Actions
     setView: (view: 'main' | 'settings' | 'snippets' | 'colors' | 'organizer') => void;
@@ -32,9 +33,11 @@ interface SettingsState {
     setMultiWindow: (enabled: boolean) => void;
     setDateFormat: (format: 'absolute' | 'relative') => void;
     setAutoHideDuration: (duration: number) => void;
+    setListenToSelf: (enabled: boolean) => Promise<void>;
 
     // Initialization
     loadIncognito: () => Promise<void>;
+    loadListenToSelf: () => Promise<void>;
     applyTheme: () => void;
 }
 
@@ -54,6 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
             multiWindow: false,
             dateFormat: 'relative',
             autoHideDuration: 0,
+            listenToSelf: true,
 
             setView: (view) => set({ view }),
             setCompactMode: (compactMode) => set({ compactMode }),
@@ -87,12 +91,30 @@ export const useSettingsStore = create<SettingsState>()(
             setDateFormat: (dateFormat) => set({ dateFormat }),
             setAutoHideDuration: (autoHideDuration) => set({ autoHideDuration }),
 
+            setListenToSelf: async (enabled) => {
+                set({ listenToSelf: enabled });
+                try {
+                    await invoke('set_listen_to_self', { enabled });
+                } catch (e) {
+                    console.error('Failed to sync listen to self setting:', e);
+                }
+            },
+
             loadIncognito: async () => {
                 try {
                     const enabled = await invoke<boolean>('get_incognito_mode');
                     set({ incognitoMode: enabled });
                 } catch (e) {
                     console.error('Failed to load incognito mode:', e);
+                }
+            },
+
+            loadListenToSelf: async () => {
+                try {
+                    const enabled = await invoke<boolean>('get_listen_to_self');
+                    set({ listenToSelf: enabled });
+                } catch (e) {
+                    console.error('Failed to load listen to self setting:', e);
                 }
             },
 
@@ -116,6 +138,7 @@ export const useSettingsStore = create<SettingsState>()(
                 multiWindow: state.multiWindow,
                 dateFormat: state.dateFormat,
                 autoHideDuration: state.autoHideDuration,
+                listenToSelf: state.listenToSelf,
             }),
         }
     )

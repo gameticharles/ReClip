@@ -332,6 +332,19 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                         
                         // Async Processing for DB
                         tauri::async_runtime::spawn(async move {
+                            // Check Listen to Self Feature
+                            let listen_to_self = crate::db::get_setting(&pool_clone, "listen_to_self").await.map(|v| v != "false").unwrap_or(true);
+                            if !listen_to_self {
+                                if let Some(aw) = &active_window_clone {
+                                    let app_name = aw.info.name.to_lowercase();
+                                    let title = aw.title.to_lowercase();
+                                    if app_name.contains("reclip") || title.contains("reclip") {
+                                        info!("Ignored clip: auto-rejected from ReClip itself");
+                                        return;
+                                    }
+                                }
+                            }
+
                             // Fetch Privacy Rules
                             let rules = crate::db::get_privacy_rules(&pool_clone).await.unwrap_or_default();
                             let mut ignored = false;
