@@ -9,6 +9,18 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
+        version: "1.0.5",
+        date: "2026-03-08",
+        sections: [
+            {
+                title: "🐛 Bug Fixes",
+                items: [
+                    "**Auto-Updater**: Fixed an issue where the auto-updater was not working correctly."
+                ]
+            }
+        ]
+    },
+    {
         version: "1.0.4",
         date: "2026-03-07",
         sections: [
