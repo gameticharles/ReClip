@@ -409,8 +409,14 @@ pub async fn get_clips(pool: &Pool<Sqlite>, limit: i64, offset: i64, search: Opt
     }
     
     if let Some(ref tf) = type_filter {
-        conditions.push("type = ?".to_string());
-        bind_values.push(tf.clone());
+        if tf == "links" {
+            conditions.push("type = 'text' AND (content LIKE 'http://%' OR content LIKE 'https://%')".to_string());
+        } else if tf == "colors" {
+            conditions.push("type = 'text' AND (content LIKE '#%' OR content LIKE 'rgb(%' OR content LIKE 'hsl(%')".to_string());
+        } else {
+            conditions.push("type = ?".to_string());
+            bind_values.push(tf.clone());
+        }
     }
     
     if favorites_only {

@@ -11,8 +11,9 @@ const FILTERS = [
     { key: 'image', label: '🖼️ Images' },
     { key: 'html', label: '🌐 HTML' },
     { key: 'files', label: '📁 Files' },
-    { key: 'file', label: '📄 File Path' },
     { key: 'favorites', label: '⭐ Favorites' },
+    { key: 'links', label: '🔗 Links' },
+    { key: 'colors', label: '🎨 Colors' },
 ];
 
 export const FilterChips: React.FC<FilterChipsProps> = ({ activeFilter, setActiveFilter }) => {

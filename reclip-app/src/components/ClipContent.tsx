@@ -255,18 +255,18 @@ const detectContentType = (content: string, type: string): ContentType => {
 
 // ============= RENDER COMPONENTS =============
 
-const HTMLPreview: React.FC<{ content: string; isCompact: boolean }> = ({ content, isCompact }) => {
-    // Configure DOMPurify hooks once or on render (it's globally scoped usually, but benign here)
-    DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-        if (node.tagName === 'IMG') {
-            node.setAttribute('loading', 'lazy');
-        }
-        if (node.tagName === 'A') {
-            node.setAttribute('target', '_blank');
-            node.setAttribute('rel', 'noopener noreferrer');
-        }
-    });
+// Configure DOMPurify hooks once (globally scoped)
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'IMG') {
+        node.setAttribute('loading', 'lazy');
+    }
+    if (node.tagName === 'A') {
+        node.setAttribute('target', '_blank');
+        node.setAttribute('rel', 'noopener noreferrer');
+    }
+});
 
+const HTMLPreview: React.FC<{ content: string; isCompact: boolean }> = ({ content, isCompact }) => {
     const sanitized = DOMPurify.sanitize(content, {
         ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'blockquote', 'code', 'pre', 'span', 'div', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'img'],

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Draggable, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { Clip } from '../types';
 import ClipContent, { ImageMetadata, ImageColorPalette } from './ClipContent';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import UrlPreview from './UrlPreview';
 import './ClipCard.css';
 
@@ -64,6 +64,12 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                         className={`clip-card ${selectedIndex === index ? 'selected' : ''} ${selectedClipIds.has(clip.id) ? 'multi-selected' : ''} ${clip.pinned ? 'pinned' : ''}`}
                         onClick={(e) => onClipClick(e, clip)}
                         onMouseEnter={onMouseEnter}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ duration: 0.2 }}
                         style={{
                             boxShadow: snapshot.isDragging ? "0 10px 30px rgba(0,0,0,0.3)" : undefined,
                             background: snapshot.isDragging ? "var(--bg-card)" : undefined
@@ -246,7 +252,26 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                                                         onClick={(e) => handleExtractText(e, clip)}
                                                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
                                                     >
-                                                        👁️ Extract Text
+                                                        👁️ View Extracted Text
+                                                    </button>
+                                                    <button
+                                                        className="menu-item-btn"
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            try {
+                                                                // Reusing the extract logic but copying to clipboard directly
+                                                                const text = await invoke<string>("extract_text", { imagePath: clip.content });
+                                                                if (text && text.trim()) {
+                                                                    await invoke('copy_to_system', { content: text.trim() });
+                                                                    setActiveMenuId(null);
+                                                                }
+                                                            } catch (err) {
+                                                                console.error("Failed to copy text from image:", err);
+                                                            }
+                                                        }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
+                                                    >
+                                                        📋 Copy Text from Image
                                                     </button>
                                                     <button
                                                         className="menu-item-btn"
@@ -315,11 +340,13 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                             </div>
                         </div>
                         {/* Image Color Palette Row */}
-                        {clip.type === 'image' && !compactMode && (
-                            <div style={{ padding: '4px 12px', borderTop: '1px solid var(--border-color, rgba(128,128,128,0.1))' }}>
-                                <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
-                            </div>
-                        )}
+                        {
+                            clip.type === 'image' && !compactMode && (
+                                <div style={{ padding: '4px 12px', borderTop: '1px solid var(--border-color, rgba(128,128,128,0.1))' }}>
+                                    <ImageColorPalette src={convertFileSrc(clip.content)} isCompact={compactMode} />
+                                </div>
+                            )
+                        }
                         <div className="clip-content">
                             {clip.type === 'text' && isColorCode(clip.content) ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -352,9 +379,9 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                                 </div>
                             )}
                         </div>
-                    </motion.div>
-                </div>
+                    </motion.div >
+                </div >
             )}
-        </Draggable>
+        </Draggable >
     );
 };

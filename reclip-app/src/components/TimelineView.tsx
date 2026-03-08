@@ -520,6 +520,7 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                         return (
                             <div
                                 key={i}
+                                className="timeline-marker"
                                 style={{
                                     position: 'absolute',
                                     left: `${marker.position}%`,
@@ -530,9 +531,16 @@ export function TimelineView({ clips, totalCount, onSelectTimeRange, onSelectDat
                                         rgba(var(--accent-rgb, 99, 102, 241), ${marker.intensity * 0.8}) 0%, 
                                         rgba(var(--accent-rgb, 99, 102, 241), ${marker.intensity * 0.3}) 100%)`,
                                     transform: 'translateX(-50%)',
+                                    cursor: 'pointer',
                                 }}
-                                title={`${marker.label}: ${marker.count} clips`}
-                            />
+                            >
+                                {/* Custom Tooltip */}
+                                <div className="timeline-tooltip">
+                                    <div style={{ fontWeight: 600, marginBottom: '2px' }}>{marker.label}</div>
+                                    <div style={{ opacity: 0.9 }}>{marker.count} {marker.count === 1 ? 'clip' : 'clips'}</div>
+                                    <div className="tooltip-arrow"></div>
+                                </div>
+                            </div>
                         );
                     })}
                 </div>

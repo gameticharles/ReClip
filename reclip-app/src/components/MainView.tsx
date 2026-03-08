@@ -17,6 +17,7 @@ import { SearchBar } from "./SearchBar";
 import { FilterChips } from "./FilterChips";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { MergeDialog } from "./MergeDialog";
+import { EmptyFeedState, EmptySearchState, EmptyFavoritesState } from "./EmptyStates";
 import "./MainView.css";
 
 const isUrl = (text: string) => {
@@ -541,6 +542,42 @@ export default function MainView() {
         setLastSelectedId(null);
     }
 
+    async function bulkTransformText(type: 'upper' | 'lower' | 'title' | 'trim') {
+        const selected = clips.filter(c => selectedClipIds.has(c.id) && c.type === 'text');
+        if (selected.length === 0) return;
+
+        let updatedCount = 0;
+        const newClips = [...clips];
+
+        for (const clip of selected) {
+            let newContent = clip.content;
+            switch (type) {
+                case 'upper': newContent = newContent.toUpperCase(); break;
+                case 'lower': newContent = newContent.toLowerCase(); break;
+                case 'title': newContent = newContent.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()); break;
+                case 'trim': newContent = newContent.trim(); break;
+            }
+
+            if (newContent !== clip.content) {
+                try {
+                    await invoke("update_clip_content", { id: clip.id, content: newContent });
+                    const index = newClips.findIndex(c => c.id === clip.id);
+                    if (index !== -1) {
+                        newClips[index] = { ...newClips[index], content: newContent };
+                    }
+                    updatedCount++;
+                } catch (error) {
+                    console.error(`Failed to transform text for clip ${clip.id}:`, error);
+                }
+            }
+        }
+
+        if (updatedCount > 0) {
+            useClipStore.getState().setClips(newClips);
+            addToast(`Transformed ${updatedCount} clips`);
+        }
+    }
+
 
     // toggleIncognito removed (lifted)
 
@@ -787,6 +824,17 @@ export default function MainView() {
                                         setRawViewClipIds={setRawViewClipIds}
                                     />
                                 ))}
+                                {clips.length === 0 && !isLoading && (
+                                    <div style={{ marginTop: '20px' }}>
+                                        {activeFilter === 'favorites' ? (
+                                            <EmptyFavoritesState />
+                                        ) : searchTerm ? (
+                                            <EmptySearchState />
+                                        ) : (
+                                            <EmptyFeedState />
+                                        )}
+                                    </div>
+                                )}
                                 {provided.placeholder}
                                 {hasMore && (
                                     <div ref={loaderRef} style={{ height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6, fontSize: '0.8rem' }}>
@@ -809,6 +857,7 @@ export default function MainView() {
                 onCancelSelection={() => { setSelectedClipIds(new Set()); setLastSelectedId(null); }}
                 onPasteNextInQueue={pasteNextInQueue}
                 onClearQueue={() => setPasteQueue([])}
+                onBulkTransform={bulkTransformText}
             />
 
             <MergeDialog

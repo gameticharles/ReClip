@@ -142,6 +142,48 @@ body.dark .clip-type {
     font-size: 1.1rem;
 }
 
+/* Timeline Custom Tooltips */
+.timeline-marker {
+    position: relative;
+}
+
+.timeline-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(5px);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+    backdrop-filter: blur(10px);
+}
+
+.timeline-marker:hover .timeline-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.tooltip-arrow {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 8px;
+    height: 8px;
+    background: var(--bg-card);
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
 /* Compact Mode Overrides (used in MainView and ClipCard) */
 .clip-list.compact .clip-card {
     padding: 8px 12px;

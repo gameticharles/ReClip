@@ -30,15 +30,15 @@
 ## Analysis Results & Recommendations
 
 ### 🟢 Quick wins (UI/UX & Polish)
-- [ ] **Modern CSS Transitions**: Add smooth exit animations for `ClipCard` (already has `AnimatePresence` but could be more fluid).
-- [ ] **Visual Feedback**: Add subtle haptic-like scaling effects (0.98x) on click for all interactive cards.
-- [ ] **Timeline Tooltips**: Show clip counts/summaries when hovering over heatmap markers.
-- [ ] **Empty States**: Enhance empty state illustrations for Search, Favorites, and Tags using SVG/Lottie.
+- [x] **Modern CSS Transitions**: Add smooth exit animations for `ClipCard` (already has `AnimatePresence` but could be more fluid).
+- [x] **Visual Feedback**: Add subtle haptic-like scaling effects (0.98x) on click for all interactive cards.
+- [x] **Timeline Tooltips**: Show clip counts/summaries when hovering over heatmap markers.
+- [x] **Empty States**: Enhance empty state illustrations for Search, Favorites, and Tags using SVG/Lottie.
 
 ### 🟡 Functional Enhancements
-- [ ] **Advanced OCR**: Add "Copy Text from Image" context menu action directly on image clips.
-- [ ] **Smart Collections**: Auto-group clips by domain (e.g., "Developer Links", "Design Assets") using smarter content detection.
-- [ ] **Bulk Transformation**: Allow applying text transformations (Upper/Lower/Title case) to multiple selected clips at once.
+- [x] **Advanced OCR**: Add "Copy Text from Image" context menu action directly on image clips.
+- [x] **Smart Collections**: Auto-group clips by domain (e.g., "Developer Links", "Design Assets") using smarter content detection.
+- [x] **Bulk Transformation**: Allow applying text transformations (Upper/Lower/Title case) to multiple selected clips at once.
 - [ ] **Clipboard History Search Extensions**: Support searching within the content of file lists (filenames).
 
 ### 🔴 New Feature Ideas

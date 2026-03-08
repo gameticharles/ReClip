@@ -2,6 +2,20 @@ import { create } from 'zustand';
 import { Clip } from '../types';
 import { invoke } from '@tauri-apps/api/core';
 
+// Helper functions for smart collections
+const isUrl = (text: string) => {
+    try {
+        const url = new URL(text);
+        return ['http:', 'https:'].includes(url.protocol);
+    } catch {
+        return false;
+    }
+};
+
+const isColorCode = (text: string) => {
+    return /^(#[0-9A-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\))$/i.test(text.trim());
+};
+
 interface ClipState {
     clips: Clip[];
     allClips: Clip[];
@@ -73,9 +87,9 @@ export const useClipStore = create<ClipState>((set, get) => ({
         set({ isLoading: true });
         try {
             const currentOffset = page * limit;
+
             const typeFilter = filter === 'all' || filter === 'favorites' ? null : filter;
             const favoritesOnly = filter === 'favorites';
-
             const newClips = await invoke<Clip[]>("get_recent_clips", {
                 limit: limit,
                 offset: currentOffset,
@@ -90,7 +104,7 @@ export const useClipStore = create<ClipState>((set, get) => ({
                 let filteredClips = newClips;
                 const timeline = get().timelineFilter;
                 if (timeline) {
-                    filteredClips = newClips.filter(clip => {
+                    filteredClips = filteredClips.filter(clip => {
                         const clipDate = new Date(clip.created_at).getTime();
                         return clipDate >= timeline.start && clipDate <= timeline.end;
                     });
@@ -113,10 +127,16 @@ export const useClipStore = create<ClipState>((set, get) => ({
 
                     let filteredClips = uniqueAll;
                     if (state.timelineFilter) {
-                        filteredClips = uniqueAll.filter(clip => {
+                        filteredClips = filteredClips.filter(clip => {
                             const clipDate = new Date(clip.created_at).getTime();
                             return clipDate >= state.timelineFilter!.start && clipDate <= state.timelineFilter!.end;
                         });
+                    }
+
+                    if (filter === 'links') {
+                        filteredClips = filteredClips.filter(clip => clip.type === 'text' && isUrl(clip.content));
+                    } else if (filter === 'colors') {
+                        filteredClips = filteredClips.filter(clip => clip.type === 'text' && isColorCode(clip.content));
                     }
 
                     return {

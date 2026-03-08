@@ -1045,19 +1045,17 @@ export default function SettingsPage({
                             </div>
 
                             <div className="setting-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Global Search</span>
-                                    <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>Search across all clips, notes, and snippets.</span>
-                                </div>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Global Search</label>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '8px' }}>Search across all clips, notes, and snippets.</div>
                                 <div
                                     tabIndex={0}
                                     onFocus={() => setRecordingAction('global_search')}
                                     onBlur={() => setRecordingAction(null)}
+                                    onKeyDown={(e) => recordingAction === 'global_search' && handleKeyDown(e, 'global_search')}
                                     className="shortcut-input"
                                     style={{
-                                        width: '120px',
-                                        padding: '8px',
-                                        background: recordingAction === 'global_search' ? 'var(--accent-color)' : 'rgba(128,128,128,0.1)',
+                                        padding: '12px',
+                                        background: recordingAction === 'global_search' ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)',
                                         color: recordingAction === 'global_search' ? 'white' : 'inherit',
                                         borderRadius: '8px',
                                         border: '1px solid rgba(128,128,128,0.2)',
