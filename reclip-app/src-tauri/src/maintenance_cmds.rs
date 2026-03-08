@@ -86,5 +86,5 @@ pub fn update_tray_item_state(state: tauri::State<'_, crate::tray::TrayState<tau
 
 #[tauri::command]
 pub async fn refresh_tray_clips(app: tauri::AppHandle, state: State<'_, DbState>) -> Result<(), String> {
-    tray::update_tray_history(&app, state).await
+    tray::update_tray_history(&app).await
 }

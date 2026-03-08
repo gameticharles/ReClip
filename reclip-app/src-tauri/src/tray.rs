@@ -56,7 +56,8 @@ pub fn update_tray_clips<R: Runtime>(app: &AppHandle<R>, clips: Vec<(i64, String
             truncate_for_tray(content)
         };
         
-        let item_id = format!("tray_clip_{}", i);
+        let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_micros();
+        let item_id = format!("tray_clip_{}_{}", i, ts);
         if let Ok(item) = MenuItem::with_id(app, &item_id, &label, true, None::<&str>) {
             let _ = submenu.append(&item);
         }
@@ -166,7 +167,9 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 _ => {
                     // Handle tray clip clicks
                     if id.starts_with("tray_clip_") {
-                        if let Ok(index) = id.trim_start_matches("tray_clip_").parse::<usize>() {
+                        let parts: Vec<&str> = id.split('_').collect();
+                        if parts.len() >= 3 {
+                            if let Ok(index) = parts[2].parse::<usize>() {
                             let app_clone = app.clone();
                             let db_state = app.state::<crate::db::DbState>();
                             let pool = db_state.pool.clone();
@@ -182,6 +185,7 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                                     }
                                 }
                             });
+                            }
                         }
                     }
                 }
@@ -214,7 +218,8 @@ pub fn update_item_state<R: Runtime>(state: tauri::State<'_, TrayState<R>>, id: 
     Ok(())
 }
 
-pub async fn update_tray_history<R: Runtime>(app: &AppHandle<R>, state: tauri::State<'_, crate::db::DbState>) -> Result<(), String> {
+pub async fn update_tray_history<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let state = app.state::<crate::db::DbState>();
     if let Ok(clips) = crate::db::get_clips(&state.pool, 10, 0, None, None, false).await {
         let tray_clips: Vec<(i64, String, String)> = clips.iter().map(|c| (c.id, c.content.clone(), c.type_.clone())).collect();
         update_tray_clips(app, tray_clips);

@@ -118,15 +118,15 @@ pub fn run() {
                 app.handle().plugin(
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |app: &tauri::AppHandle, shortcut, event| {
-                            if event.state() == ShortcutState::Pressed {
-                                let shortcut_str = normalize_shortcut(&shortcut.to_string());
-                                let map_state = app.state::<ShortcutStateMap>();
-                                let action = {
-                                    let map = map_state.0.lock().unwrap();
-                                    map.get(&shortcut_str).cloned()
-                                };
-                                
-                                if let Some(act) = action {
+                            let shortcut_str = normalize_shortcut(&shortcut.to_string());
+                            let map_state = app.state::<ShortcutStateMap>();
+                            let action = {
+                                let map = map_state.0.lock().unwrap();
+                                map.get(&shortcut_str).cloned()
+                            };
+                            
+                            if let Some(act) = action {
+                                if event.state() == ShortcutState::Pressed {
                                     if act == "show_window" {
                                         if let Some(w) = app.get_webview_window("main") {
                                             if w.is_visible().unwrap_or(false) { let _ = w.hide(); } else { let _ = w.show(); let _ = w.set_focus(); }
@@ -151,7 +151,9 @@ pub fn run() {
                                         let _ = app.emit("incognito-changed", !current);
                                     } else if act == "paste_next" {
                                         let _ = app.emit("paste-next-trigger", ());
-                                    } else if act.starts_with("paste_") {
+                                    }
+                                } else if event.state() == ShortcutState::Released {
+                                    if act.starts_with("paste_") && act != "paste_next" {
                                         if let Ok(num) = act.trim_matches(|c: char| !c.is_numeric()).parse::<usize>() {
                                             let app_clone = app.clone();
                                             let state = app.state::<DbState>();

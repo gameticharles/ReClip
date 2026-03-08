@@ -133,6 +133,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                              tauri::async_runtime::spawn(async move {
                                   let _ = insert_clip(&pool_clone, content_clone, "files".to_string(), hash_clone, None, sender).await;
                                   let _ = app_handle_clone.emit("clip-created", ());
+                                  let _ = crate::tray::update_tray_history(&app_handle_clone).await;
                              });
                              thread::sleep(Duration::from_millis(500));
                              continue;
@@ -186,6 +187,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                  match insert_clip(&pool_clone, content_path, "image".to_string(), hash_clone, None, None).await {
                                      Ok(id) => {
                                          let _ = app_handle_clone.emit("clip-created", id);
+                                         let _ = crate::tray::update_tray_history(&app_handle_clone).await;
                                      },
                                      Err(e) => error!("Failed to insert image clip: {}", e),
                                  }
@@ -259,6 +261,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                             match crate::db::insert_clip(&pool_clone, html_clone, "html".to_string(), hash_clone, None, sender).await {
                                                 Ok(id) => {
                                                     let _ = app_handle_clone.emit("clip-created", id);
+                                                    let _ = crate::tray::update_tray_history(&app_handle_clone).await;
                                                 },
                                                 Err(e) => error!("Failed to insert HTML clip: {}", e),
                                             }
@@ -435,6 +438,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                            match crate::db::insert_clip_with_sensitive(&pool_clone, text_clone, clip_type.to_string(), hash_clone, tags, is_sensitive, sender).await {
                                Ok(id) => {
                                    let _ = app_handle_clone.emit("clip-created", id);
+                                   let _ = crate::tray::update_tray_history(&app_handle_clone).await;
                                    
                                    // Auto-delete sensitive clips - read settings from DB
                                    if is_sensitive {
@@ -459,6 +463,7 @@ pub fn start_clipboard_listener<R: tauri::Runtime>(app: &tauri::AppHandle<R>, po
                                                        Ok(_) => {
                                                            info!("Auto-deleted sensitive clip #{} after {} seconds", id, timer_secs);
                                                            let _ = app_del.emit("clip-deleted", id);
+                                                           let _ = crate::tray::update_tray_history(&app_del).await;
                                                        },
                                                        Err(e) => error!("Failed to auto-delete sensitive clip: {}", e),
                                                    }

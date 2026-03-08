@@ -44,50 +44,60 @@ pub async fn get_clip_dates(state: State<'_, DbState>, year: i32, month: i32) ->
 }
 
 #[tauri::command]
-pub async fn delete_clip(state: State<'_, DbState>, id: i64) -> Result<(), String> {
+pub async fn delete_clip(app: tauri::AppHandle, state: State<'_, DbState>, id: i64) -> Result<(), String> {
     db::delete_clip(&state.pool, id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn clear_clips(state: State<'_, DbState>) -> Result<(), String> {
+pub async fn clear_clips(app: tauri::AppHandle, state: State<'_, DbState>) -> Result<(), String> {
     db::delete_all_clips(&state.pool)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn reorder_clip(state: State<'_, DbState>, id: i64, position: i64) -> Result<(), String> {
+pub async fn reorder_clip(app: tauri::AppHandle, state: State<'_, DbState>, id: i64, position: i64) -> Result<(), String> {
     db::update_clip_position(&state.pool, id, position)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn update_clip_tags(state: State<'_, DbState>, id: i64, tags: String) -> Result<(), String> {
+pub async fn update_clip_tags(app: tauri::AppHandle, state: State<'_, DbState>, id: i64, tags: String) -> Result<(), String> {
     db::update_clip_tags(&state.pool, id, tags)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn toggle_clip_pin(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
-    db::toggle_pin(&state.pool, id)
-        .await
-        .map_err(|e| e.to_string())
+pub async fn toggle_clip_pin(app: tauri::AppHandle, state: State<'_, DbState>, id: i64) -> Result<bool, String> {
+    let res = db::toggle_pin(&state.pool, id).await.map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(res)
 }
 
 #[tauri::command]
-pub async fn update_clip_content(state: State<'_, DbState>, id: i64, content: String) -> Result<(), String> {
+pub async fn update_clip_content(app: tauri::AppHandle, state: State<'_, DbState>, id: i64, content: String) -> Result<(), String> {
     db::update_clip_content(&state.pool, id, content)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn toggle_clip_favorite(state: State<'_, DbState>, id: i64) -> Result<bool, String> {
-    db::toggle_favorite(&state.pool, id)
-        .await
-        .map_err(|e| e.to_string())
+pub async fn toggle_clip_favorite(app: tauri::AppHandle, state: State<'_, DbState>, id: i64) -> Result<bool, String> {
+    let res = db::toggle_favorite(&state.pool, id).await.map_err(|e| e.to_string())?;
+    let _ = crate::tray::update_tray_history(&app).await;
+    Ok(res)
 }
