@@ -16,6 +16,8 @@
 - **Undo Position**: Fixed an issue where undoing a deletion would place the clip at the top instead of its original position.
 - **Search Layout**: Optimized search and filter bar for better responsiveness on small windows.
 - **Security**: Added restrictive Content Security Policy (CSP) for improved app safety.
+- **Tray**: Fixed tray menu logic to ensure proper updates and sync with main application state.
+- **Pasting**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed.
 
 ## [1.0.5] - 2026-03-08
 
