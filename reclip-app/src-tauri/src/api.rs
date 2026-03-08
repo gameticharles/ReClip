@@ -3,9 +3,8 @@ use axum::{
     Json, Router,
     extract::State as AxumState,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::net::SocketAddr;
-use tauri::State;
 use crate::db::{DbState, Clip, Snippet};
 
 #[derive(Serialize)]

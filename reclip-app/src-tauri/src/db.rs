@@ -30,9 +30,11 @@ pub struct RegexRule {
     pub created_at: String,
 }
 
+#[derive(Clone)]
 pub struct DbState {
     pub pool: Pool<Sqlite>,
 }
+
 
 pub async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, Box<dyn std::error::Error>> {
     let app_dir = app_handle.path().app_data_dir()?;

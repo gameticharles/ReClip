@@ -59,7 +59,15 @@ export default function OrganizerPage({ theme = 'system', standaloneNoteId }: Or
 
     // Theme Logic
     const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>('light');
-    const multiWindowEnabled = localStorage.getItem('multiWindow') === 'true';
+    const [multiWindowEnabled, setMultiWindowEnabled] = useState(localStorage.getItem('multiWindow') === 'true');
+
+    useEffect(() => {
+        const handleStorage = () => {
+            setMultiWindowEnabled(localStorage.getItem('multiWindow') === 'true');
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
 
     const colors = [
         { name: 'None', value: undefined },
@@ -217,14 +225,29 @@ export default function OrganizerPage({ theme = 'system', standaloneNoteId }: Or
     };
 
     const popOut = async (id: number) => {
-        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-        const label = `note-${id}`;
-        new WebviewWindow(label, {
-            url: `index.html?noteId=${id}`,
-            title: `Note #${id}`,
-            width: 500,
-            height: 600,
-        });
+        try {
+            const { WebviewWindow, getAllWebviewWindows } = await import('@tauri-apps/api/webviewWindow');
+            const label = `note-${id}`;
+
+            // Check if window already exists
+            const existing = (await getAllWebviewWindows()).find(w => w.label === label);
+            if (existing) {
+                await existing.setFocus();
+                return;
+            }
+
+            const webview = new WebviewWindow(label, {
+                url: `index.html?noteId=${id}`,
+                title: `Note #${id}`,
+                width: 500,
+                height: 600,
+            });
+            await webview.once('tauri://error', (e) => {
+                console.error('Failed to create window:', e);
+            });
+        } catch (err) {
+            console.error('PopOut error:', err);
+        }
     };
 
     const onDragEnd = async (result: DropResult) => {

@@ -7,7 +7,6 @@ use log::{info, error};
 use tauri::{Manager, Emitter};
 
 use crate::db::insert_clip;
-use crate::db::insert_clip_with_sensitive;
 
 // Global incognito mode flag
 pub static INCOGNITO_MODE: AtomicBool = AtomicBool::new(false);

@@ -3,7 +3,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
 };
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+    password_hash::{rand_core::OsRng, SaltString},
     Argon2,
 };
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,7 @@ pub fn encrypt(data: &[u8], password: &str) -> Result<EncryptedData, String> {
 
     let mut nonce_bytes = [0u8; 12];
     getrandom::getrandom(&mut nonce_bytes).map_err(|e| e.to_string())?;
+
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher

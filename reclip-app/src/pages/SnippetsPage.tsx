@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Snippet } from '../types';
-import { Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown } from 'lucide-react';
+import { Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { getThemeById } from '../utils/themes';
 import { LANGUAGES, LANGUAGE_COLORS } from '../utils/languages';
@@ -30,8 +30,16 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme, standaloneId }) => {
     const [search, setSearch] = useState('');
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [expandedId, setExpandedId] = useState<number | null>(standaloneId || null);
-    const multiWindowEnabled = localStorage.getItem('multiWindow') === 'true';
+    const [multiWindowEnabled, setMultiWindowEnabled] = useState(localStorage.getItem('multiWindow') === 'true');
     const searchRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        const handleStorage = () => {
+            setMultiWindowEnabled(localStorage.getItem('multiWindow') === 'true');
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
 
     // Theme Detection
     const [systemDark, setSystemDark] = useState(window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -205,14 +213,29 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme, standaloneId }) => {
     };
 
     const popOut = async (id: number) => {
-        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-        const label = `snippet-${id}`;
-        new WebviewWindow(label, {
-            url: `index.html?snippetId=${id}`,
-            title: `Snippet #${id}`,
-            width: 600,
-            height: 500,
-        });
+        try {
+            const { WebviewWindow, getAllWebviewWindows } = await import('@tauri-apps/api/webviewWindow');
+            const label = `snippet-${id}`;
+
+            // Check if window already exists
+            const existing = (await getAllWebviewWindows()).find(w => w.label === label);
+            if (existing) {
+                await existing.setFocus();
+                return;
+            }
+
+            const webview = new WebviewWindow(label, {
+                url: `index.html?snippetId=${id}`,
+                title: `Snippet #${id}`,
+                width: 600,
+                height: 500,
+            });
+            await webview.once('tauri://error', (e) => {
+                console.error('Failed to create window:', e);
+            });
+        } catch (err) {
+            console.error('PopOut error:', err);
+        }
     };
 
     const copyToClipboard = async (content: string, id: number) => {
@@ -409,7 +432,7 @@ const SnippetsPage: React.FC<SnippetsPageProps> = ({ theme, standaloneId }) => {
                                             </button>
                                             <button onClick={() => openEditSnippet(snippet)} style={btnStyle()}><Edit2 size={12} /> Edit</button>
                                             {multiWindowEnabled && !standaloneId && (
-                                                <button onClick={() => popOut(snippet.id)} style={btnStyle()} title="Open in new window"><Plus size={12} /> Pop out</button>
+                                                <button onClick={() => popOut(snippet.id)} style={btnStyle()} title="Open in new window"><ExternalLink size={12} /> Pop out</button>
                                             )}
                                             <button onClick={() => handleDuplicate(snippet.id)} style={btnStyle()}><CopyPlus size={12} /> Duplicate</button>
                                             <button onClick={() => setQrContent({ title: snippet.title, content: snippet.content })} style={btnStyle()}><QrCode size={12} /> QR</button>
