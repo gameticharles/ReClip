@@ -18,6 +18,8 @@ interface ClipContentProps {
     isDark?: boolean;
     isExtracting?: boolean;
     onZoom?: (src: string) => void;
+    onEditImage?: (src: string, id?: number) => void;
+    clipId?: number;
 }
 
 // ============= CONTENT TYPE DETECTION =============
@@ -858,7 +860,7 @@ export const ImageColorPalette: React.FC<{ src: string, isCompact: boolean }> = 
 
 // ============= MAIN COMPONENT =============
 
-export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true, isExtracting = false, onZoom }: ClipContentProps) {
+export default function ClipContent({ content, type, isCompact, showRaw = false, isDark = true, isExtracting = false, onZoom, onEditImage, clipId }: ClipContentProps) {
     const [validity, setValidity] = useState<{ checked: boolean, valid: boolean, invalidPaths: string[], dirPaths: string[] }>({ checked: false, valid: true, invalidPaths: [], dirPaths: [] });
 
     // Helper to get file icon based on extension
@@ -990,7 +992,8 @@ export default function ClipContent({ content, type, isCompact, showRaw = false,
                 }}
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (onZoom) onZoom(src);
+                    if (onEditImage) onEditImage(src, clipId);
+                    else if (onZoom) onZoom(src);
                 }}
             >
                 <img

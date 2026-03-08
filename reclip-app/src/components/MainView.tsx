@@ -823,7 +823,7 @@ export default function MainView() {
                                             }
                                         }}
                                         onShowQRCode={(content) => { setQrContent(content); setActiveMenuId(null); }}
-                                        onEditImage={(src, clipId) => setEditingImageSrc({ src, clipId })}
+                                        onEditImage={(src, clipId) => { if (clipId !== undefined) setEditingImageSrc({ src, clipId }); }}
                                         setRawViewClipIds={setRawViewClipIds}
                                     />
                                 ))}

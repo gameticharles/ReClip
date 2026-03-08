@@ -39,7 +39,7 @@ interface ClipCardProps {
     onSaveImage: (clip: Clip) => void;
     onCopyAsText: (clip: Clip) => void;
     onShowQRCode: (content: string) => void;
-    onEditImage: (src: string, id: number) => void;
+    onEditImage: (src: string, id?: number) => void;
     setRawViewClipIds: React.Dispatch<SetStateAction<Set<number>>>;
 }
 
@@ -281,16 +281,6 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                                                     >
                                                         💾 Save As...
                                                     </button>
-                                                    <button
-                                                        className="menu-item-btn"
-                                                        onClick={() => {
-                                                            onEditImage(convertFileSrc(clip.content), clip.id);
-                                                            setActiveMenuId(null);
-                                                        }}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontSize: '0.9rem' }}
-                                                    >
-                                                        🖌️ Edit Image
-                                                    </button>
                                                 </>
                                             )}
                                             {clip.type === 'text' && (
@@ -385,6 +375,8 @@ export const ClipCard: React.FC<ClipCardProps> = ({
                                         isDark={isDark}
                                         isExtracting={extractingOcrClipId === clip.id}
                                         onZoom={onZoom}
+                                        onEditImage={onEditImage}
+                                        clipId={clip.id}
                                     />
                                     {clip.type === 'text' && isUrl(clip.content) && <UrlPreview url={clip.content} />}
                                 </div>
