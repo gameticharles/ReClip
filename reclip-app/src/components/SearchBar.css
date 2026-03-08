@@ -1,0 +1,81 @@
+/* Icon Buttons (Used in SearchBar and FilterChips) */
+.icon-btn {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 1px 4px;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.icon-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    opacity: 1;
+}
+
+/* Search Bar Specifics */
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(var(--accent-rgb), 0.03);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.search-input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.search-input-wrapper input:focus {
+    border-color: var(--accent-color);
+    background: var(--bg-card);
+    box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.1);
+}
+
+.filter-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 4px 0;
+}
+
+.filter-chip {
+    padding: 6px 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.filter-chip:hover {
+    background: rgba(var(--accent-rgb), 0.05);
+    border-color: var(--accent-color);
+}
+
+.filter-chip.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}

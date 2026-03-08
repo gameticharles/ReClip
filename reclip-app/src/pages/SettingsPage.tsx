@@ -10,6 +10,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { ChangelogViewer } from '../components/ChangelogViewer';
 import { Settings, Keyboard, Shield, ScrollText, Bot, Wrench, Cloud, Info } from 'lucide-react';
 import { useSettingsStore } from '../store/useSettingsStore';
+import './SettingsPage.css';
 
 interface SettingsPageProps {
     compactMode: boolean;

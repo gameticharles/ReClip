@@ -1,0 +1,42 @@
+/* Main Content Area */
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 0 0 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.clip-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 16px;
+    padding-right: 16px;
+    padding-bottom: 100px;
+}
+
+/* Scrollbar Styling (Global override for main area) */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+body.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

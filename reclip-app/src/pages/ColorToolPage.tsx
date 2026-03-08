@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Pipette, Palette, Eye, Layers, Save, RefreshCw, X, Check, Copy, GitMerge, ArrowDown, Upload, Plus, Minus, Download, Thermometer, Lock, Unlock, Edit2 } from 'lucide-react';
 import * as Utils from './ColorPageUtils';
 import ColorThief from 'colorthief';
+import './ColorToolPage.css';
 
 interface ColorToolPageProps {
     initialColor?: string;

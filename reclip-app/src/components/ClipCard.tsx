@@ -5,6 +5,7 @@ import { Clip } from '../types';
 import ClipContent, { ImageMetadata, ImageColorPalette } from './ClipContent';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import UrlPreview from './UrlPreview';
+import './ClipCard.css';
 
 interface ClipCardProps {
     clip: Clip;

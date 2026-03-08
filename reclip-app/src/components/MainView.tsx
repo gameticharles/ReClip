@@ -17,6 +17,7 @@ import { SearchBar } from "./SearchBar";
 import { FilterChips } from "./FilterChips";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { MergeDialog } from "./MergeDialog";
+import "./MainView.css";
 
 const isUrl = (text: string) => {
     try {

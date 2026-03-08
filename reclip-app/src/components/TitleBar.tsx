@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
 import { Palette, Home, Settings, FileCode, Calendar } from 'lucide-react';
+import './TitleBar.css';
 
 interface TitleBarProps {
     incognitoMode: boolean;

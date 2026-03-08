@@ -4,6 +4,7 @@ import { Snippet } from '../types';
 import { Save, Plus, Trash2, Search, Code2, Copy, X, Check, Edit2, ChevronDown, ChevronRight, QrCode, Star, FolderOpen, Clipboard, CopyPlus, FileDown, FileUp, History, Filter, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { getThemeById } from '../utils/themes';
+import './SnippetsPage.css';
 import { LANGUAGES, LANGUAGE_COLORS } from '../utils/languages';
 import { QRModal } from '../components/QRModal';
 

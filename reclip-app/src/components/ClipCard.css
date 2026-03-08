@@ -1,0 +1,155 @@
+/* Clip Card Styling */
+.clip-card {
+    background-color: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s, background-color 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+body.dark .clip-card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.clip-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 10;
+}
+
+body.dark .clip-card:hover {
+    background-color: rgba(60, 62, 68, 1);
+}
+
+.clip-card.selected {
+    outline: 2px solid var(--accent-color);
+    outline-offset: -2px;
+    background-color: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.2);
+}
+
+body.dark .clip-card.selected {
+    background-color: rgba(60, 62, 68, 1);
+}
+
+.clip-card.multi-selected {
+    background-color: rgba(var(--accent-rgb), 0.1);
+    border-color: var(--accent-color);
+}
+
+body.dark .clip-card.multi-selected {
+    background-color: rgba(var(--accent-rgb), 0.2);
+}
+
+.clip-card.pinned {
+    border-left: 3px solid #f59e0b;
+}
+
+.clip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fav-btn,
+.pin-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 1rem;
+    opacity: 0.6;
+    color: inherit;
+    transition: all 0.2s;
+    border-radius: 6px;
+}
+
+.fav-btn:hover,
+.pin-btn:hover {
+    opacity: 1;
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.fav-btn.active,
+.pin-btn.active {
+    opacity: 1;
+    color: #f59e0b;
+}
+
+.menu-btn {
+    opacity: 0;
+    transition: opacity 0.1s ease-in-out;
+}
+
+.clip-card:hover .menu-btn,
+.menu-btn.active {
+    opacity: 1 !important;
+}
+
+.menu-item-btn {
+    transition: background-color 0.1s;
+}
+
+.menu-item-btn:hover {
+    background-color: rgba(128, 128, 128, 0.1) !important;
+}
+
+.menu-item-btn.delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.clip-type {
+    text-transform: uppercase;
+    font-weight: 800;
+    background-color: rgba(0, 0, 0, 0.06);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+}
+
+body.dark .clip-type {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #c1c2c5;
+}
+
+.empty-state {
+    text-align: center;
+    margin-top: 60px;
+    opacity: 0.6;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+/* Compact Mode Overrides (used in MainView and ClipCard) */
+.clip-list.compact .clip-card {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    gap: 4px;
+}
+
+.clip-list.compact .clip-header {
+    margin-bottom: 0;
+}

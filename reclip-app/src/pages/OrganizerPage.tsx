@@ -5,6 +5,8 @@ import { Note, Reminder } from '../types';
 import { Trash2, Plus, Check, Bell, Calendar, StickyNote, Search, X, AlertCircle, Pin, Archive, GripVertical, ArrowUpDown, ExternalLink } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import './OrganizerPage.css';
+import '../components/MarkdownEditor.css';
 
 type ItemType = 'all' | 'note' | 'reminder' | 'alarm';
 

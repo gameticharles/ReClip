@@ -1,0 +1,118 @@
+/* Custom Titlebar */
+.titlebar {
+    height: 48px;
+    background: rgba(0, 0, 0, 0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+    user-select: none;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body.dark .titlebar {
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.title-left {
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.title-right {
+    display: flex;
+    gap: 4px;
+}
+
+@media (max-width: 900px) {
+    .title-right {
+        border-left: 1px solid var(--border-color);
+        padding-left: 12px;
+        margin-left: 8px;
+    }
+}
+
+.title-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    font-size: 1rem;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.7;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.title-btn:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+    opacity: 1;
+    transform: translateY(-1px);
+}
+
+body.dark .title-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.title-btn:active {
+    transform: translateY(0);
+    background-color: rgba(0, 0, 0, 0.15);
+}
+
+body.dark .title-btn:active {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.title-btn.active {
+    opacity: 1;
+    background-color: rgba(var(--accent-rgb), 0.15) !important;
+    color: var(--accent-color) !important;
+    font-weight: 600;
+}
+
+body.dark .title-btn.active {
+    background-color: rgba(var(--accent-rgb), 0.25) !important;
+}
+
+/* Settings Panel Toggle Styles (Legacy if needed, but TitleBar uses these classes) */
+.settings-panel {
+    position: absolute;
+    top: 56px;
+    right: 16px;
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 16px;
+    padding: 20px;
+    width: 260px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+body.dark .settings-panel {
+    background: #25262b;
+    border-color: #373a40;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
