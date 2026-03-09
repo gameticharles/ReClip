@@ -23,6 +23,7 @@ function App() {
     incognitoMode, loadIncognito, loadListenToSelf, toggleIncognito,
     queueMode, setQueueMode,
     showTimeline, setShowTimeline,
+    showScreenshot, setShowScreenshot,
     showOnboarding, setShowOnboarding,
     isLocked, setIsLocked,
     applyTheme
@@ -310,6 +311,8 @@ function App() {
         pasteQueueLength={pasteQueue.length}
         showTimeline={showTimeline}
         toggleTimeline={() => setShowTimeline(!showTimeline)}
+        showScreenshot={showScreenshot}
+        toggleScreenshot={() => setShowScreenshot(!showScreenshot)}
         currentView={view}
         onOpenMain={() => setView('main')}
         onOpenSettings={() => setView('settings')}

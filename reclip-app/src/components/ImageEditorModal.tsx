@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './ImageEditorModal.css';
 import { Icons } from './ImageEditorIcons';
 import { useSettingsStore } from '../store/useSettingsStore';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ImageEditorModalProps {
     src: string;
@@ -46,7 +47,7 @@ interface DrawAction {
 
 interface CropRect { x1: number; y1: number; x2: number; y2: number }
 
-const WORKSPACE_PADDING = 1200;
+const WORKSPACE_PADDING = 500;
 
 const COLOR_PRESETS = [
     '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -662,10 +663,6 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
         setActions(prev => [...prev, dup]); setSelectedId(dup.id); setRedoStack([]);
     }, [selectedId, actions]);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // CROP APPLY
-    // ─────────────────────────────────────────────────────────────────────────
-
     const applyCrop = () => {
         if (!cropRect || !bgCanvasRef.current || !mainCanvasRef.current || !bgImageRef.current) return;
         const { x, y, w, h } = normCrop(cropRect); if (w < 10 || h < 10) return;
@@ -686,27 +683,68 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
     };
 
     // ─────────────────────────────────────────────────────────────────────────
+    // GENERATE COMPOSITION HELPER
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const generateCompositionBase64 = useCallback((): string | null => {
+        try {
+            const bgC = bgCanvasRef.current, mainC = mainCanvasRef.current, img = bgImageRef.current;
+            if (!bgC || !mainC || !img) {
+                console.error("Composition failure: refs not ready", { bgC: !!bgC, mainC: !!mainC, img: !!img });
+                return null;
+            }
+
+            let mnX = WORKSPACE_PADDING, mnY = WORKSPACE_PADDING;
+            let mxX = WORKSPACE_PADDING + img.width, mxY = WORKSPACE_PADDING + img.height;
+
+            actions.forEach(a => {
+                const pad = a.lineWidth + 24;
+                [a.start, a.end].forEach(p => {
+                    if (!p) return;
+                    mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad);
+                    mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad);
+                });
+                a.points.forEach(p => {
+                    mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad);
+                    mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad);
+                });
+            });
+
+            const fw = mxX - mnX, fh = mxY - mnY;
+            if (fw <= 0 || fh <= 0) {
+                console.error("Composition failure: invalid dimensions", { fw, fh });
+                return null;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+            const offC = document.createElement('canvas');
+            offC.width = fw * dpr; offC.height = fh * dpr;
+            const oc = offC.getContext('2d')!;
+            oc.drawImage(bgC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
+            oc.drawImage(mainC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
+
+            const dataUrl = offC.toDataURL('image/png');
+            const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+            console.log(`Generated composition base64 (length: ${base64.length})`);
+            return base64;
+        } catch (err) {
+            console.error("Critical error in generateCompositionBase64:", err);
+            return null;
+        }
+    }, [actions]);
+
+    // ─────────────────────────────────────────────────────────────────────────
     // SAVE
     // ─────────────────────────────────────────────────────────────────────────
 
-    const save = () => {
-        const bgC = bgCanvasRef.current, mainC = mainCanvasRef.current, img = bgImageRef.current;
-        if (!bgC || !mainC || !img) return;
-        let mnX = WORKSPACE_PADDING, mnY = WORKSPACE_PADDING;
-        let mxX = WORKSPACE_PADDING + img.width, mxY = WORKSPACE_PADDING + img.height;
-        actions.forEach(a => {
-            const pad = a.lineWidth + 24;
-            [a.start, a.end].forEach(p => { if (!p) return; mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
-            a.points.forEach(p => { mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
-        });
-        const fw = mxX - mnX, fh = mxY - mnY; if (fw <= 0 || fh <= 0) return;
-        const dpr = window.devicePixelRatio || 1;
-        const offC = document.createElement('canvas');
-        offC.width = fw * dpr; offC.height = fh * dpr;
-        const oc = offC.getContext('2d')!;
-        oc.drawImage(bgC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
-        oc.drawImage(mainC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
-        onSaveToFeed(offC.toDataURL('image/png'));
+    const save = async () => {
+        const base64 = generateCompositionBase64();
+        if (!base64) {
+            console.error("Save: Failed to generate base64 composition");
+            // Optionally show a failure toast if the toast system allows it
+            return;
+        }
+        onSaveToFeed(`data:image/png;base64,${base64}`);
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -714,34 +752,21 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
     // ─────────────────────────────────────────────────────────────────────────
 
     const copyToClipboard = async () => {
-        const bgC = bgCanvasRef.current, mainC = mainCanvasRef.current, img = bgImageRef.current;
-        if (!bgC || !mainC || !img) return;
-        // Use the same bounding-box logic as save()
-        let mnX = WORKSPACE_PADDING, mnY = WORKSPACE_PADDING;
-        let mxX = WORKSPACE_PADDING + img.width, mxY = WORKSPACE_PADDING + img.height;
-        actions.forEach(a => {
-            const pad = a.lineWidth + 24;
-            [a.start, a.end].forEach(p => { if (!p) return; mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
-            a.points.forEach(p => { mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
-        });
-        const fw = mxX - mnX, fh = mxY - mnY; if (fw <= 0 || fh <= 0) return;
-        const dpr = window.devicePixelRatio || 1;
-        const offC = document.createElement('canvas');
-        offC.width = fw * dpr; offC.height = fh * dpr;
-        const oc = offC.getContext('2d')!;
-        oc.drawImage(bgC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
-        oc.drawImage(mainC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
+        const base64 = generateCompositionBase64();
+        if (!base64) {
+            console.error("Copy: Failed to generate base64 composition");
+            return;
+        }
+
         try {
-            offC.toBlob(async blob => {
-                if (!blob) return;
-                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                setToastKey(k => k + 1);
-                setShowToast(true);
-                setTimeout(() => setShowToast(false), 1300);
-            }, 'image/png');
-        } catch {
-            // Fallback: open in new tab
-            window.open(offC.toDataURL('image/png'), '_blank');
+            await invoke('copy_image_to_system', { base64Data: base64 });
+            setToastKey(k => k + 1);
+            setShowToast(true);
+            setTimeout(() => setShowToast(false), 1300);
+        } catch (err: any) {
+            console.error("Failed to copy image to clipboard:", err);
+            // Show alert for debugging since user says it's not working
+            alert("Clipboard Error: " + (err.message || err));
         }
     };
     // ─────────────────────────────────────────────────────────────────────────

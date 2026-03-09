@@ -1,5 +1,6 @@
 use tauri::Manager;
 use crate::ocr;
+use log::{info, error};
 
 #[derive(serde::Serialize)]
 pub struct UrlMetadata {
@@ -24,14 +25,23 @@ pub async fn copy_to_system(content: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn copy_image_to_system(base64_data: String) -> Result<(), String> {
+    info!("copy_image_to_system: Received base64 data ({} bytes)", base64_data.len());
     use base64::{Engine as _, engine::general_purpose};
     let data = general_purpose::STANDARD
-        .decode(base64_data)
-        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+        .decode(&base64_data)
+        .map_err(|e| {
+            error!("Failed to decode base64: {}", e);
+            format!("Failed to decode base64: {}", e)
+        })?;
     
-    let img = image::load_from_memory(&data).map_err(|e| format!("Failed to load image: {}", e))?;
+    info!("copy_image_to_system: Decoded image data ({} bytes)", data.len());
+    let img = image::load_from_memory(&data).map_err(|e| {
+        error!("Failed to load image from memory: {}", e);
+        format!("Failed to load image: {}", e)
+    })?;
     let rgba = img.to_rgba8();
     let (width, height) = rgba.dimensions();
+    info!("copy_image_to_system: Image dimensions: {}x{}", width, height);
     
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     let image_data = arboard::ImageData {
@@ -40,7 +50,12 @@ pub async fn copy_image_to_system(base64_data: String) -> Result<(), String> {
         bytes: std::borrow::Cow::Owned(rgba.into_raw()),
     };
     
-    clipboard.set_image(image_data).map_err(|e| e.to_string())?;
+    clipboard.set_image(image_data).map_err(|e| {
+        error!("Failed to set image to clipboard: {}", e);
+        e.to_string()
+    })?;
+    
+    info!("copy_image_to_system: Successfully set image to clipboard");
     Ok(())
 }
 

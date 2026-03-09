@@ -11,6 +11,7 @@ interface SettingsState {
     incognitoMode: boolean;
     queueMode: boolean;
     showTimeline: boolean;
+    showScreenshot: boolean;
     showOnboarding: boolean;
     isLocked: boolean;
     multiWindow: boolean;
@@ -28,6 +29,7 @@ interface SettingsState {
     toggleIncognito: () => Promise<void>;
     setQueueMode: (enabled: boolean) => void;
     setShowTimeline: (enabled: boolean) => void;
+    setShowScreenshot: (enabled: boolean) => void;
     setShowOnboarding: (enabled: boolean) => void;
     setIsLocked: (enabled: boolean) => void;
     setMultiWindow: (enabled: boolean) => void;
@@ -52,6 +54,7 @@ export const useSettingsStore = create<SettingsState>()(
             incognitoMode: false,
             queueMode: false,
             showTimeline: false,
+            showScreenshot: false,
             showOnboarding: true,
             isLocked: false,
             multiWindow: false,
@@ -85,6 +88,7 @@ export const useSettingsStore = create<SettingsState>()(
 
             setQueueMode: (queueMode) => set({ queueMode }),
             setShowTimeline: (showTimeline) => set({ showTimeline }),
+            setShowScreenshot: (showScreenshot) => set({ showScreenshot }),
             setShowOnboarding: (showOnboarding) => set({ showOnboarding }),
             setIsLocked: (isLocked) => set({ isLocked }),
             setMultiWindow: (multiWindow) => set({ multiWindow }),

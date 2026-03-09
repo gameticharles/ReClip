@@ -12,6 +12,7 @@ mod workflow_cmds;
 mod system_cmds;
 mod window_cmds;
 mod maintenance_cmds;
+mod screen_cmds;
 
 use db::{DbState, init_db};
 use tauri::{Manager, Emitter};

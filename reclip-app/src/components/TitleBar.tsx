@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getVersion } from '@tauri-apps/api/app';
-import { Palette, Home, Settings, FileCode, Calendar } from 'lucide-react';
+import { Palette, Home, Settings, FileCode, Calendar, Camera } from 'lucide-react';
 import './TitleBar.css';
 
 interface TitleBarProps {
@@ -12,6 +12,8 @@ interface TitleBarProps {
     pasteQueueLength: number;
     showTimeline: boolean;
     toggleTimeline: () => void;
+    showScreenshot: boolean;
+    toggleScreenshot: () => void;
     currentView: 'main' | 'settings' | 'snippets' | 'colors' | 'organizer';
     onOpenMain: () => void;
     onOpenSettings: () => void;
@@ -28,6 +30,8 @@ const TitleBar: React.FC<TitleBarProps> = ({
     pasteQueueLength,
     showTimeline,
     toggleTimeline,
+    showScreenshot,
+    toggleScreenshot,
     currentView,
     onOpenMain,
     onOpenSettings,
@@ -144,6 +148,14 @@ const TitleBar: React.FC<TitleBarProps> = ({
                             {pasteQueueLength}
                         </span>
                     )}
+                </button>
+
+                <button onClick={toggleScreenshot}
+                    className={`title-btn ${showScreenshot ? 'active' : ''}`}
+                    title="Screen Capture"
+                    style={{ color: showScreenshot ? 'var(--accent-color)' : undefined }}
+                >
+                    <Camera size={16} />
                 </button>
 
                 <button onClick={toggleTimeline}

@@ -19,6 +19,8 @@ import { FilterChips } from "./FilterChips";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { MergeDialog } from "./MergeDialog";
 import { EmptyFeedState, EmptySearchState, EmptyFavoritesState } from "./EmptyStates";
+import ScreenshotWidget from "./ScreenshotWidget";
+import CaptureOverlay from "./CaptureOverlay";
 import "./MainView.css";
 
 const isUrl = (text: string) => {
@@ -36,7 +38,7 @@ const isColorCode = (text: string) => {
 
 export default function MainView() {
     const {
-        compactMode, queueMode, showTimeline,
+        compactMode, queueMode, showTimeline, showScreenshot,
         dateFormat, autoHideDuration, theme
     } = useSettingsStore();
 
@@ -69,6 +71,7 @@ export default function MainView() {
     const [extractingOcrClipId, setExtractingOcrClipId] = useState<number | null>(null);
     const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
     const [editingImageSrc, setEditingImageSrc] = useState<{ src: string, clipId: number } | null>(null);
+    const [activeCaptureMode, setActiveCaptureMode] = useState<'rect' | 'window' | 'fullscreen' | 'freeform' | null>(null);
     const isDark = theme === 'dark' || (theme === 'system' && systemDark);
 
     const loaderRef = useRef<HTMLDivElement>(null);
@@ -704,6 +707,7 @@ export default function MainView() {
                     background: 'var(--bg-card)',
                     borderRadius: '12px',
                     boxShadow: 'var(--shadow-sm)',
+                    border: '1px solid var(--border-color)',
                     flexDirection: 'column',
                     gap: '8px',
                 }}>
@@ -721,6 +725,38 @@ export default function MainView() {
                         setActiveFilter={setActiveFilter}
                     />
                 </div>
+
+                <ScreenshotWidget
+                    visible={showScreenshot}
+                    onCapture={(mode) => {
+                        if (mode === 'fullscreen') {
+                            invoke('capture_full_screen').catch(e => console.error(e));
+                        } else {
+                            setActiveCaptureMode(mode);
+                        }
+                    }}
+                />
+
+                {(activeCaptureMode === 'rect' || activeCaptureMode === 'freeform' || activeCaptureMode === 'window') && (
+                    <CaptureOverlay
+                        onCapture={async (bounds) => {
+                            if (bounds) {
+                                try {
+                                    await invoke('capture_region', {
+                                        x: Math.round(bounds.x),
+                                        y: Math.round(bounds.y),
+                                        width: Math.round(bounds.width),
+                                        height: Math.round(bounds.height)
+                                    });
+                                } catch (e) {
+                                    console.error("Capture failed:", e);
+                                }
+                            }
+                            setActiveCaptureMode(null);
+                        }}
+                        onCancel={() => setActiveCaptureMode(null)}
+                    />
+                )}
 
                 {/* Timeline View */}
                 <TimelineView
