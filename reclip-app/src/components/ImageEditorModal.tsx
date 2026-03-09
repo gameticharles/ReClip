@@ -38,6 +38,9 @@ interface DrawAction {
     shadowOffsetY: number;
     fillEnabled: boolean;
     fillColor: string;
+    fillOpacity: number;
+    fillType: 'solid' | 'linear' | 'radial';
+    fillGradientEnd: string;
     strokeDash: StrokeDash;
 }
 
@@ -100,6 +103,9 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
     const [shadowOffsetY, setShadowOffsetY] = useState(4);
     const [fillEnabled, setFillEnabled] = useState(false);
     const [fillColor, setFillColor] = useState(accentColor);
+    const [fillOpacity, setFillOpacity] = useState(35);
+    const [fillType, setFillType] = useState<'solid' | 'linear' | 'radial'>('solid');
+    const [fillGradientEnd, setFillGradientEnd] = useState('#000000');
     const [strokeDash, setStrokeDash] = useState<StrokeDash>('solid');
 
     // ── viewport ─────────────────────────────────────────────────────────────
@@ -135,6 +141,10 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
     const [mousePos, setMousePos] = useState<Point>({ x: 0, y: 0 });
     const [showLoupe, setShowLoupe] = useState(false);
 
+    // ── clipboard toast ───────────────────────────────────────────────────────
+    const [toastKey, setToastKey] = useState(0);   // increment to re-trigger animation
+    const [showToast, setShowToast] = useState(false);
+
     // ── text input
     // cx/cy = canvas-space coords; sx/sy = screen coords at time of click ─────
     const [editingText, setEditingText] = useState<{
@@ -148,8 +158,10 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
 
     const styleSnap = useCallback(() => ({
         opacity, shadowEnabled, shadowColor, shadowBlur,
-        shadowOffsetX, shadowOffsetY, fillEnabled, fillColor, strokeDash,
-    }), [opacity, shadowEnabled, shadowColor, shadowBlur, shadowOffsetX, shadowOffsetY, fillEnabled, fillColor, strokeDash]);
+        shadowOffsetX, shadowOffsetY, fillEnabled, fillColor,
+        fillOpacity, fillType, fillGradientEnd, strokeDash,
+    }), [opacity, shadowEnabled, shadowColor, shadowBlur, shadowOffsetX, shadowOffsetY,
+        fillEnabled, fillColor, fillOpacity, fillType, fillGradientEnd, strokeDash]);
 
     // ─────────────────────────────────────────────────────────────────────────
     // RENDERING
@@ -159,6 +171,27 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
         if (d === 'dashed') ctx.setLineDash([lw * 3, lw * 2]);
         else if (d === 'dotted') ctx.setLineDash([lw * 0.5, lw * 2]);
         else ctx.setLineDash([]);
+    };
+
+    // ─── fill helper: builds solid / linear / radial gradient ────────────────
+    const buildFill = (
+        ctx: CanvasRenderingContext2D,
+        action: DrawAction,
+        x: number, y: number, w: number, h: number
+    ): string | CanvasGradient => {
+        const c1 = action.fillColor ?? action.color;
+        const c2 = action.fillGradientEnd ?? '#000000';
+        if (!action.fillType || action.fillType === 'solid') return c1;
+        if (action.fillType === 'linear') {
+            const g = ctx.createLinearGradient(x, y, x + w, y + h);
+            g.addColorStop(0, c1); g.addColorStop(1, c2); return g;
+        }
+        if (action.fillType === 'radial') {
+            const cx2 = x + w / 2, cy2 = y + h / 2, r = Math.max(w, h) / 2;
+            const g = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, r);
+            g.addColorStop(0, c1); g.addColorStop(1, c2); return g;
+        }
+        return c1;
     };
 
     const renderAction = useCallback((ctx: CanvasRenderingContext2D, action: DrawAction) => {
@@ -245,8 +278,8 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
             const w = Math.abs(action.end.x - action.start.x), h = Math.abs(action.end.y - action.start.y);
             if (action.fillEnabled) {
                 const prevA = ctx.globalAlpha;
-                ctx.globalAlpha = prevA * 0.35;
-                ctx.fillStyle = action.fillColor ?? action.color;
+                ctx.globalAlpha = prevA * ((action.fillOpacity ?? 35) / 100);
+                ctx.fillStyle = buildFill(ctx, action, x, y, w, h);
                 ctx.fillRect(x, y, w, h);
                 ctx.globalAlpha = prevA;
             }
@@ -260,8 +293,10 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
             ctx.beginPath();
             ctx.ellipse(cx2, cy2, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
             if (action.fillEnabled) {
-                const prevA = ctx.globalAlpha; ctx.globalAlpha = prevA * 0.35;
-                ctx.fillStyle = action.fillColor ?? action.color; ctx.fill(); ctx.globalAlpha = prevA;
+                const prevA = ctx.globalAlpha; ctx.globalAlpha = prevA * ((action.fillOpacity ?? 35) / 100);
+                const absRx = Math.abs(rx), absRy = Math.abs(ry);
+                ctx.fillStyle = buildFill(ctx, action, cx2 - absRx, cy2 - absRy, absRx * 2, absRy * 2);
+                ctx.fill(); ctx.globalAlpha = prevA;
             }
             ctx.stroke();
         }
@@ -675,7 +710,40 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
     };
 
     // ─────────────────────────────────────────────────────────────────────────
-    // KEYBOARD — editingText is in deps so closure is always fresh ────────────
+    // COPY TO CLIPBOARD
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const copyToClipboard = async () => {
+        const bgC = bgCanvasRef.current, mainC = mainCanvasRef.current, img = bgImageRef.current;
+        if (!bgC || !mainC || !img) return;
+        // Use the same bounding-box logic as save()
+        let mnX = WORKSPACE_PADDING, mnY = WORKSPACE_PADDING;
+        let mxX = WORKSPACE_PADDING + img.width, mxY = WORKSPACE_PADDING + img.height;
+        actions.forEach(a => {
+            const pad = a.lineWidth + 24;
+            [a.start, a.end].forEach(p => { if (!p) return; mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
+            a.points.forEach(p => { mnX = Math.min(mnX, p.x - pad); mnY = Math.min(mnY, p.y - pad); mxX = Math.max(mxX, p.x + pad); mxY = Math.max(mxY, p.y + pad); });
+        });
+        const fw = mxX - mnX, fh = mxY - mnY; if (fw <= 0 || fh <= 0) return;
+        const dpr = window.devicePixelRatio || 1;
+        const offC = document.createElement('canvas');
+        offC.width = fw * dpr; offC.height = fh * dpr;
+        const oc = offC.getContext('2d')!;
+        oc.drawImage(bgC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
+        oc.drawImage(mainC, mnX * dpr, mnY * dpr, fw * dpr, fh * dpr, 0, 0, fw * dpr, fh * dpr);
+        try {
+            offC.toBlob(async blob => {
+                if (!blob) return;
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                setToastKey(k => k + 1);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 1300);
+            }, 'image/png');
+        } catch {
+            // Fallback: open in new tab
+            window.open(offC.toDataURL('image/png'), '_blank');
+        }
+    };
     // ─────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -689,6 +757,8 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
             if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); redo(); }
             if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); duplicate(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedId) { e.preventDefault(); duplicate(); }  // Ctrl+C on selection = duplicate
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !selectedId) { e.preventDefault(); copyToClipboard(); }
             if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
                 setActions(a => a.filter(x => x.id !== selectedId)); setSelectedId(null);
             }
@@ -843,6 +913,7 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                         </div>
                         <div className="isl-div" />
                         <div className="isl-sec">
+                            <button className="iab copy-btn" onClick={copyToClipboard} title="Copy to clipboard (⌃C)"><Icons.Clipboard /></button>
                             <button className="iab save-btn" onClick={save} title="Save"><Icons.Save /></button>
                             <button className="iab close-btn" onClick={onClose} title="Close (Esc)"><Icons.Close /></button>
                         </div>
@@ -881,9 +952,13 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                                 </SPRow>
                             )}
 
+
+
                             {/* Fill (shapes) */}
-                            {needsFill && (
-                                <SPRow label="Fill" icon={<Icons.Fill />}>
+                            {needsFill && (<>
+
+                                <div className="sp-div" />
+                                <SPRow label="Fill" icon={<Icons.Fill />} inline>
                                     <button className={`toggle-btn ${fillEnabled ? 'on' : ''}`}
                                         onClick={() => setFillEnabled(v => !v)}>
                                         {fillEnabled ? 'On' : 'Off'}
@@ -895,12 +970,59 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                                         </div>
                                     )}
                                 </SPRow>
-                            )}
+
+                                {fillEnabled && (<>
+                                    {/* Fill type */}
+                                    <div className="fill-type-row">
+                                        {(['solid', 'linear', 'radial'] as const).map(ft => (
+                                            <button key={ft}
+                                                className={`fill-type-btn ${fillType === ft ? 'on' : ''}`}
+                                                onClick={() => setFillType(ft)}>
+                                                <div className="fill-type-preview" style={{
+                                                    background: ft === 'solid' ? fillColor
+                                                        : ft === 'linear' ? `linear-gradient(90deg, ${fillColor}, ${fillGradientEnd})`
+                                                            : `radial-gradient(circle, ${fillColor}, ${fillGradientEnd})`,
+                                                }} />
+                                                {ft}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Gradient end colour (only for gradient types) */}
+                                    {fillType !== 'solid' && (
+                                        <div className="gradient-stops">
+                                            <div className="gradient-stop-row">
+                                                <span className="stop-label">Start</span>
+                                                <div className="color-pick-wrap sm">
+                                                    <div className="cpw-preview" style={{ background: fillColor }} />
+                                                    <input type="color" value={fillColor} onChange={e => setFillColor(e.target.value)} />
+                                                </div>
+                                                <span className="sp-val" style={{ fontSize: '.6rem', color: 'rgba(255,255,255,.3)' }}>—</span>
+                                            </div>
+                                            <div className="gradient-stop-row">
+                                                <span className="stop-label">End</span>
+                                                <div className="color-pick-wrap sm">
+                                                    <div className="cpw-preview" style={{ background: fillGradientEnd }} />
+                                                    <input type="color" value={fillGradientEnd} onChange={e => setFillGradientEnd(e.target.value)} />
+                                                </div>
+                                                <span className="sp-val" style={{ fontSize: '.6rem', color: 'rgba(255,255,255,.3)' }}>—</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Fill opacity */}
+                                    <SPRow label="Fill opacity" icon={<Icons.Opacity />}>
+                                        <input type="range" min="5" max="100" value={fillOpacity}
+                                            onChange={e => setFillOpacity(+e.target.value)} />
+                                        <span className="sp-val">{fillOpacity}%</span>
+                                    </SPRow>
+                                </>)}
+                            </>)}
 
                             <div className="sp-div" />
 
                             {/* Shadow toggle */}
-                            <SPRow label="Shadow" icon={<Icons.Shadow />}>
+                            <SPRow label="Shadow" icon={<Icons.Shadow />} inline>
                                 <button className={`toggle-btn ${shadowEnabled ? 'on' : ''}`}
                                     onClick={() => setShadowEnabled(v => !v)}>
                                     {shadowEnabled ? 'On' : 'Off'}
@@ -908,7 +1030,7 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                             </SPRow>
 
                             {shadowEnabled && (<>
-                                <SPRow label="Color" icon={<Icons.ColorDot />}>
+                                <SPRow label="Color" icon={<Icons.ColorDot />} inline>
                                     <div className="color-pick-wrap sm">
                                         <div className="cpw-preview" style={{ background: shadowColor }} />
                                         <input type="color" value={shadowColor} onChange={e => setShadowColor(e.target.value)} />
@@ -917,17 +1039,17 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                                 <SPRow label="Blur" icon={<Icons.ShadowBlur />}>
                                     <input type="range" min="0" max="60" value={shadowBlur}
                                         onChange={e => setShadowBlur(+e.target.value)} />
-                                    <span className="sp-val">{shadowBlur}</span>
+                                    <span className="sp-val">{shadowBlur}px</span>
                                 </SPRow>
                                 <SPRow label="X offset" icon={<Icons.OffsetX />}>
                                     <input type="range" min="-30" max="30" value={shadowOffsetX}
                                         onChange={e => setShadowOffsetX(+e.target.value)} />
-                                    <span className="sp-val">{shadowOffsetX}</span>
+                                    <span className="sp-val">{shadowOffsetX}px</span>
                                 </SPRow>
                                 <SPRow label="Y offset" icon={<Icons.OffsetY />}>
                                     <input type="range" min="-30" max="30" value={shadowOffsetY}
                                         onChange={e => setShadowOffsetY(+e.target.value)} />
-                                    <span className="sp-val">{shadowOffsetY}</span>
+                                    <span className="sp-val">{shadowOffsetY}px</span>
                                 </SPRow>
                             </>)}
                         </div>
@@ -1020,6 +1142,13 @@ export default function ImageEditorModal({ src, onClose, onSaveToFeed }: ImageEd
                 </div>
             )}
 
+            {/* ══ CLIPBOARD TOAST ══════════════════════════════════ */}
+            {showToast && (
+                <div key={toastKey} className="clipboard-toast">
+                    <Icons.Check /> Copied to clipboard!
+                </div>
+            )}
+
             {/* ══ BOTTOM STATUS BAR ════════════════════════════════ */}
             <div className="status-bar">
                 <div className="sb-metric"><Icons.ZoomIn /><span className="sb-val">{Math.round(scale * 100)}%</span></div>
@@ -1080,14 +1209,19 @@ function MagnifierLoupe({ bgCanvas, mainCanvas, pos, imagePos, accentColor }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STYLE PANEL ROW
+// STYLE PANEL ROW  — two-line layout (head row + control row)
+// Pass inline=true for single-line rows (toggles, colour pickers)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SPRow({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function SPRow({ label, icon, children, inline = false }: {
+    label: string; icon?: React.ReactNode; children: React.ReactNode; inline?: boolean;
+}) {
     return (
-        <div className="sp-row">
-            <span className="sp-row-icon">{icon}</span>
-            <span className="sp-row-label">{label}</span>
+        <div className={`sp-row ${inline ? 'inline' : ''}`}>
+            <div className="sp-row-head">
+                <span className="sp-row-icon">{icon}</span>
+                <span className="sp-row-label">{label}</span>
+            </div>
             <div className="sp-row-ctrl">{children}</div>
         </div>
     );

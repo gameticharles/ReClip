@@ -266,6 +266,15 @@ input[type="range"] {
     cursor: not-allowed;
 }
 
+.iab.copy-btn {
+    color: rgba(255, 255, 255, .55);
+}
+
+.iab.copy-btn:hover {
+    background: rgba(6, 182, 212, .18);
+    color: #67e8f9;
+}
+
 .iab.save-btn {
     background: rgba(99, 102, 241, .14);
     color: #a5b4fc;
@@ -284,6 +293,17 @@ input[type="range"] {
 .iab.close-btn:hover {
     background: #ef4444;
     color: #fff;
+}
+
+.iab.copy-btn {
+    background: rgba(16, 185, 129, .1);
+    color: #6ee7b7;
+}
+
+.iab.copy-btn:hover {
+    background: rgba(16, 185, 129, .28);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, .3);
 }
 
 /* crop bar */
@@ -491,17 +511,21 @@ input[type="range"] {
 }
 
 .sp-body {
-    background: rgba(14, 14, 20, .82);
+    background: rgba(14, 14, 20, .88);
     backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, .09);
     border-radius: 14px;
-    padding: 12px 10px;
-    width: 222px;
+    padding: 12px 12px;
+    width: 248px;
+    box-sizing: border-box;
+    /* include padding in width */
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 16px 48px rgba(0, 0, 0, .55);
     animation: fadeIn .2s ease;
+    overflow: hidden;
+    /* hard stop: nothing bleeds past the panel */
 }
 
 @keyframes fadeIn {
@@ -517,26 +541,27 @@ input[type="range"] {
 }
 
 .sp-title {
-    font-size: .68rem;
+    font-size: .65rem;
     font-weight: 700;
-    letter-spacing: .08em;
+    letter-spacing: .1em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, .3);
-    padding: 0 4px 6px;
+    color: rgba(255, 255, 255, .28);
+    padding: 0 2px 8px;
     margin: 0;
 }
 
 .sp-div {
     height: 1px;
     background: rgba(255, 255, 255, .07);
-    margin: 6px 0;
+    margin: 5px 0;
 }
 
+/* Each row: icon+label on one line, full-width control below */
 .sp-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 4px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 4px 4px;
     border-radius: 8px;
     transition: background .15s;
 }
@@ -545,8 +570,15 @@ input[type="range"] {
     background: rgba(255, 255, 255, .03);
 }
 
+/* Top part: icon + label + inline value (for sliders) */
+.sp-row-head {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
 .sp-row-icon {
-    width: 16px;
+    width: 15px;
     display: flex;
     justify-content: center;
     color: rgba(255, 255, 255, .3);
@@ -554,31 +586,65 @@ input[type="range"] {
 }
 
 .sp-row-label {
-    font-size: .7rem;
-    color: rgba(255, 255, 255, .4);
-    width: 52px;
-    flex-shrink: 0;
+    font-size: .68rem;
+    color: rgba(255, 255, 255, .42);
+    flex: 1;
     letter-spacing: .02em;
 }
 
+/* Bottom part: the actual control (slider, buttons, colour) */
 .sp-row-ctrl {
     display: flex;
     align-items: center;
     gap: 5px;
-    flex: 1;
+    min-width: 0;
+    /* critical: allows children to shrink */
+    overflow: hidden;
+    /* belt-and-braces clipping */
+    padding-left: 20px;
+    /* indent to align under label, past icon */
 }
 
+/* Slider fills all remaining horizontal space; never forces overflow */
 .sp-row-ctrl input[type="range"] {
-    flex: 1;
-    width: auto;
+    flex: 1 1 0;
+    /* grow & shrink, basis=0 */
+    min-width: 0;
+    /* override browser default min-content */
+    width: 0;
+    /* override global width:90px rule */
+    max-width: none;
 }
 
+/* Value readout: always visible, never compressed */
 .sp-val {
     font-size: .68rem;
     font-variant-numeric: tabular-nums;
-    color: rgba(255, 255, 255, .45);
-    min-width: 28px;
+    color: rgba(255, 255, 255, .55);
+    min-width: 34px;
+    max-width: 38px;
     text-align: right;
+    font-weight: 600;
+    flex-shrink: 0;
+    /* never compress the number */
+    white-space: nowrap;
+}
+
+/* Compact variant: keep everything on one line (for toggles, color pickers, etc.) */
+.sp-row.inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+}
+
+.sp-row.inline .sp-row-head {
+    flex: 1;
+}
+
+.sp-row.inline .sp-row-ctrl {
+    padding-left: 0;
+    flex: 1;
+    justify-content: flex-end;
 }
 
 .toggle-btn {
@@ -623,6 +689,86 @@ input[type="range"] {
 .dash-btn.on {
     background: rgba(99, 102, 241, .2);
     border-color: rgba(99, 102, 241, .5);
+}
+
+/* Fill type selector */
+.fill-type-row {
+    display: flex;
+    gap: 4px;
+    padding-left: 20px;
+    flex-wrap: wrap;
+}
+
+.fill-type-btn {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 6px;
+    padding: 4px 0;
+    font-size: .62rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, .4);
+    cursor: pointer;
+    transition: all .18s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.fill-type-btn:hover {
+    background: rgba(255, 255, 255, .09);
+    color: #fff;
+}
+
+.fill-type-btn.on {
+    background: rgba(99, 102, 241, .2);
+    border-color: rgba(99, 102, 241, .5);
+    color: #a5b4fc;
+}
+
+.fill-type-preview {
+    width: 28px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, .1);
+}
+
+/* Gradient stops row */
+.gradient-stops {
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.gradient-stop-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gradient-stop-row .stop-label {
+    font-size: .62rem;
+    color: rgba(255, 255, 255, .32);
+    width: 24px;
+    flex-shrink: 0;
+}
+
+.gradient-stop-row .color-pick-wrap {
+    flex-shrink: 0;
+}
+
+.gradient-stop-row input[type="range"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.gradient-stop-row .sp-val {
+    min-width: 26px;
 }
 
 /* ── CANVAS VIEWPORT ───────────────────────────────────────── */
@@ -915,6 +1061,57 @@ input[type="range"] {
     padding: 0 2px;
     pointer-events: none;
     user-select: none;
+}
+
+/* ── CLIPBOARD TOAST ───────────────────────────────────────── */
+
+.clipboard-toast {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: rgba(16, 185, 129, .15);
+    border: 1px solid rgba(16, 185, 129, .35);
+    color: #6ee7b7;
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0;
+    animation: toastIn .3s cubic-bezier(.34, 1.56, .64, 1) forwards,
+        toastOut .3s ease .9s forwards;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(16, 185, 129, .2);
+}
+
+@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes toastOut {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-6px);
+    }
 }
 
 /* ── BOTTOM STATUS BAR ─────────────────────────────────────── */
