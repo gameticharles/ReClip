@@ -1,7 +1,14 @@
 
-## [1.1.3] - 2026-03-08
+## [1.2.0] - 2026-03-09
+
+### ✨ New Features
+- **Screen Capture**: Added a new screen capture feature to capture screenshots of the screen.
+- **Image Editing**: Added a new image editing feature to edit screenshots.
+
+### 🐛 Bug Fixes
 - **Core**: Prevented multiple instances of the app from running simultaneously. Launching a second instance now focuses the existing main window.
 - **Modularization**: Modularized the application into smaller, more manageable components.
+- **UI**: Fixed an issue where the search widget border was not visible in light mode.
 
 ## [1.1.2] - 2026-03-08
 - **Security**: Updated Content Security Policy (CSP) to allow local file access.

@@ -9,19 +9,22 @@ export interface ChangeLogEntry {
 
 export const CHANGELOG_DATA: ChangeLogEntry[] = [
     {
-        version: "1.1.3",
-        date: "2026-03-08",
+        version: "1.2.0",
+        date: "2026-03-09",
         sections: [
             {
-                title: "Core Updates",
+                title: "✨ New Features",
                 items: [
-                    "**Single Instance**: Prevented multiple app instances from running simultaneously. Attempting to open a second instance will now focus the existing main window."
+                    "**Screen Capture**: Added a new screen capture feature to capture screenshots of the screen.",
+                    "**Image Editing**: Added a new image editing feature to edit screenshots."
                 ]
             },
             {
-                title: "Modularization",
+                title: "🐛 Bug Fixes",
                 items: [
-                    "**Modularization**: Modularized the application into smaller, more manageable components."
+                    "**Core**: Prevented multiple instances of the app from running simultaneously. Launching a second instance now focuses the existing main window.",
+                    "**Modularization**: Modularized the application into smaller, more manageable components.",
+                    "**UI**: Fixed an issue where the search widget border was not visible in light mode."
                 ]
             }
 
