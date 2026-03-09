@@ -1,3 +1,6 @@
+## [1.2.0] - 2026-03-09
+
+added editor and screen capture
 
 ## [1.2.0] - 2026-03-09
 
@@ -348,6 +351,7 @@ Fixed tray UI logic and updated version for CI/CD
 
 - Fixed release script.
 - Initial project setup.
+
 
 
 
