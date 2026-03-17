@@ -1,9 +1,5 @@
 ## [1.2.0] - 2026-03-09
 
-added editor and screen capture
-
-## [1.2.0] - 2026-03-09
-
 ### ✨ New Features
 - **Screen Capture**: Added a new screen capture feature to capture screenshots of the screen.
 - **Image Editing**: Added a new image editing feature to edit screenshots.
@@ -16,13 +12,11 @@ added editor and screen capture
 ## [1.1.2] - 2026-03-08
 - **Security**: Updated Content Security Policy (CSP) to allow local file access.
 
-features and bugs fixes
+
 ## [1.1.1] - 2026-03-08
 - **Tray**: Fixed tray menu logic to ensure proper updates and sync with main application state.
 - **Pasting**: Fixed an issue where pasting HTML content into plain text fields would fail. Now automatically falls back to plain text when needed.
 
-
-features and bug fix
 ## [1.1.0] - 2026-03-08
 
 ### ✨ New Features
